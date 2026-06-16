@@ -1,0 +1,30 @@
+{
+  "name": "nexus-monitor",
+  "version": "1.0.0",
+  "description": "System dashboard backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "systeminformation": "5.30.6",
+    "world-map-country-shapes": "^1.0.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "bin": "server.js",
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "assets": [
+      "dashboard.html",
+      "node_modules/systeminformation/**/*"
+    ],
+    "outputPath": "dist"
+  }
+}
