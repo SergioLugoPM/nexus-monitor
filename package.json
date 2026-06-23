@@ -10,6 +10,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "satellite.js": "^4.1.4",
     "systeminformation": "5.30.6",
     "world-map-country-shapes": "^1.0.0"
   },

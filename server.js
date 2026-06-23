@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const si = require('systeminformation');
+const satLib = require('satellite.js');
 const app = express();
 const PORT = process.env.NEXUS_PORT || 3000;
 
@@ -260,6 +261,67 @@ app.get('/news', async (req, res) => {
   res.json({items: items.length ? items : ['Sin noticias disponibles por ahora']});
 });
 
+// ── SATELLITE TLE HELPERS ─────────────────────────────────────────────────────
+// TLEs are valid for days — cache 1 h to avoid hammering Celestrak.
+let _tleCache = null;
+let _tleCacheTs = 0;
+const TLE_TTL = 60 * 60 * 1000;
+
+// Parse 3-line TLE text into [{name, tle1, tle2}]
+function parseTLEs(text) {
+  const lines = text.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = [];
+  for (let i = 0; i + 2 < lines.length; i += 3) {
+    const name = lines[i].replace(/^0 /, '').trim();
+    if (lines[i+1].startsWith('1 ') && lines[i+2].startsWith('2 ')) {
+      out.push({ name, tle1: lines[i+1], tle2: lines[i+2] });
+    }
+  }
+  return out;
+}
+
+// Compute current geodetic position from TLE using satellite.js
+function propagateSat(tle1, tle2) {
+  try {
+    const satrec = satLib.twoline2satrec(tle1, tle2);
+    const now = new Date();
+    const { position } = satLib.propagate(satrec, now);
+    if (!position || typeof position.x !== 'number' || isNaN(position.x)) return null;
+    const gmst = satLib.gstime(now);
+    const geo  = satLib.eciToGeodetic(position, gmst);
+    return {
+      lat: parseFloat(satLib.radiansToDegrees(geo.latitude).toFixed(3)),
+      lon: parseFloat(satLib.radiansToDegrees(geo.longitude).toFixed(3)),
+      alt: Math.round(geo.height)
+    };
+  } catch { return null; }
+}
+
+async function getTLEs() {
+  const now = Date.now();
+  if (_tleCache && now - _tleCacheTs < TLE_TTL) return _tleCache;
+  nxLog('Refreshing TLE cache from Celestrak...', 'info');
+  // stations = ISS, CSS (Tiangong), etc.  visual = 100 brightest objects
+  const [r1, r2] = await Promise.allSettled([
+    fetch('https://celestrak.org/SATCAT/tle.php?GROUP=stations', { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'Mozilla/5.0' } }),
+    fetch('https://celestrak.org/SATCAT/tle.php?GROUP=visual',   { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'Mozilla/5.0' } }),
+  ]);
+  const tles = [];
+  const seen = new Set();
+  for (const r of [r1, r2]) {
+    if (r.status !== 'fulfilled' || !r.value.ok) continue;
+    for (const sat of parseTLEs(await r.value.text())) {
+      if (!seen.has(sat.name)) { seen.add(sat.name); tles.push(sat); }
+    }
+  }
+  if (tles.length > 0) {
+    _tleCache = tles;
+    _tleCacheTs = now;
+    nxLog('TLE cache: ' + tles.length + ' satellites', 'ok');
+  }
+  return tles;
+}
+
 // ── FIRE LAND-FILTER ─────────────────────────────────────────────────────────
 // NASA FIRMS / VIIRS satellites detect ALL surface heat sources, including:
 //   • Offshore oil platform gas flares (very common false positives)
@@ -289,160 +351,121 @@ function isValidLandFire(f) {
   return true;
 }
 
-app.get('/events', async (req,res)=>{
-  const events=[];
-  
-  // 1. Earthquakes (Osiris or USGS fallback)
-  try {
-    nxLog('Fetching Osiris earthquakes...', 'info');
-    const r = await fetch('https://osirisai.live/api/earthquakes', { signal: AbortSignal.timeout(6000) });
-    const d = await r.json();
-    const list = d.earthquakes || d || [];
-    list.slice(0, 25).forEach(e => {
+app.get('/events', async (req, res) => {
+  // Run all three independent fetches in parallel
+  const [quakeRes, satRes, fireRes, geoNewsRes] = await Promise.allSettled([
+
+    // ── 1. EARTHQUAKES — USGS GeoJSON (M4.5+, last 24 h) ─────────────────────
+    fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson',
+      { signal: AbortSignal.timeout(8000) })
+      .then(r => r.json()),
+
+    // ── 2. SATELLITES — Celestrak TLE + satellite.js ──────────────────────────
+    getTLEs(),
+
+    // ── 3. WILDFIRES — NASA FIRMS VIIRS NOAA-20, last 24 h ───────────────────
+    fetch('https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
+      { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' } })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }),
+
+    // ── 4. GEOLOCATED NEWS — Osiris (no free alternative; skip silently on error)
+    fetch('https://osirisai.live/api/news', { signal: AbortSignal.timeout(6000) })
+      .then(r => r.json()).catch(() => null),
+  ]);
+
+  const events = [];
+
+  // 1. Earthquakes
+  if (quakeRes.status === 'fulfilled') {
+    const features = quakeRes.value.features || [];
+    features.slice(0, 25).forEach(f => {
       events.push({
         type: 'quake',
-        lat: parseFloat(e.lat),
-        lon: parseFloat(e.lng || e.lon),
-        label: `M${parseFloat(e.magnitude).toFixed(1)}`,
-        mag: parseFloat(e.magnitude),
-        place: e.place,
-        info: `Depth: ${e.depth}km | Place: ${e.place}`
+        lat:  f.geometry.coordinates[1],
+        lon:  f.geometry.coordinates[0],
+        label: 'M' + f.properties.mag.toFixed(1),
+        mag:   f.properties.mag,
+        place: f.properties.place,
+        info:  `Depth: ${f.geometry.coordinates[2]}km | ${f.properties.place}`
       });
     });
-    nxLog('Osiris Earthquakes: ' + list.length + ' fetched', 'ok');
-  } catch (e) {
-    nxLog('ERROR Osiris earthquakes: ' + e.message + ', trying USGS fallback...', 'warn');
-    try {
-      const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson', { signal: AbortSignal.timeout(6000) });
-      const d = await r.json();
-      (d.features || []).slice(0, 20).forEach(f => {
-        events.push({
-          type: 'quake',
-          lat: f.geometry.coordinates[1],
-          lon: f.geometry.coordinates[0],
-          label: 'M' + f.properties.mag.toFixed(1),
-          mag: f.properties.mag,
-          place: f.properties.place,
-          info: `Depth: ${f.geometry.coordinates[2]}km | Place: ${f.properties.place}`
-        });
-      });
-      nxLog('USGS Fallback: ' + (d.features || []).length + ' sismos', 'ok');
-    } catch(err) {
-      nxLog('ERROR USGS fallback: ' + err.message, 'error');
-    }
+    nxLog('USGS: ' + features.length + ' quakes', 'ok');
+  } else {
+    nxLog('ERROR USGS: ' + quakeRes.reason?.message, 'error');
   }
 
-  // 2. Satellites (Osiris or ISS fallback)
-  try {
-    nxLog('Fetching Osiris satellites...', 'info');
-    const r = await fetch('https://osirisai.live/api/satellites', { signal: AbortSignal.timeout(6000) });
-    const d = await r.json();
-    const list = d.satellites || [];
-    list.slice(0, 15).forEach(sat => {
+  // 2. Satellites
+  if (satRes.status === 'fulfilled' && satRes.value.length > 0) {
+    let count = 0;
+    for (const sat of satRes.value) {
+      const pos = propagateSat(sat.tle1, sat.tle2);
+      if (!pos) continue;
+      const isStation = /ISS|ZARYA|TIANGONG|CSS|TIANHE/i.test(sat.name);
       events.push({
-        type: sat.name.toLowerCase() === 'iss' ? 'iss' : 'satellite',
-        lat: parseFloat(sat.lat),
-        lon: parseFloat(sat.lng),
+        type:  isStation ? 'iss' : 'satellite',
+        lat:   pos.lat,
+        lon:   pos.lon,
         label: sat.name,
-        info: `Alt: ${sat.alt}km | Mission: ${sat.mission}`
+        info:  `Alt: ${pos.alt} km | ${sat.name}`
       });
-    });
-    nxLog('Osiris Satellites: ' + list.length + ' fetched', 'ok');
-  } catch (e) {
-    nxLog('ERROR Osiris satellites: ' + e.message + ', trying ISS fallback...', 'warn');
-    try {
-      const r = await fetch('http://api.open-notify.org/iss-now.json', { signal: AbortSignal.timeout(5000) });
-      const d = await r.json();
-      if (d.iss_position) {
-        events.push({
-          type: 'iss',
-          lat: parseFloat(d.iss_position.latitude),
-          lon: parseFloat(d.iss_position.longitude),
-          label: 'ISS',
-          info: 'International Space Station'
-        });
-        nxLog('ISS Fallback OK: lat=' + d.iss_position.latitude + ' lon=' + d.iss_position.longitude, 'ok');
-      }
-    } catch(err) {
-      nxLog('ERROR ISS fallback: ' + err.message, 'error');
+      if (++count >= 20) break;
     }
+    nxLog('Celestrak: ' + count + ' satellites propagated', 'ok');
+  } else {
+    // Last-resort: ISS only from wheretheiss.at
+    nxLog('Celestrak unavailable, trying wheretheiss.at...', 'warn');
+    try {
+      const r = await fetch('https://api.wheretheiss.at/v1/satellites/25544', { signal: AbortSignal.timeout(5000) });
+      const d = await r.json();
+      events.push({ type: 'iss', lat: d.latitude, lon: d.longitude, label: 'ISS', info: `Alt: ${Math.round(d.altitude)} km | ISS` });
+      nxLog('wheretheiss.at fallback OK', 'ok');
+    } catch(e) { nxLog('ERROR ISS fallback: ' + e.message, 'error'); }
   }
 
-  // 3. Wildfires (Osiris → NASA FIRMS CSV fallback)
-  try {
-    nxLog('Fetching Osiris fires...', 'info');
-    const r = await fetch('https://osirisai.live/api/fires', { signal: AbortSignal.timeout(6000) });
-    const d = await r.json();
-    const list = d.fires || [];
-    const filtered = list.filter(isValidLandFire);
-    const sorted = filtered.slice().sort((a, b) => (b.frp || 0) - (a.frp || 0));
-    sorted.slice(0, 25).forEach(f => {
+  // 3. Wildfires
+  if (fireRes.status === 'fulfilled') {
+    const csv = fireRes.value;
+    // CSV cols: latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight
+    const fires = csv.split('\n').slice(1).filter(Boolean)
+      .map(l => { const c = l.split(','); return { lat: c[0], lon: c[1], frp: parseFloat(c[12]) || 0, brightness: parseFloat(c[2]) || 0, confidence: c[9] }; })
+      .filter(f => isValidLandFire({ lat: f.lat, lng: f.lon, confidence: f.confidence }))
+      .sort((a, b) => b.frp - a.frp)
+      .slice(0, 25);
+    fires.forEach(f => {
       events.push({
         type: 'fire',
-        lat: parseFloat(f.lat),
-        lon: parseFloat(f.lng || f.lon),
+        lat:  parseFloat(f.lat),
+        lon:  parseFloat(f.lon),
         label: 'FIRE',
-        info: `Brightness: ${f.brightness || 'N/A'}K | FRP: ${f.frp || 'N/A'}MW | Conf: ${f.confidence || 'nominal'}`
+        info: `Brightness: ${f.brightness.toFixed(0)} K | FRP: ${f.frp} MW | Conf: ${f.confidence}`
       });
     });
-    nxLog('Osiris Fires: ' + list.length + ' fetched', 'ok');
-  } catch (e) {
-    nxLog('ERROR Osiris fires: ' + e.message + ', trying NASA FIRMS fallback...', 'warn');
-    // NASA FIRMS public CSV — last 24h, VIIRS NOAA-20, no API key needed
-    try {
-      const r = await fetch(
-        'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
-        { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'Mozilla/5.0' } }
-      );
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const csv = await r.text();
-      const lines = csv.split('\n').slice(1).filter(Boolean);
-      // CSV: latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight
-      const fires = lines
-        .map(l => { const c = l.split(','); return { lat: c[0], lon: c[1], frp: parseFloat(c[12]) || 0, brightness: parseFloat(c[2]) || 0, confidence: c[9] }; })
-        .filter(f => isValidLandFire({ lat: f.lat, lng: f.lon, confidence: f.confidence }))
-        .sort((a, b) => b.frp - a.frp)
-        .slice(0, 25);
-      fires.forEach(f => {
-        events.push({
-          type: 'fire',
-          lat: parseFloat(f.lat),
-          lon: parseFloat(f.lon),
-          label: 'FIRE',
-          info: `Brightness: ${f.brightness.toFixed(0)}K | FRP: ${f.frp}MW | Conf: ${f.confidence} [FIRMS]`
-        });
-      });
-      nxLog('NASA FIRMS fallback: ' + fires.length + ' fires', 'ok');
-    } catch(err) {
-      nxLog('ERROR NASA FIRMS fallback: ' + err.message, 'error');
-    }
+    nxLog('NASA FIRMS: ' + fires.length + ' fires', 'ok');
+  } else {
+    nxLog('ERROR NASA FIRMS: ' + fireRes.reason?.message, 'error');
   }
 
-  // 5. Geolocated News (Osiris)
-  try {
-    nxLog('Fetching Osiris news...', 'info');
-    const r = await fetch('https://osirisai.live/api/news', { signal: AbortSignal.timeout(6000) });
-    const d = await r.json();
-    const list = d.news || d || [];
-    const geolocated = list.filter(item => item.coords && item.coords.length === 2 && !item.coords_default);
+  // 4. Geolocated news (Osiris, best-effort)
+  const geoNewsData = geoNewsRes.status === 'fulfilled' ? geoNewsRes.value : null;
+  if (geoNewsData) {
+    const list = geoNewsData.news || geoNewsData || [];
+    const geolocated = list.filter(item => item.coords?.length === 2 && !item.coords_default);
     geolocated.slice(0, 20).forEach(item => {
       events.push({
-        type: 'news',
-        lat: parseFloat(item.coords[0]),
-        lon: parseFloat(item.coords[1]),
-        label: 'NEWS',
-        title: item.title,
+        type:   'news',
+        lat:    parseFloat(item.coords[0]),
+        lon:    parseFloat(item.coords[1]),
+        label:  'NEWS',
+        title:  item.title,
         source: item.source,
-        link: item.link,
-        info: `${item.title} (${item.source})`
+        link:   item.link,
+        info:   `${item.title} (${item.source})`
       });
     });
-    nxLog('Osiris Geolocated News: ' + geolocated.length + ' fetched', 'ok');
-  } catch (e) {
-    nxLog('ERROR Osiris news: ' + e.message, 'error');
+    nxLog('Osiris geolocated news: ' + geolocated.length, 'ok');
   }
 
-  res.json({events,ts:Date.now()});
+  res.json({ events, ts: Date.now() });
 });
 
 app.get('/debug/disks', async (req,res)=>{
