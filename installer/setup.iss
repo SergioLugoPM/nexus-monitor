@@ -25,7 +25,10 @@ DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir=output
 OutputBaseFilename=NexusMonitorSetup-v{#AppVersion}
+; SetupIconFile requires installer\assets\icon.ico — add the file to enable
+#if FileExists("assets\icon.ico")
 SetupIconFile=assets\icon.ico
+#endif
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

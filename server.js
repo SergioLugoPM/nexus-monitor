@@ -2,8 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const si = require('systeminformation');
 const app = express();
-const PORT = 3000;
-app.use(cors());
+const PORT = process.env.NEXUS_PORT || 3000;
+
+// Allow browser testing (http://localhost) and Wallpaper Engine (file://, origin=null)
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || origin === 'null' || /^http:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    cb(new Error('CORS blocked: ' + origin));
+  }
+}));
 app.use(express.static(__dirname));
 
 // ── NEXUS LOG BUFFER ──────────────────────────────────────────────────────────
@@ -153,10 +160,13 @@ app.get('/network', async (req,res)=>{
   }catch(e){nxLog('ERROR network: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
+const WEATHER_CITY = process.env.NEXUS_CITY || 'Mexico_City';
+
 app.get('/weather', async (req,res)=>{
   try{
-    nxLog('Fetching weather CDMX...','info');
-    const r=await fetch('https://wttr.in/Mexico_City?format=j1',{signal:AbortSignal.timeout(8000), headers: {'User-Agent': 'curl/7.88.1'}});
+    const city = req.query.city || WEATHER_CITY;
+    nxLog('Fetching weather: '+city,'info');
+    const r=await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`,{signal:AbortSignal.timeout(8000), headers: {'User-Agent': 'curl/7.88.1'}});
     const d=await r.json();
     const cur=d.current_condition[0],today=d.weather[0];
     nxLog('Weather OK: '+cur.temp_C+'°C '+cur.weatherDesc[0].value,'ok');
@@ -179,45 +189,75 @@ app.get('/crypto', async (req,res)=>{
   }catch(e){nxLog('ERROR crypto: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
-app.get('/news', async (req,res)=>{
-  nxLog('Fetching news feeds...','info');
-  const FEEDS=[
-    {url:'https://www.eluniversal.com.mx/rss.xml',name:'El Universal'},
-    {url:'https://www.proceso.com.mx/?feed=rss2',name:'Proceso'},
-    {url:'https://feeds.bbci.co.uk/mundo/rss.xml',name:'BBC Mundo'},
-    {url:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',name:'NYT World'},
-    {url:'https://feeds.bbci.co.uk/news/world/rss.xml',name:'BBC World'},
-    {url:'https://www.24horas.mx/feed/',name:'24 Horas MX'},
-  ];
-  const items=[], seen=new Set();
-  for(const feed of FEEDS){
-    if(items.length>=12) break;
-    // Try rss2json
-    try{
-      const url='https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(feed.url)+'&count=6';
-      const r=await fetch(url,{signal:AbortSignal.timeout(5000)});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const j=await r.json();
-      if(j.status==='ok'&&j.items?.length){
-        const before=items.length;
-        for(const it of j.items){const t=(it.title||'').trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<');if(t.length>8&&!seen.has(t)){seen.add(t);items.push(t);}}
-        nxLog(feed.name+': +'+( items.length-before)+' items (rss2json)','ok');
-        continue;
+// ── NEWS FEEDS — global coverage ─────────────────────────────────────────────
+// One feed per major region so headlines aren't skewed toward any single area.
+const FEEDS = [
+  // Americas
+  {url:'https://feeds.bbci.co.uk/mundo/rss.xml',        name:'BBC Mundo'},
+  {url:'https://www.eluniversal.com.mx/rss.xml',         name:'El Universal MX'},
+  {url:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', name:'NYT World'},
+  // Europe
+  {url:'https://feeds.bbci.co.uk/news/world/rss.xml',    name:'BBC World'},
+  {url:'https://rss.dw.com/rdf/rss-en-all',              name:'DW (Germany)'},
+  {url:'https://www.france24.com/en/rss',                name:'France 24'},
+  // Middle East / Africa
+  {url:'https://www.aljazeera.com/xml/rss/all.xml',      name:'Al Jazeera'},
+  {url:'https://rss.nytimes.com/services/xml/rss/nyt/Africa.xml', name:'NYT Africa'},
+  // Asia-Pacific
+  {url:'https://japantoday.com/feed',                    name:'Japan Today'},
+  {url:'https://timesofindia.indiatimes.com/rssfeedstopstories.cms', name:'Times of India'},
+  {url:'https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml', name:'NYT Asia'},
+];
+
+async function fetchOneFeed(feed) {
+  const titles = [];
+  // Try rss2json first (handles CORS + encoding well)
+  try {
+    const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url) + '&count=4';
+    const r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+    if (r.ok) {
+      const j = await r.json();
+      if (j.status === 'ok' && j.items?.length) {
+        j.items.forEach(it => {
+          const t = (it.title || '').trim().replace(/&amp;/g,'&').replace(/&lt;/g,'<');
+          if (t.length > 8) titles.push(t);
+        });
+        nxLog(feed.name + ': +' + titles.length + ' (rss2json)', 'ok');
+        return titles;
       }
-    }catch(e){ nxLog(feed.name+' rss2json fail: '+e.message,'warn'); }
-    // Direct RSS fallback
-    try{
-      const r=await fetch(feed.url,{signal:AbortSignal.timeout(5000),headers:{'User-Agent':'Mozilla/5.0'}});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const xml=await r.text();
-      const m=[...xml.matchAll(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/g)];
-      const before=items.length;
-      m.slice(1,8).forEach(x=>{const t=x[1].replace(/<[^>]+>/g,'').trim().replace(/&amp;/g,'&');if(t.length>8&&!seen.has(t)){seen.add(t);items.push(t);}});
-      nxLog(feed.name+': +'+(items.length-before)+' items (direct)','ok');
-    }catch(e){ nxLog(feed.name+' direct fail: '+e.message,'warn'); }
+    }
+  } catch(_) {}
+  // Direct RSS fallback
+  try {
+    const r = await fetch(feed.url, {signal: AbortSignal.timeout(5000), headers: {'User-Agent': 'Mozilla/5.0'}});
+    if (r.ok) {
+      const xml = await r.text();
+      const m = [...xml.matchAll(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/g)];
+      m.slice(1, 5).forEach(x => {
+        const t = x[1].replace(/<[^>]+>/g, '').trim().replace(/&amp;/g, '&');
+        if (t.length > 8) titles.push(t);
+      });
+      nxLog(feed.name + ': +' + titles.length + ' (direct)', 'ok');
+    }
+  } catch(e) { nxLog(feed.name + ' fail: ' + e.message, 'warn'); }
+  return titles;
+}
+
+app.get('/news', async (req, res) => {
+  nxLog('Fetching news feeds (parallel)...', 'info');
+  const results = await Promise.allSettled(FEEDS.map(fetchOneFeed));
+  const seen = new Set();
+  const items = [];
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    for (const t of r.value) {
+      if (!seen.has(t)) { seen.add(t); items.push(t); }
+      if (items.length >= 20) break;
+    }
+    if (items.length >= 20) break;
   }
-  nxLog('News total: '+items.length+' items','ok');
-  res.json({items:items.length?items:['Sin noticias disponibles por ahora']});
+  nxLog('News total: ' + items.length + ' items', 'ok');
+  res.json({items: items.length ? items : ['Sin noticias disponibles por ahora']});
 });
 
 // ── FIRE LAND-FILTER ─────────────────────────────────────────────────────────
@@ -328,7 +368,7 @@ app.get('/events', async (req,res)=>{
     }
   }
 
-  // 3. Wildfires (Osiris)
+  // 3. Wildfires (Osiris → NASA FIRMS CSV fallback)
   try {
     nxLog('Fetching Osiris fires...', 'info');
     const r = await fetch('https://osirisai.live/api/fires', { signal: AbortSignal.timeout(6000) });
@@ -347,7 +387,35 @@ app.get('/events', async (req,res)=>{
     });
     nxLog('Osiris Fires: ' + list.length + ' fetched', 'ok');
   } catch (e) {
-    nxLog('ERROR Osiris fires: ' + e.message, 'error');
+    nxLog('ERROR Osiris fires: ' + e.message + ', trying NASA FIRMS fallback...', 'warn');
+    // NASA FIRMS public CSV — last 24h, VIIRS NOAA-20, no API key needed
+    try {
+      const r = await fetch(
+        'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
+        { signal: AbortSignal.timeout(10000), headers: { 'User-Agent': 'Mozilla/5.0' } }
+      );
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const csv = await r.text();
+      const lines = csv.split('\n').slice(1).filter(Boolean);
+      // CSV: latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight
+      const fires = lines
+        .map(l => { const c = l.split(','); return { lat: c[0], lon: c[1], frp: parseFloat(c[12]) || 0, brightness: parseFloat(c[2]) || 0, confidence: c[9] }; })
+        .filter(f => isValidLandFire({ lat: f.lat, lng: f.lon, confidence: f.confidence }))
+        .sort((a, b) => b.frp - a.frp)
+        .slice(0, 25);
+      fires.forEach(f => {
+        events.push({
+          type: 'fire',
+          lat: parseFloat(f.lat),
+          lon: parseFloat(f.lon),
+          label: 'FIRE',
+          info: `Brightness: ${f.brightness.toFixed(0)}K | FRP: ${f.frp}MW | Conf: ${f.confidence} [FIRMS]`
+        });
+      });
+      nxLog('NASA FIRMS fallback: ' + fires.length + ' fires', 'ok');
+    } catch(err) {
+      nxLog('ERROR NASA FIRMS fallback: ' + err.message, 'error');
+    }
   }
 
   // 5. Geolocated News (Osiris)
