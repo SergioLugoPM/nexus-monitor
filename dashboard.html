@@ -642,17 +642,17 @@ function applyPalette(c){
   const wb=document.getElementById('wx-bg');if(wb){wb.setAttribute('fill',c.deep);wb.setAttribute('stroke',c.lo);}
   const wt=document.getElementById('wx-temp');if(wt)wt.setAttribute('fill',c.hi);
   const wd=document.getElementById('wx-desc');if(wd)wd.setAttribute('fill',c.mut);
-  ['cc1','cc2','cc3','cc4','cc5','cc6'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.background=c.deep;if(id==='cc6'){el.style.borderColor=c.prHL;document.getElementById('t-pr').style.color=c.prHL;document.getElementById('cl6').style.color=c.prHL;}});
+  ['cc1','cc2','cc3','cc4','cc5','cc6'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.background=c.deep;el.style.borderColor='';});
   document.getElementById('t-cdmx').style.color=c.mid;
-  ['t-nyc','t-lon','t-dxb','t-tok'].forEach(id=>document.getElementById(id).style.color=c.hi);
-  ['cl1','cl2','cl3','cl4','cl5'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.color=c.mut;});
+  ['t-nyc','t-lon','t-dxb','t-tok','t-pr'].forEach(id=>document.getElementById(id).style.color=c.hi);
+  ['cl1','cl2','cl3','cl4','cl5','cl6'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.color=c.mid;});
   ['wc1','wc2','wc3'].forEach(id=>document.getElementById(id).style.background=c.deep);
   ['wl1','wl2','wl3'].forEach(id=>document.getElementById(id).style.color=c.mut);
   const eqc=document.getElementById('eq-count');if(eqc)eqc.style.color=c.mut;
   const eqf=document.getElementById('eq-footer');if(eqf)eqf.style.color=c.fH;
-  document.getElementById('ftr').style.borderTopColor=c.fB;document.getElementById('ftr').style.color=c.fM;
+  document.getElementById('ftr').style.borderTopColor=c.fB;document.getElementById('ftr').style.color=c.mid;
   const vs=document.getElementById('v-sig');if(vs){vs.style.color=c.hi;vs.style.opacity="0.8";}
-  ['uptime','ipval','pingval','procs'].forEach(id=>document.getElementById(id).style.color=c.fH);
+  ['uptime','ipval','pingval','procs'].forEach(id=>document.getElementById(id).style.color=c.hi);
   document.getElementById('ldot').style.background=c.live;document.getElementById('llbl').style.color=c.live;
   const bc=document.getElementById('bigclock');if(bc)bc.style.color=c.mid;
   const ba=document.getElementById('bigampm');if(ba)ba.style.color=c.mid;
