@@ -488,15 +488,15 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <!-- MAP LEGEND bottom-left -->
       <g id="map-legend" opacity=".85">
         <rect x="12" y="826" width="220" height="170" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
-        <circle cx="26" cy="844" r="3" fill="#00E5FF"/><text x="36" y="848" fill="#80EEFF" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
-        <circle cx="26" cy="862" r="3" fill="#FF6B00"/><text x="36" y="866" fill="#FFA040" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
+        <circle cx="26" cy="844" r="3" fill="#F0F0F0"/><text x="36" y="848" fill="#E0E0E0" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
+        <circle cx="26" cy="862" r="3" fill="#FF6D00"/><text x="36" y="866" fill="#FFB74D" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
         <circle cx="26" cy="880" r="4" fill="#1D9E75"/><text x="36" y="884" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
-        <circle cx="26" cy="898" r="4" fill="#E24B4A"/><text x="36" y="902" fill="#FF8080" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
-        <circle cx="26" cy="916" r="4" fill="#FAC775"/><text x="36" y="920" fill="#FAC775" font-size="12" font-family="monospace">ISS TRACKER</text>
-        <circle cx="26" cy="934" r="4" fill="#2196F3"/><text x="36" y="938" fill="#64B5F6" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
-        <circle cx="26" cy="952" r="4" fill="#EF4444"/><text x="36" y="956" fill="#F87171" font-size="12" font-family="monospace">VOLCANO</text>
-        <circle cx="26" cy="970" r="4" fill="#06B6D4"/><text x="36" y="974" fill="#67E8F9" font-size="12" font-family="monospace">STORM / CYCLONE</text>
-        <circle cx="26" cy="988" r="4" fill="#FFEB3B"/><text x="36" y="992" fill="#FFF176" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
+        <circle cx="26" cy="898" r="4" fill="#EF4444"/><text x="36" y="902" fill="#FCA5A5" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
+        <circle cx="26" cy="916" r="4" fill="#F59E0B"/><text x="36" y="920" fill="#FCD34D" font-size="12" font-family="monospace">ISS TRACKER</text>
+        <circle cx="26" cy="934" r="4" fill="#38BDF8"/><text x="36" y="938" fill="#BAE6FD" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
+        <circle cx="26" cy="952" r="4" fill="#EC4899"/><text x="36" y="956" fill="#F9A8D4" font-size="12" font-family="monospace">VOLCANO</text>
+        <circle cx="26" cy="970" r="4" fill="#8B5CF6"/><text x="36" y="974" fill="#C4B5FD" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <circle cx="26" cy="988" r="4" fill="#84CC16"/><text x="36" y="992" fill="#D9F99D" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
       </g>
       <!-- MAP STATUS TICKER bottom-right -->
       <g id="map-ticker" opacity="0">
@@ -753,7 +753,7 @@ function renderFlightPins(flights) {
     if(x < 2 || x > 1998 || y < 2 || y > 998) return;
     const dot = document.createElementNS(ns, 'circle');
     dot.setAttribute('cx', x); dot.setAttribute('cy', y);
-    dot.setAttribute('r', '2'); dot.setAttribute('fill', '#00E5FF');
+    dot.setAttribute('r', '2'); dot.setAttribute('fill', '#F0F0F0');
     dot.setAttribute('opacity', '.55');
     dot.style.cursor = 'pointer';
     dot.addEventListener('mouseover', () => {
@@ -885,7 +885,7 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
   // Moving dot along the arc
   const dot = document.createElementNS(ns, 'circle');
   dot.setAttribute('r', '1.5');
-  dot.setAttribute('fill', '#64B5F6');
+  dot.setAttribute('fill', '#BAE6FD');
   dot.setAttribute('opacity', '0.45');
   dot.innerHTML = `<animateMotion dur="${(6 + Math.random()*4).toFixed(1)}s" repeatCount="indefinite" path="${d}"/>`;
   orbitGroup.appendChild(dot);
@@ -905,13 +905,13 @@ function renderEventPins(){
     const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
     
     let dc=c.hi, tc=c.mid, r=5;
-    if(isISS){dc='#FAC775';tc='#FAC775';r=9;}
-    else if(isVolc){dc='#EF4444';tc='#F87171';r=7;}
-    else if(isStorm){dc='#06B6D4';tc='#67E8F9';r=7;}
-    else if(isBig){dc='#E24B4A';tc='#FF8080';r=8;}
-    else if(isSat){dc='#2196F3';tc='#64B5F6';r=4;}
-    else if(isNews){dc='#FFEB3B';tc='#FFF176';r=5;}
-    else if(isFire){dc='#FF6B00';tc='#FFA040';r=2;}
+    if(isISS){dc='#F59E0B';tc='#FCD34D';r=9;}        // amber
+    else if(isVolc){dc='#EC4899';tc='#F9A8D4';r=7;} // magenta (≠ red quakes)
+    else if(isStorm){dc='#8B5CF6';tc='#C4B5FD';r=7;}// violet (≠ flights)
+    else if(isBig){dc='#EF4444';tc='#FCA5A5';r=8;}  // red ≥M6
+    else if(isSat){dc='#38BDF8';tc='#BAE6FD';r=4;}  // sky blue
+    else if(isNews){dc='#84CC16';tc='#D9F99D';r=5;} // lime (≠ ISS amber)
+    else if(isFire){dc='#FF6D00';tc='#FFB74D';r=2;} // deep orange
 
     // Draw satellite orbit trail before the pin
     if(isSat || isISS) drawSatOrbit(ns, ev, x, y, orbitGroup);
@@ -927,7 +927,7 @@ function renderEventPins(){
       const ring1 = document.createElementNS(ns,'circle');
       ring1.setAttribute('cx',x); ring1.setAttribute('cy',y);
       ring1.setAttribute('r',stormR); ring1.setAttribute('fill','none');
-      ring1.setAttribute('stroke','#06B6D4'); ring1.setAttribute('stroke-width','1.5');
+      ring1.setAttribute('stroke','#8B5CF6'); ring1.setAttribute('stroke-width','1.5');
       ring1.setAttribute('stroke-dasharray','4,3'); ring1.setAttribute('opacity','.85');
       ring1.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="0 ${x} ${y}" to="360 ${x} ${y}" dur="4s" repeatCount="indefinite"/>`;
       pinGroup.appendChild(ring1);
@@ -935,19 +935,19 @@ function renderEventPins(){
       const ring2 = document.createElementNS(ns,'circle');
       ring2.setAttribute('cx',x); ring2.setAttribute('cy',y);
       ring2.setAttribute('r',stormR*0.55); ring2.setAttribute('fill','none');
-      ring2.setAttribute('stroke','#67E8F9'); ring2.setAttribute('stroke-width','1');
+      ring2.setAttribute('stroke','#C4B5FD'); ring2.setAttribute('stroke-width','1');
       ring2.setAttribute('stroke-dasharray','3,4'); ring2.setAttribute('opacity','.7');
       ring2.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="360 ${x} ${y}" to="0 ${x} ${y}" dur="3s" repeatCount="indefinite"/>`;
       pinGroup.appendChild(ring2);
       // Center dot
       const center = document.createElementNS(ns,'circle');
       center.setAttribute('cx',x); center.setAttribute('cy',y);
-      center.setAttribute('r','2.5'); center.setAttribute('fill','#E0F7FA'); center.setAttribute('opacity','.95');
+      center.setAttribute('r','2.5'); center.setAttribute('fill','#EDE9FE'); center.setAttribute('opacity','.95');
       pinGroup.appendChild(center);
       // Pulse
       const pulse = document.createElementNS(ns,'circle');
       pulse.setAttribute('cx',x); pulse.setAttribute('cy',y);
-      pulse.setAttribute('r',stormR); pulse.setAttribute('fill','#06B6D4'); pulse.setAttribute('opacity','.12');
+      pulse.setAttribute('r',stormR); pulse.setAttribute('fill','#8B5CF6'); pulse.setAttribute('opacity','.12');
       pulse.innerHTML = `<animate attributeName="r" values="${stormR};${stormR*2.5};${stormR}" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".12;0;.12" dur="2.8s" repeatCount="indefinite"/>`;
       pinGroup.appendChild(pulse);
     } else if(isFire) {
