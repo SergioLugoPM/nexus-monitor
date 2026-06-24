@@ -105,7 +105,7 @@ body.theme-win98 .bt { border: 1px solid #808080; border-right: 1px solid white;
 body.theme-win98 .bf { background: #000080 !important; }
 body.theme-win98 #p-status { font-weight: bold; }
 body.theme-win98 #greeting, body.theme-win98 #status-l, body.theme-win98 #bigampm, body.theme-win98 #bigdate, body.theme-win98 #bigday, body.theme-win98 #syshealth { color: black !important; text-shadow: none !important; }
-body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot), body.theme-win98 #kp-badge { color: white !important; border-color: white !important; }
+body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: white !important; }
 body.theme-win98 #p-wth #w-tmp, body.theme-win98 #p-wth #w-dsc, body.theme-win98 #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-win98 #bigclock { font-family: "Terminal", "Consolas", monospace !important; text-shadow: 1px 1px 0px black; }
 body.theme-win98::before, body.theme-win98::after, body.theme-win98 #crt-overlay, body.theme-win98 #crt-line { display: none !important; }
@@ -115,11 +115,12 @@ body.theme-win98 #mtx-cv { background: black !important; }
 body.theme-win98 #p-map { position: relative; overflow: hidden; }
 body.theme-win98 #wmap-wrap::after { content: ""; position: absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 10; }
 /* New elements — theme overrides */
-body.theme-win98 #cpu-tmp, body.theme-win98 #kp-val { color: black !important; }
-body.theme-macos #cpu-tmp, body.theme-macos #kp-val { color: black !important; }
+body.theme-win98 #cpu-tmp { color: black !important; }
+body.theme-macos #cpu-tmp { color: black !important; }
 body.theme-win98 #flight-pins circle, body.theme-win98 #event-pins circle { filter: grayscale(0.4); }
 body.theme-macos  #flight-pins, body.theme-macos #event-pins { filter: grayscale(0.6) brightness(0.9); }
-body.theme-macos #map-legend text { fill: black !important; }
+body.theme-macos #map-legend rect { fill: rgba(255,255,255,0.88) !important; }
+body.theme-macos #map-legend text { fill: #111 !important; }
 /* THEME: MACOS */
 body.theme-macos, body.theme-macos * { font-family: "Chicago", "Geneva", "Lucida Grande", sans-serif !important; }
 body.theme-macos .log-line { font-family: "Monaco", "Courier", monospace !important; }
@@ -131,7 +132,7 @@ body.theme-macos .title-bar { background: repeating-linear-gradient(180deg, #fff
 body.theme-macos .title-bar .lbl, body.theme-macos .title-bar .tb-text { display: inline-block !important; background: white !important; margin: 0 auto !important; padding: 0 8px !important; border: 1px solid black; font-weight: bold; letter-spacing: 1px !important; font-size: 10px; line-height: 14px; position: relative; z-index: 2; height: 14px; box-sizing: border-box; }
 body.theme-macos .title-bar::before { content: "\25A3"; position: absolute; left: 4px; top: 1px; background: white; padding: 0 4px; border: 1px solid black; font-size: 8px; color: black; z-index: 2; line-height: 12px; height: 12px; box-sizing: border-box; }
 body.theme-macos .vxl, body.theme-macos .vlg, body.theme-macos .vmd, body.theme-macos .vsm, body.theme-macos .vxs, body.theme-macos .mut, body.theme-macos .disk-val, body.theme-macos #net-u, body.theme-macos #net-d, body.theme-macos #crl1, body.theme-macos #crl2, body.theme-macos #crl3, body.theme-macos #fxl, body.theme-macos #btc-c, body.theme-macos #eth-c, body.theme-macos #sol-c { color: black !important; text-shadow: none !important; }
-body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot), body.theme-macos #kp-badge { color: black !important; text-shadow: none !important; border-color: black !important; }
+body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: black !important; text-shadow: none !important; }
 body.theme-macos #p-wth #w-tmp, body.theme-macos #p-wth #w-dsc, body.theme-macos #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-macos canvas { filter: grayscale(1) invert(1); }
 body.theme-macos #greeting, body.theme-macos #status-l, body.theme-macos #bigampm, body.theme-macos #bigdate, body.theme-macos #bigday, body.theme-macos #syshealth { color: black !important; text-shadow: none !important; }
@@ -170,6 +171,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
        <span class="thm-btn" onclick="setTheme('win98')" id="thm-win98">WIN98</span>
        <span class="thm-btn" onclick="setTheme('macos')" id="thm-macos">MAC OS</span>
     </div>
+    <span id="settings-btn" onclick="openSettings()" title="Settings" style="cursor:pointer;font-size:15px;opacity:.65;padding:0 4px;user-select:none;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='.65'">⚙</span>
   </div>
   <div id="ftr" style="display:flex;gap:12px;align-items:center;font-size:11px;white-space:nowrap;justify-content:flex-end;border:none !important;margin:0;padding:0;">
     <span>UPTIME <span id="uptime">--</span></span>
@@ -773,6 +775,7 @@ function renderFlightPins(flights) {
 }
 
 async function fetchFlights() {
+  if(!_settings.showFlights) { renderFlightPins([]); return; }
   try {
     const d = await (await fetch('http://localhost:3000/flights')).json();
     renderFlightPins(d.flights || []);
@@ -818,7 +821,8 @@ async function fetchStats(){
 async function fetchNetwork(){try{const d=await(await fetch('http://localhost:3000/network')).json();document.getElementById('ipval').textContent=d.ip;document.getElementById('pingval').textContent=d.ping+' ms';}catch(e){}}
 async function fetchWeather(){
   try{
-    const d=await(await fetch('http://localhost:3000/weather')).json();
+    const cityParam = _settings.city ? '?city='+encodeURIComponent(_settings.city) : '';
+    const d=await(await fetch('http://localhost:3000/weather'+cityParam)).json();
     _weatherData=d;
     if(d.temp!==undefined)document.getElementById('w-tmp').textContent=d.temp+'°';
     if(d.desc)document.getElementById('w-dsc').textContent=d.desc;
@@ -901,6 +905,9 @@ function renderEventPins(){
   
   _evts.forEach(ev=>{
     if(ev.type==='cctv')return;
+    if(ev.type==='fire' && !_settings.showFires) return;
+    if(ev.type==='news' && !_settings.showNews) return;
+    if(ev.type==='quake' && ev.mag !== undefined && ev.mag < _settings.seismicMin) return;
     const[x,y]=ll2xy(ev.lon,ev.lat);if(x<5||x>1995||y<5||y>996)return;
     const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
     
@@ -1406,6 +1413,107 @@ if(window.ResizeObserver){
   }).observe(document.getElementById('p-sphere'));
 }
 window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mrt=setTimeout(function(){initMatrix();drawNetGraph();initSphere();},200);});
+
+// ── SETTINGS ────────────────────────────────────────────────────────────────
+const SETTINGS_KEY = 'nexus_settings';
+const _defaultSettings = { city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true };
+let _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+}
+
+function openSettings() {
+  const m = document.getElementById('nx-settings-modal');
+  if(!m) return;
+  document.getElementById('cfg-city').value = _settings.city;
+  document.getElementById('cfg-seismic').value = _settings.seismicMin;
+  document.getElementById('cfg-seismic-val').textContent = 'M' + _settings.seismicMin;
+  document.getElementById('cfg-flights').checked = _settings.showFlights;
+  document.getElementById('cfg-fires').checked = _settings.showFires;
+  document.getElementById('cfg-news').checked = _settings.showNews;
+  m.style.display = 'flex';
+}
+
+function closeSettings() {
+  const m = document.getElementById('nx-settings-modal');
+  if(m) m.style.display = 'none';
+}
+
+function applySettings() {
+  _settings.city = document.getElementById('cfg-city').value.trim();
+  _settings.seismicMin = parseFloat(document.getElementById('cfg-seismic').value);
+  _settings.showFlights = document.getElementById('cfg-flights').checked;
+  _settings.showFires = document.getElementById('cfg-fires').checked;
+  _settings.showNews = document.getElementById('cfg-news').checked;
+  saveSettings();
+  closeSettings();
+  renderEventPins();
+  fetchFlights();
+  fetchWeather();
+}
 </script>
+
+<!-- SETTINGS MODAL -->
+<style>
+#nx-settings-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.72); align-items:center; justify-content:center; }
+#nx-settings-panel { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:24px 28px; min-width:320px; max-width:420px; width:90%; font-family:monospace; color:#e6edf3; box-shadow:0 16px 48px rgba(0,0,0,.6); }
+#nx-settings-panel h2 { margin:0 0 20px; font-size:14px; letter-spacing:3px; color:#58a6ff; text-transform:uppercase; }
+.cfg-row { margin-bottom:16px; }
+.cfg-row label { display:block; font-size:11px; letter-spacing:1px; color:#8b949e; margin-bottom:6px; text-transform:uppercase; }
+.cfg-row input[type=text] { width:100%; box-sizing:border-box; background:#161b22; border:1px solid #30363d; border-radius:4px; color:#e6edf3; padding:7px 10px; font-family:monospace; font-size:13px; outline:none; }
+.cfg-row input[type=text]:focus { border-color:#58a6ff; }
+.cfg-row input[type=range] { width:100%; accent-color:#58a6ff; }
+.cfg-row .range-row { display:flex; align-items:center; gap:10px; }
+.cfg-toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:12px; letter-spacing:1px; color:#c9d1d9; }
+.cfg-toggle-row input[type=checkbox] { width:16px; height:16px; accent-color:#58a6ff; cursor:pointer; }
+.cfg-actions { display:flex; gap:10px; margin-top:22px; }
+.cfg-btn { flex:1; padding:8px; border:none; border-radius:4px; font-family:monospace; font-size:12px; letter-spacing:1px; cursor:pointer; text-transform:uppercase; }
+.cfg-btn-apply { background:#238636; color:#fff; }
+.cfg-btn-apply:hover { background:#2ea043; }
+.cfg-btn-cancel { background:#21262d; color:#8b949e; border:1px solid #30363d; }
+.cfg-btn-cancel:hover { background:#30363d; color:#e6edf3; }
+/* WIN98 overrides */
+body.theme-win98 #nx-settings-panel { background:#c0c0c0; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; color:black; box-shadow:1px 1px 0 black; }
+body.theme-win98 #nx-settings-panel h2 { color:#000080; }
+body.theme-win98 .cfg-row input[type=text] { background:white; border:2px inset #808080; color:black; border-radius:0; }
+body.theme-win98 .cfg-row label, body.theme-win98 .cfg-toggle-row { color:black; }
+body.theme-win98 .cfg-btn-apply { background:#000080; }
+body.theme-win98 .cfg-btn-cancel { background:#c0c0c0; color:black; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; }
+/* MACOS overrides */
+body.theme-macos #nx-settings-panel { background:white; border:1px solid black; border-radius:0; color:black; box-shadow:2px 2px 0 black; }
+body.theme-macos #nx-settings-panel h2 { color:black; }
+body.theme-macos .cfg-row input[type=text] { background:white; border:1px solid black; color:black; border-radius:0; }
+body.theme-macos .cfg-row label, body.theme-macos .cfg-toggle-row { color:#333; }
+body.theme-macos .cfg-btn-cancel { background:white; color:black; border:1px solid black; border-radius:0; }
+body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0; }
+</style>
+<div id="nx-settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div id="nx-settings-panel">
+    <h2>⚙ Settings</h2>
+    <div class="cfg-row">
+      <label>Weather City (blank = server default)</label>
+      <input type="text" id="cfg-city" placeholder="e.g. Tokyo, New_York, London">
+    </div>
+    <div class="cfg-row">
+      <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
+      <div class="range-row">
+        <span style="font-size:11px;opacity:.6;">M3</span>
+        <input type="range" id="cfg-seismic" min="3" max="7" step="0.5" oninput="document.getElementById('cfg-seismic-val').textContent='M'+this.value">
+        <span style="font-size:11px;opacity:.6;">M7</span>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <label>Map Layers</label>
+      <div class="cfg-toggle-row"><span>✈ Live Flights</span><input type="checkbox" id="cfg-flights"></div>
+      <div class="cfg-toggle-row"><span>🔥 Wildfires (FIRMS)</span><input type="checkbox" id="cfg-fires"></div>
+      <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
+    </div>
+    <div class="cfg-actions">
+      <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
+      <button class="cfg-btn cfg-btn-cancel" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
