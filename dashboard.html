@@ -30,7 +30,7 @@ body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;
 .cc{border-radius:4px;padding:8px 3px;}.ccl{font-size:10px;letter-spacing:1px;}.cct{font-size:16px;margin-top:3px;font-weight:bold;}.ccamp{font-size:10px;opacity:.8;margin-top:2px;}
 .cc.hl{border-width:1px;border-style:solid;}
 .wm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;}.wc{border-radius:4px;padding:5px;text-align:center;}.wcl{font-size:10px;letter-spacing:1px;}
-.cr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.cr{display:grid;grid-template-columns:95px 1fr 75px;align-items:center;margin-bottom:6px;}
 .log-scroll{flex:1;overflow-y:auto;min-height:0;scrollbar-width:thin;}
 .log-scroll::-webkit-scrollbar{width:2px;}.log-scroll::-webkit-scrollbar-track{background:transparent;}
 .log-line{font-size:11px;line-height:1.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;}
@@ -105,7 +105,7 @@ body.theme-win98 .bt { border: 1px solid #808080; border-right: 1px solid white;
 body.theme-win98 .bf { background: #000080 !important; }
 body.theme-win98 #p-status { font-weight: bold; }
 body.theme-win98 #greeting, body.theme-win98 #status-l, body.theme-win98 #bigampm, body.theme-win98 #bigdate, body.theme-win98 #bigday, body.theme-win98 #syshealth { color: black !important; text-shadow: none !important; }
-body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot) { color: white !important; }
+body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot), body.theme-win98 #kp-badge { color: white !important; border-color: white !important; }
 body.theme-win98 #p-wth #w-tmp, body.theme-win98 #p-wth #w-dsc, body.theme-win98 #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-win98 #bigclock { font-family: "Terminal", "Consolas", monospace !important; text-shadow: 1px 1px 0px black; }
 body.theme-win98::before, body.theme-win98::after, body.theme-win98 #crt-overlay, body.theme-win98 #crt-line { display: none !important; }
@@ -114,6 +114,12 @@ body.theme-win98 #p-sphere canvas { background: #000 !important; border-top: 2px
 body.theme-win98 #mtx-cv { background: black !important; }
 body.theme-win98 #p-map { position: relative; overflow: hidden; }
 body.theme-win98 #wmap-wrap::after { content: ""; position: absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 10; }
+/* New elements — theme overrides */
+body.theme-win98 #cpu-tmp, body.theme-win98 #kp-val { color: black !important; }
+body.theme-macos #cpu-tmp, body.theme-macos #kp-val { color: black !important; }
+body.theme-win98 #flight-pins circle, body.theme-win98 #event-pins circle { filter: grayscale(0.4); }
+body.theme-macos  #flight-pins, body.theme-macos #event-pins { filter: grayscale(0.6) brightness(0.9); }
+body.theme-macos #map-legend text { fill: black !important; }
 /* THEME: MACOS */
 body.theme-macos, body.theme-macos * { font-family: "Chicago", "Geneva", "Lucida Grande", sans-serif !important; }
 body.theme-macos .log-line { font-family: "Monaco", "Courier", monospace !important; }
@@ -125,7 +131,7 @@ body.theme-macos .title-bar { background: repeating-linear-gradient(180deg, #fff
 body.theme-macos .title-bar .lbl, body.theme-macos .title-bar .tb-text { display: inline-block !important; background: white !important; margin: 0 auto !important; padding: 0 8px !important; border: 1px solid black; font-weight: bold; letter-spacing: 1px !important; font-size: 10px; line-height: 14px; position: relative; z-index: 2; height: 14px; box-sizing: border-box; }
 body.theme-macos .title-bar::before { content: "\25A3"; position: absolute; left: 4px; top: 1px; background: white; padding: 0 4px; border: 1px solid black; font-size: 8px; color: black; z-index: 2; line-height: 12px; height: 12px; box-sizing: border-box; }
 body.theme-macos .vxl, body.theme-macos .vlg, body.theme-macos .vmd, body.theme-macos .vsm, body.theme-macos .vxs, body.theme-macos .mut, body.theme-macos .disk-val, body.theme-macos #net-u, body.theme-macos #net-d, body.theme-macos #crl1, body.theme-macos #crl2, body.theme-macos #crl3, body.theme-macos #fxl, body.theme-macos #btc-c, body.theme-macos #eth-c, body.theme-macos #sol-c { color: black !important; text-shadow: none !important; }
-body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot) { color: black !important; text-shadow: none !important; }
+body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot), body.theme-macos #kp-badge { color: black !important; text-shadow: none !important; border-color: black !important; }
 body.theme-macos #p-wth #w-tmp, body.theme-macos #p-wth #w-dsc, body.theme-macos #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-macos canvas { filter: grayscale(1) invert(1); }
 body.theme-macos #greeting, body.theme-macos #status-l, body.theme-macos #bigampm, body.theme-macos #bigdate, body.theme-macos #bigday, body.theme-macos #syshealth { color: black !important; text-shadow: none !important; }
@@ -170,6 +176,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     <span>IP <span id="ipval">--</span></span>
     <span>PING <span id="pingval">-- ms</span></span>
     <span>PROCS <span id="procs">--</span></span>
+    <span id="kp-badge" title="Geomagnetic Kp index" style="display:none;cursor:default;padding:1px 5px;border-radius:3px;font-weight:bold;letter-spacing:1px;">KP <span id="kp-val">--</span></span>
     <span id="eq-footer"></span>
     <span id="hostname" style="font-size:12px;font-weight:bold;letter-spacing:1px;">SERGIO@DESKTOP</span>
     <span style="display:flex;align-items:center;"><span class="ldot" id="ldot"></span><span id="llbl">LIVE</span></span>
@@ -182,7 +189,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <div style="display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden;">
   <div style="display:flex;gap:10px;flex:1;min-height:0;overflow:hidden;">
     <div class="col" style="flex:1;min-width:0;">
-      <div class="pnl" id="p-cpu"><div class="lbl" id="l-cpu">CPU USAGE</div><div class="rsp"><span id="cpu-val" class="vxl">--</span><span class="mut" id="cpu-pct">%</span></div><div class="bt" id="bt-cpu"><div class="bf" id="bf-cpu" style="width:0%"></div></div><div class="cores"><div class="core" id="c0"></div><div class="core" id="c1"></div><div class="core" id="c2"></div><div class="core" id="c3"></div><div class="core" id="c4"></div><div class="core" id="c5"></div><div class="core" id="c6"></div><div class="core" id="c7"></div></div></div>
+      <div class="pnl" id="p-cpu"><div class="lbl" id="l-cpu">CPU USAGE</div><div class="rsp"><span id="cpu-val" class="vxl">--</span><span class="mut" id="cpu-pct">%</span><span id="cpu-tmp" class="vsm" style="margin-left:6px;opacity:.65;">--°C</span></div><div class="bt" id="bt-cpu"><div class="bf" id="bf-cpu" style="width:0%"></div></div><div class="cores"><div class="core" id="c0"></div><div class="core" id="c1"></div><div class="core" id="c2"></div><div class="core" id="c3"></div><div class="core" id="c4"></div><div class="core" id="c5"></div><div class="core" id="c6"></div><div class="core" id="c7"></div></div></div>
       <div class="pnl" id="p-ram"><div class="lbl" id="l-ram">MEMORY</div><div class="rsp"><span id="ram-v" class="vlg">--</span><span id="ram-t" class="mut">/ -- GB</span></div><div class="bt" id="bt-ram"><div class="bf" id="bf-ram" style="width:0%"></div></div></div>
       <div class="pnl" id="p-gpu"><div class="lbl" id="l-gpu">GPU · TEMP</div><div class="rsp"><span id="gpu-v" class="vmd">--%</span><span id="gpu-t" class="vsm">--°C</span></div><div class="bt" id="bt-gpu"><div class="bf" id="bf-gpu" style="width:0%"></div></div></div>
       <div id="disks-wrap" style="display:flex;flex-direction:column;gap:7px;flex-shrink:0;"></div>
@@ -439,16 +446,16 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <path id="CW" d="m 595.9,494.9 0,-0.6 -0.9,-0.4 0,0.3 0.1,0.2 0.3,0.1 0.1,0.2 -0.1,0.6 0.2,0.3 0.3,-0.7 z"/>
 <path id="IC" d="m 879.6,395.2 -0.2,-0.2 -0.7,0.5 -0.6,0 0.1,0.2 0.1,0.2 0.7,0.4 0.6,-1.1 z m 13.5,-2.1 0,-0.1 -0.1,0 -0.1,0.1 -1.3,-0.1 -0.2,0.6 -0.5,0.4 0,0.7 0.5,0.7 0.3,0.1 0.5,0.1 0.7,-0.4 0.2,-0.4 0.1,-0.8 -0.1,-0.4 0,-0.5 z m -9.7,0.8 0.5,-0.4 0,-0.2 -0.1,-0.3 -0.5,-0.3 -0.2,0 -0.2,0.2 -0.2,0.4 0.3,0.5 0.2,0.1 0.2,0 z m 4.7,-2.3 1.2,-1 0,-0.3 -1,0.1 -1.1,1 -0.3,0.1 -1,0.1 -0.5,0 -0.4,0.2 0.2,0.3 0.4,1 0.7,0.9 0.6,-0.2 0.3,-0.2 0.4,-0.6 0.5,-1.4 z m 11.6,1.3 1.5,-0.5 0.3,-1 0.3,-1.1 0,-0.7 -0.2,-0.3 -0.1,0 -0.4,0 -0.3,0.2 -0.1,0.6 -0.7,1.3 -0.5,1.2 -0.7,0.6 -0.7,0.2 0.1,0.1 0.7,0.1 0.8,-0.7 z m -19.7,-2 0.5,-0.5 0.1,-0.3 -0.1,-0.5 0.2,-0.2 -0.1,-0.4 -0.3,-0.4 -0.7,0 -0.4,0.6 0.6,1.2 0.1,0.5 0.1,0 z m 22.4,-2.7 0.9,-0.3 0.5,-0.3 0.1,-0.9 0.2,-0.3 -0.2,-0.3 -0.2,0.2 -0.2,0.4 -0.6,0.2 -0.8,0.4 -0.2,0.3 -0.2,0.9 0.4,0.1 0.3,-0.4 z"/></g>
       <g id="hubs"><circle cx="557" cy="308" r="3" class="hub" opacity=".4"/><circle cx="957" cy="223" r="3" class="hub" opacity=".4"/><circle cx="1701" cy="349" r="3" class="hub" opacity=".4"/><circle cx="1020" cy="233" r="3" class="hub" opacity=".4"/><circle cx="1007" cy="210" r="3" class="hub" opacity=".4"/><circle cx="1510" cy="625" r="3" class="hub" opacity=".4"/><circle cx="1565" cy="457" r="3" class="hub" opacity=".4"/><circle cx="1252" cy="433" r="3" class="hub" opacity=".4"/><circle cx="688" cy="722" r="3" class="hub" opacity=".4"/><circle cx="1762" cy="906" r="3" class="hub" opacity=".4"/><circle cx="1153" cy="725" r="3" class="hub" opacity=".4"/><circle cx="344" cy="351" r="3" class="hub" opacity=".4"/><circle cx="530" cy="368" r="3" class="hub" opacity=".4"/></g>
-      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath xlink:href="#rt0"/></animateMotion></circle><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath xlink:href="#rt1"/></animateMotion></circle><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.7s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.7s" repeatCount="indefinite"><mpath xlink:href="#rt2"/></animateMotion></circle><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.0s" repeatCount="indefinite"><mpath xlink:href="#rt3"/></animateMotion></circle><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.4s" repeatCount="indefinite"><mpath xlink:href="#rt4"/></animateMotion></circle><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath xlink:href="#rt5"/></animateMotion></circle><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.1s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.1s" repeatCount="indefinite"><mpath xlink:href="#rt6"/></animateMotion></circle><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.4s" repeatCount="indefinite"><mpath xlink:href="#rt7"/></animateMotion></circle><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.8s" repeatCount="indefinite"><mpath xlink:href="#rt8"/></animateMotion></circle><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.2s" repeatCount="indefinite"><mpath xlink:href="#rt9"/></animateMotion></circle><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath xlink:href="#rt10"/></animateMotion></circle><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.8s" repeatCount="indefinite"><mpath xlink:href="#rt11"/></animateMotion></circle><path id="rt12" d="M557,308 Q496.5,292.27 436,445" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.2s" repeatCount="indefinite"><mpath xlink:href="#rt12"/></animateMotion></circle><path id="rt13" d="M436,445 Q483,355.78 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.5s" repeatCount="indefinite"><mpath xlink:href="#rt13"/></animateMotion></circle><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.9s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.9s" repeatCount="indefinite"><mpath xlink:href="#rt14"/></animateMotion></circle><path id="rt15" d="M957,223 Q1055,197.52 1153,725" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="8.3s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="8.3s" repeatCount="indefinite"><mpath xlink:href="#rt15"/></animateMotion></circle><path id="rt16" d="M1153,645 Q1202.5,420.13 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="8.6s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="8.6s" repeatCount="indefinite"><mpath xlink:href="#rt16"/></animateMotion></circle></g>
+      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath xlink:href="#rt0"/></animateMotion></circle><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath xlink:href="#rt1"/></animateMotion></circle><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.7s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.7s" repeatCount="indefinite"><mpath xlink:href="#rt2"/></animateMotion></circle><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.0s" repeatCount="indefinite"><mpath xlink:href="#rt3"/></animateMotion></circle><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.4s" repeatCount="indefinite"><mpath xlink:href="#rt4"/></animateMotion></circle><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath xlink:href="#rt5"/></animateMotion></circle><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.1s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.1s" repeatCount="indefinite"><mpath xlink:href="#rt6"/></animateMotion></circle><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.4s" repeatCount="indefinite"><mpath xlink:href="#rt7"/></animateMotion></circle><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.8s" repeatCount="indefinite"><mpath xlink:href="#rt8"/></animateMotion></circle><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.2s" repeatCount="indefinite"><mpath xlink:href="#rt9"/></animateMotion></circle><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath xlink:href="#rt10"/></animateMotion></circle><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.8s" repeatCount="indefinite"><mpath xlink:href="#rt11"/></animateMotion></circle><path id="rt12" d="M557,308 Q496.5,292.27 428,442" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.2s" repeatCount="indefinite"><mpath xlink:href="#rt12"/></animateMotion></circle><path id="rt13" d="M428,442 Q488,380 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.5s" repeatCount="indefinite"><mpath xlink:href="#rt13"/></animateMotion></circle><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.9s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.9s" repeatCount="indefinite"><mpath xlink:href="#rt14"/></animateMotion></circle></g>
       <g id="radar-g">
-        <circle id="rr1" cx="436" cy="445" r="55"  fill="none" stroke-width="1.2" opacity=".45"/>
-        <circle id="rr2" cx="436" cy="445" r="110" fill="none" stroke-width="0.8" opacity=".30"/>
-        <circle id="rr3" cx="436" cy="445" r="165" fill="none" stroke-width="0.5" opacity=".20"/>
-        <line id="rch1" x1="261" y1="445" x2="611" y2="445" stroke-width="0.4" opacity=".18"/>
-        <line id="rch2" x1="436" y1="270" x2="436" y2="620" stroke-width="0.4" opacity=".18"/>
-        <g><line x1="436" y1="445" x2="436" y2="275" id="radar-arm" stroke-width="2" opacity=".7"/>
-        <path d="M436,445 L396,280 A170,170 0 0,1 476,280 Z" id="radar-fade" opacity=".18"/>
-        <animateTransform attributeName="transform" type="rotate" from="0 436 445" to="360 436 445" dur="4s" repeatCount="indefinite"/></g>
+        <circle id="rr1" cx="428" cy="442" r="55"  fill="none" stroke-width="1.2" opacity=".45"/>
+        <circle id="rr2" cx="428" cy="442" r="110" fill="none" stroke-width="0.8" opacity=".30"/>
+        <circle id="rr3" cx="428" cy="442" r="165" fill="none" stroke-width="0.5" opacity=".20"/>
+        <line id="rch1" x1="271" y1="393" x2="621" y2="393" stroke-width="0.4" opacity=".18"/>
+        <line id="rch2" x1="428" y1="267" x2="428" y2="617" stroke-width="0.4" opacity=".18"/>
+        <g><line x1="428" y1="442" x2="428" y2="272" id="radar-arm" stroke-width="2" opacity=".7"/>
+        <path d="M428,442 L388,277 A170,170 0 0,1 468,277 Z" id="radar-fade" opacity=".18"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 428 442" to="360 428 442" dur="4s" repeatCount="indefinite"/></g>
       </g>
       <line id="scan-line" x1="0" y1="-2" x2="2000" y2="-2" stroke-width="2.5" opacity=".09">
         <animate attributeName="y1" values="-2;1003;-2" dur="11s" repeatCount="indefinite"/>
@@ -463,27 +470,33 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         <circle cx="1570" cy="310" r="5" fill="#A855F7" opacity=".9"/><circle cx="1570" cy="310" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="2.7s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="2.7s" repeatCount="indefinite"/></circle><text x="1579" y="314" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-06</text>
       </g>
       <g id="event-pins"></g>
-      <circle id="pin-ring" cx="436" cy="445" r="18" fill="none" stroke-width="2.5" opacity=".8"/>
-      <circle id="pin-dot"  cx="436" cy="445" r="9"/>
-      <circle id="pin-pulse" cx="436" cy="445" r="9" opacity=".8">
-        <animate attributeName="r" values="9;42;9" dur="3s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values=".8;0;.8" dur="3s" repeatCount="indefinite"/>
-      </circle>
-      <g id="wx-pill" opacity="0">
-        <rect id="wx-bg" x="462" y="450" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
-        <text id="wx-temp" x="468" y="466" font-size="16" font-family="monospace" font-weight="bold"></text>
-        <text id="wx-desc" x="468" y="481" font-size="10" font-family="monospace"></text>
+      <g id="flight-pins" opacity=".7"></g>
+      <g id="mx-weather-group" style="cursor:pointer;">
+        <circle id="pin-ring" cx="428" cy="442" r="18" fill="none" stroke-width="2.5" opacity=".8"/>
+        <circle id="pin-dot"  cx="428" cy="442" r="9"/>
+        <circle id="pin-pulse" cx="428" cy="442" r="9" opacity=".8">
+          <animate attributeName="r" values="9;42;9" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".8;0;.8" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <g id="wx-pill" opacity="0">
+          <rect id="wx-bg" x="454" y="447" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
+          <text id="wx-temp" x="460" y="463" font-size="16" font-family="monospace" font-weight="bold"></text>
+          <text id="wx-desc" x="460" y="478" font-size="10" font-family="monospace"></text>
+        </g>
       </g>
       <text id="lbl-eq" x="8" y="505" font-size="14" font-family="monospace" opacity=".2">EQ</text>
       <!-- MAP LEGEND bottom-left -->
       <g id="map-legend" opacity=".85">
-        <rect x="12" y="880" width="200" height="112" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
-        <circle cx="26" cy="898" r="4" fill="#1D9E75"/><text x="36" y="902" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
-        <circle cx="26" cy="916" r="4" fill="#E24B4A"/><text x="36" y="920" fill="#FF8080" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
-        <circle cx="26" cy="934" r="4" fill="#FAC775"/><text x="36" y="938" fill="#FAC775" font-size="12" font-family="monospace">ISS TRACKER</text>
-        <circle cx="26" cy="952" r="4" fill="#A855F7"/><text x="36" y="956" fill="#C084FC" font-size="12" font-family="monospace">ANOMALY OBJ</text>
-        <circle cx="26" cy="970" r="4" fill="#EF4444"/><text x="36" y="974" fill="#F87171" font-size="12" font-family="monospace">VOLCANO</text>
-        <circle cx="26" cy="988" r="4" fill="#06B6D4"/><text x="36" y="992" fill="#67E8F9" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <rect x="12" y="826" width="220" height="170" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
+        <circle cx="26" cy="844" r="3" fill="#00E5FF"/><text x="36" y="848" fill="#80EEFF" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
+        <circle cx="26" cy="862" r="3" fill="#FF6B00"/><text x="36" y="866" fill="#FFA040" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
+        <circle cx="26" cy="880" r="4" fill="#1D9E75"/><text x="36" y="884" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
+        <circle cx="26" cy="898" r="4" fill="#E24B4A"/><text x="36" y="902" fill="#FF8080" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
+        <circle cx="26" cy="916" r="4" fill="#FAC775"/><text x="36" y="920" fill="#FAC775" font-size="12" font-family="monospace">ISS TRACKER</text>
+        <circle cx="26" cy="934" r="4" fill="#2196F3"/><text x="36" y="938" fill="#64B5F6" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
+        <circle cx="26" cy="952" r="4" fill="#EF4444"/><text x="36" y="956" fill="#F87171" font-size="12" font-family="monospace">VOLCANO</text>
+        <circle cx="26" cy="970" r="4" fill="#06B6D4"/><text x="36" y="974" fill="#67E8F9" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <circle cx="26" cy="988" r="4" fill="#FFEB3B"/><text x="36" y="992" fill="#FFF176" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
       </g>
       <!-- MAP STATUS TICKER bottom-right -->
       <g id="map-ticker" opacity="0">
@@ -550,10 +563,10 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <div class="col">
   <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div id="w-hum" style="font-size:13px;margin-top:2px;">--%</div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div id="w-wnd" style="font-size:13px;margin-top:2px;">--</div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div id="w-uv" style="font-size:13px;margin-top:2px;">--</div></div></div></div>
   <div class="pnl" id="p-cry"><div class="lbl" id="l-cry">CRYPTO · FX</div>
-    <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs">$--</span><span id="btc-c" style="font-size:12px;">--%</span></div>
-    <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs">$--</span><span id="eth-c" style="font-size:12px;">--%</span></div>
-    <div class="cr"><span id="crl3" style="font-size:13px;font-weight:bold;">SOL</span><span id="sol-p" class="vxs">$--</span><span id="sol-c" style="font-size:12px;">--%</span></div>
-    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;">live</span></div>
+    <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="btc-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="eth-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr"><span id="crl3" style="font-size:13px;font-weight:bold;">SOL</span><span id="sol-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="sol-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;text-align:right;">live</span></div>
   </div>
 
   <!-- NEURAL CORE — flex:1 grows to fill -->
@@ -589,6 +602,7 @@ const P={
   red:{base:'#130303',wrap:'#501313',wB:'#E24B4A',hi:'#F09595',mid:'#E24B4A',lo:'#791F1F',deep:'#0e0202',lbl:'#A32D2D',mut:'#791F1F',bar:'#E24B4A',trk:'#501313',mapBg:'#0e0202',mapLine:'#791F1F',land:'#A32D2D',pin:'#E24B4A',pulse:'#F7C1C1',pos:'#E24B4A',neg:'#F09595',warn:'#EF9F27',fB:'#791F1F',fM:'#791F1F',fH:'#A32D2D',live:'#E24B4A',thumb:'#A32D2D',prHL:'#F7C1C1',cores:['#501313','#501313','#791F1F','#A32D2D','#E24B4A','#F09595']}
 };
 let _pal=P.green;
+let _weatherData=null;
 
 function h2r(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
 function ca(hex,a){const[r,g,b]=h2r(hex);return'rgba('+r+','+g+','+b+','+a+')';}
@@ -728,6 +742,63 @@ function updateDoomClock(sec){
 setInterval(updateSingularity,1000);updateSingularity();
 
 // ── PC STATS ───────────────────────────────────────────────────────────────
+let _issCrew = [];
+
+function renderFlightPins(flights) {
+  const g = document.getElementById('flight-pins'); if(!g) return;
+  g.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  flights.forEach(f => {
+    const [x, y] = ll2xy(f.lon, f.lat);
+    if(x < 2 || x > 1998 || y < 2 || y > 998) return;
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    dot.setAttribute('r', '2'); dot.setAttribute('fill', '#00E5FF');
+    dot.setAttribute('opacity', '.55');
+    dot.style.cursor = 'pointer';
+    dot.addEventListener('mouseover', () => {
+      const tooltip = document.getElementById('map-tooltip'); if(!tooltip) return;
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong>✈️ ${f.callsign}</strong><div style="margin-top:4px;font-size:11px;color:#80EEFF;">${f.country} · ${f.alt.toLocaleString()} ft · ${f.speed} kts · HDG ${f.heading}°</div>`;
+      const rect = tooltip.closest('#wmap-wrap')?.getBoundingClientRect() || {left:0,top:0};
+      const svg = document.getElementById('wmap').getBoundingClientRect();
+      const px = svg.left + (x / 2000) * svg.width - rect.left;
+      const py = svg.top  + (y / 1001) * svg.height - rect.top;
+      tooltip.style.left = Math.min(px + 8, rect.width - 220) + 'px';
+      tooltip.style.top  = Math.max(py - 50, 4) + 'px';
+    });
+    dot.addEventListener('mouseout', () => { const t = document.getElementById('map-tooltip'); if(t) t.style.display='none'; });
+    g.appendChild(dot);
+  });
+}
+
+async function fetchFlights() {
+  try {
+    const d = await (await fetch('http://localhost:3000/flights')).json();
+    renderFlightPins(d.flights || []);
+  } catch(e) {}
+}
+
+async function fetchSpace() {
+  try {
+    const d = await (await fetch('http://localhost:3000/space')).json();
+    _issCrew = d.crew || [];
+    const kp = d.kp;
+    const badge = document.getElementById('kp-badge');
+    const kpEl = document.getElementById('kp-val');
+    if(badge && kp !== null && kp !== undefined) {
+      badge.style.display = '';
+      kpEl.textContent = kp.value;
+      const v = kp.value;
+      const col = v >= 7 ? '#E24B4A' : v >= 5 ? '#EF9F27' : v >= 3 ? '#7F77DD' : _pal.mut;
+      badge.style.color = col;
+      badge.style.borderColor = col;
+      badge.style.border = '1px solid ' + col;
+      badge.title = v >= 5 ? '⚡ AURORA POSSIBLE (Kp ' + v + ')' : 'Geomagnetic Kp = ' + v;
+    }
+  } catch(e) {}
+}
+
 async function fetchStats(){
   try{
     const d=await(await fetch('http://localhost:3000/stats')).json();const c=_pal;
@@ -740,6 +811,7 @@ async function fetchStats(){
     if(dw){dw.innerHTML='';if(d.disks&&d.disks.length){d.disks.forEach(disk=>{const div=document.createElement('div');div.className='pnl disk-pnl';div.style.borderColor=c.lo;const tbh = document.body.classList.contains('theme-win98') || document.body.classList.contains('theme-macos') ? ' title-bar' : ''; div.innerHTML='<div class="lbl disk-lbl'+tbh+'" style="color:'+c.lbl+';margin-bottom:3px;position:relative;"><span class="tb-text">Disk '+disk.mount+'</span><div class="win-btns"><div class="wb-min">_</div><div class="wb-max">&#x25A1;</div><div class="wb-cls">X</div></div></div><div class="rsp"><span class="disk-val" style="font-size:13px;color:'+c.hi+'">'+disk.used+' GB</span><span class="disk-tot mut" style="color:'+c.mut+';font-size:10px;">/ '+disk.total+' GB</span></div><div class="bt disk-bt" style="background:'+c.trk+'"><div class="bf disk-bf" style="width:'+disk.percent+'%;background:'+c.bar+'"></div></div>';dw.appendChild(div);});}}
     document.getElementById('net-u').textContent=d.net.upload+' MB/s';document.getElementById('net-d').textContent=d.net.download+' MB/s';updateNetGraph(d.net.upload,d.net.download);
     document.getElementById('hostname').textContent=d.os.hostname.toUpperCase();document.getElementById('procs').textContent=d.processes;
+    const ct=d.cpu?.temp,ctel=document.getElementById('cpu-tmp');if(ctel){if(ct!=null){ctel.textContent=ct+'°C';ctel.style.color=ct>85?'#E24B4A':ct>70?c.warn:c.mut;}else{ctel.style.display='none';}}
     const s=d.uptime,ud=Math.floor(s/86400),uh=Math.floor((s%86400)/3600),um=Math.floor((s%3600)/60);document.getElementById('uptime').textContent=ud+'d '+uh+'h '+um+'m';
   }catch(e){document.getElementById('cpu-val').textContent='ERR';}
 }
@@ -747,6 +819,7 @@ async function fetchNetwork(){try{const d=await(await fetch('http://localhost:30
 async function fetchWeather(){
   try{
     const d=await(await fetch('http://localhost:3000/weather')).json();
+    _weatherData=d;
     if(d.temp!==undefined)document.getElementById('w-tmp').textContent=d.temp+'°';
     if(d.desc)document.getElementById('w-dsc').textContent=d.desc;
     if(d.high!==undefined&&d.low!==undefined)document.getElementById('w-hl').textContent='H:'+d.high+'° L:'+d.low+'°';
@@ -773,6 +846,7 @@ async function fetchNexusLog(){
 const NH={up:Array(60).fill(0),dn:Array(60).fill(0),max:1};
 function updateNetGraph(up,dn){NH.up.push(up);NH.up.shift();NH.dn.push(dn);NH.dn.shift();NH.max=Math.max(1,...NH.up,...NH.dn)*1.2;drawNetGraph();}
 function drawNetGraph(){
+
   const cv=document.getElementById('net-cv');if(!cv)return;const c=_pal,W=cv.offsetWidth||180,H=44;cv.width=W;cv.height=H;
   const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.strokeStyle=c.lo;ctx.lineWidth=0.5;ctx.setLineDash([2,6]);
   [.33,.66].forEach(f=>{ctx.beginPath();ctx.moveTo(0,H-f*H);ctx.lineTo(W,H-f*H);ctx.stroke();});ctx.setLineDash([]);
@@ -780,55 +854,138 @@ function drawNetGraph(){
   ctx.fillStyle=_pal.mid;ctx.font='9px monospace';ctx.globalAlpha=.5;ctx.fillText(NH.max.toFixed(1)+'M',2,12);ctx.globalAlpha=1;
 }
 
-// ── MAP EVENTS ─────────────────────────────────────────────────────────────
+// ── MAP EVENTS ─────────────────────────────────────────────
 function ll2xy(lon,lat){return[Math.round((lon+180)*5.555556),Math.round((90-lat)*5.555556)];}
 let _evts=[];
+
+// Draw a subtle orbital arc in the satellite's direction of travel
+function drawSatOrbit(ns, sat, x, y, orbitGroup){
+  const degPer5min = (sat.degPerMin || 3.913) * 5;
+  // Satellites orbit West-to-East mostly; approximate heading based on inclination
+  // Use a gentle curved arc forward and backward ~15deg of orbital travel
+  // In our equirectangular map: 1 lon degree = 5.555556 px
+  const lonSpread = Math.min(degPer5min * 0.4, 30); // arc half-span in degrees
+  const lonPxSpan = lonSpread * 5.555556;
+  
+  const x0 = x - lonPxSpan;
+  const x1 = x + lonPxSpan;
+  // Satellites generally follow a sinusoidal ground track — offset y slightly
+  const yOff = (sat.lat && Math.abs(sat.lat) > 50) ? 0 : 8; // higher inclination = less lat offset
+  
+  const path = document.createElementNS(ns, 'path');
+  const d = `M${Math.round(x0)},${y} Q${x},${y - yOff} ${Math.round(x1)},${y}`;
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#2196F3');
+  path.setAttribute('stroke-width', '0.6');
+  path.setAttribute('stroke-dasharray', '3,6');
+  path.setAttribute('opacity', '0.22');
+  orbitGroup.appendChild(path);
+  
+  // Moving dot along the arc
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('r', '1.5');
+  dot.setAttribute('fill', '#64B5F6');
+  dot.setAttribute('opacity', '0.45');
+  dot.innerHTML = `<animateMotion dur="${(6 + Math.random()*4).toFixed(1)}s" repeatCount="indefinite" path="${d}"/>`;
+  orbitGroup.appendChild(dot);
+}
+
 function renderEventPins(){
   const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
+  // Separate orbit group (drawn first, under pins)
+  const orbitGroup = document.createElementNS(ns,'g');
+  orbitGroup.setAttribute('id','sat-orbits');
+  orbitGroup.setAttribute('opacity','1');
+  g.appendChild(orbitGroup);
+  
   _evts.forEach(ev=>{
     if(ev.type==='cctv')return;
     const[x,y]=ll2xy(ev.lon,ev.lat);if(x<5||x>1995||y<5||y>996)return;
-    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isFire=ev.type==='fire',isSat=ev.type==='satellite',isNews=ev.type==='news';
+    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
     
     let dc=c.hi, tc=c.mid, r=5;
     if(isISS){dc='#FAC775';tc='#FAC775';r=9;}
     else if(isVolc){dc='#EF4444';tc='#F87171';r=7;}
     else if(isStorm){dc='#06B6D4';tc='#67E8F9';r=7;}
     else if(isBig){dc='#E24B4A';tc='#FF8080';r=8;}
-    else if(isFire){dc='#FF5722';tc='#FF8A65';r=6;}
-    else if(isSat){dc='#2196F3';tc='#64B5F6';r=6;}
+    else if(isSat){dc='#2196F3';tc='#64B5F6';r=4;}
     else if(isNews){dc='#FFEB3B';tc='#FFF176';r=5;}
+    else if(isFire){dc='#FF6B00';tc='#FFA040';r=2;}
+
+    // Draw satellite orbit trail before the pin
+    if(isSat || isISS) drawSatOrbit(ns, ev, x, y, orbitGroup);
 
     const pinGroup = document.createElementNS(ns, 'g');
     pinGroup.style.cursor = 'pointer';
 
-    const pulse=document.createElementNS(ns,'circle');
-    pulse.setAttribute('cx',x);
-    pulse.setAttribute('cy',y);
-    pulse.setAttribute('r',r);
-    pulse.setAttribute('fill',dc);
-    pulse.setAttribute('opacity','.28');
-    pulse.innerHTML='<animate attributeName="r" values="'+r+';'+(r*3.5)+';'+r+'" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/><animate attributeName="opacity" values=".28;0;.28" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/>';
-    pinGroup.appendChild(pulse);
+    if(isStorm){
+      // Storm icon: spiral/hurricane symbol
+      const stormClass = ev.classification || 'TS';
+      const stormR = stormClass === 'HU' ? 11 : 8;
+      // Outer ring with dashed spiral effect
+      const ring1 = document.createElementNS(ns,'circle');
+      ring1.setAttribute('cx',x); ring1.setAttribute('cy',y);
+      ring1.setAttribute('r',stormR); ring1.setAttribute('fill','none');
+      ring1.setAttribute('stroke','#06B6D4'); ring1.setAttribute('stroke-width','1.5');
+      ring1.setAttribute('stroke-dasharray','4,3'); ring1.setAttribute('opacity','.85');
+      ring1.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="0 ${x} ${y}" to="360 ${x} ${y}" dur="4s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(ring1);
+      // Inner ring counter-rotate
+      const ring2 = document.createElementNS(ns,'circle');
+      ring2.setAttribute('cx',x); ring2.setAttribute('cy',y);
+      ring2.setAttribute('r',stormR*0.55); ring2.setAttribute('fill','none');
+      ring2.setAttribute('stroke','#67E8F9'); ring2.setAttribute('stroke-width','1');
+      ring2.setAttribute('stroke-dasharray','3,4'); ring2.setAttribute('opacity','.7');
+      ring2.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="360 ${x} ${y}" to="0 ${x} ${y}" dur="3s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(ring2);
+      // Center dot
+      const center = document.createElementNS(ns,'circle');
+      center.setAttribute('cx',x); center.setAttribute('cy',y);
+      center.setAttribute('r','2.5'); center.setAttribute('fill','#E0F7FA'); center.setAttribute('opacity','.95');
+      pinGroup.appendChild(center);
+      // Pulse
+      const pulse = document.createElementNS(ns,'circle');
+      pulse.setAttribute('cx',x); pulse.setAttribute('cy',y);
+      pulse.setAttribute('r',stormR); pulse.setAttribute('fill','#06B6D4'); pulse.setAttribute('opacity','.12');
+      pulse.innerHTML = `<animate attributeName="r" values="${stormR};${stormR*2.5};${stormR}" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".12;0;.12" dur="2.8s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(pulse);
+    } else if(isFire) {
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',x);dot.setAttribute('cy',y);
+      dot.setAttribute('r',r);dot.setAttribute('fill',dc);dot.setAttribute('opacity','.75');
+      pinGroup.appendChild(dot);
+    } else {
+      const pulse=document.createElementNS(ns,'circle');
+      pulse.setAttribute('cx',x);
+      pulse.setAttribute('cy',y);
+      pulse.setAttribute('r',r);
+      pulse.setAttribute('fill',dc);
+      pulse.setAttribute('opacity','.28');
+      pulse.innerHTML='<animate attributeName="r" values="'+r+';'+(r*3.5)+';'+r+'" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/><animate attributeName="opacity" values=".28;0;.28" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/>';
+      pinGroup.appendChild(pulse);
 
-    const dot=document.createElementNS(ns,'circle');
-    dot.setAttribute('cx',x);
-    dot.setAttribute('cy',y);
-    dot.setAttribute('r',r);
-    dot.setAttribute('fill',dc);
-    dot.setAttribute('opacity','.92');
-    pinGroup.appendChild(dot);
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',x);
+      dot.setAttribute('cy',y);
+      dot.setAttribute('r',isSat?3:r);
+      dot.setAttribute('fill',dc);
+      dot.setAttribute('opacity',isSat?'.7':'.92');
+      pinGroup.appendChild(dot);
+    }
 
-    const lbl=document.createElementNS(ns,'text');
-    lbl.setAttribute('x',x+r+3);
-    lbl.setAttribute('y',y+4);
-    lbl.setAttribute('font-size',(isISS||isNews)?'14':'12');
-    lbl.setAttribute('font-family','monospace');
-    lbl.setAttribute('fill',tc);
-    lbl.setAttribute('opacity','.88');
-    lbl.setAttribute('font-weight',(isISS||isBig)?'bold':'normal');
-    lbl.textContent=ev.label;
-    pinGroup.appendChild(lbl);
+    if(!isSat && !isFire){
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',x+(isStorm?12:r+3));
+      lbl.setAttribute('y',y+4);
+      lbl.setAttribute('font-size',(isISS||isNews)?'14':isStorm?'11':'12');
+      lbl.setAttribute('font-family','monospace');
+      lbl.setAttribute('fill',tc);
+      lbl.setAttribute('opacity','.88');
+      lbl.setAttribute('font-weight',(isISS||isBig||isStorm)?'bold':'normal');
+      lbl.textContent=ev.label;
+      pinGroup.appendChild(lbl);
+    }
 
     // Event listeners
     pinGroup.addEventListener('mouseover', () => {
@@ -839,9 +996,9 @@ function renderEventPins(){
       let titleHtml = `<strong>${ev.type.toUpperCase()}: ${ev.label || ''}</strong>`;
       if(isNews) titleHtml = `<strong>📰 NEWS: ${ev.source || ''}</strong>`;
       if(isSat) titleHtml = `<strong>🛰️ SAT: ${ev.label || ''}</strong>`;
-      if(isISS) titleHtml = `<strong>🛸 ISS (Space Station)</strong>`;
+      if(isISS) { const crew = _issCrew.length ? '<br><span style="font-size:10px;opacity:.8;">' + _issCrew.join(' · ') + '</span>' : ''; titleHtml = `<strong>🛸 ISS (Space Station)</strong>${crew}`; }
       if(ev.type === 'quake') titleHtml = `<strong>⚠️ EARTHQUAKE: ${ev.label || ''}</strong>`;
-      if(isFire) titleHtml = `<strong>🔥 ACTIVE FIRE</strong>`;
+      if(isStorm) titleHtml = `<strong>🌀 ${ev.classLabel||'STORM'}: ${ev.label}</strong>`;
       
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
       if(isNews) {
@@ -855,7 +1012,6 @@ function renderEventPins(){
       const sRect = svg.getBoundingClientRect();
       const wRect = wrap.getBoundingClientRect();
       
-      // Calculate precise pin position on screen relative to wmap-wrap container
       const px = (sRect.left - wRect.left) + (x / 2000) * sRect.width;
       const py = (sRect.top - wRect.top) + (y / 1001) * sRect.height;
       
@@ -863,18 +1019,14 @@ function renderEventPins(){
       const th = tooltip.offsetHeight;
       
       let leftPos = px - tw / 2;
-      let topPos = py - th - 12; // 12px above the pin to clear the speech bubble arrow
+      let topPos = py - th - 12;
       
-      // Keep tooltip box fully inside container boundary
       if(leftPos < 4) leftPos = 4;
       if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
       
       tooltip.style.left = leftPos + 'px';
       tooltip.style.top = topPos + 'px';
-      
-      // Set arrow offset dynamically to point directly at the pin
-      const arrowLeft = px - leftPos;
-      tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+      tooltip.style.setProperty('--arrow-left', (px - leftPos) + 'px');
     });
 
     pinGroup.addEventListener('mouseout', () => {
@@ -898,8 +1050,9 @@ async function fetchEvents(){
     const fc=_evts.filter(e=>e.type==='fire').length;
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
     const nc=_evts.filter(e=>e.type==='news').length;
+    const stc=_evts.filter(e=>e.type==='storm').length;
     const eqc=document.getElementById('eq-count');
-    if(eqc){eqc.textContent=`EQ:${qc} · FR:${fc} · SAT:${sc} · NW:${nc}`;eqc.style.color=_pal.mut;}
+    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
     const eqf=document.getElementById('eq-footer');if(eqf){eqf.textContent='EQ '+qc;eqf.style.color=_pal.fH;}
   }catch(e){}
 }
@@ -1156,6 +1309,62 @@ function initSphere(){
 }
 
 // ── INIT ────────────────────────────────────────────────────────────────────
+function initWeatherHover() {
+  const mxWg = document.getElementById('mx-weather-group');
+  if (mxWg) {
+    mxWg.addEventListener('mouseover', () => {
+      const tooltip = document.getElementById('map-tooltip');
+      if(!tooltip) return;
+      tooltip.style.display = 'block';
+      
+      const c = _pal;
+      let titleHtml = `<strong>🌤️ CLIMA: MÉXICO (CDMX)</strong>`;
+      let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">Cargando datos...</div>`;
+      
+      if (_weatherData) {
+        bodyHtml = `
+          <div style="margin-top: 4px; color: ${c.hi}; font-size: 13px; font-weight: bold;">${_weatherData.temp}°C - ${_weatherData.desc}</div>
+          <div style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px;">
+            <div><span style="color: ${c.mut};">MIN/MAX:</span> ${_weatherData.low}°C / ${_weatherData.high}°C</div>
+            <div><span style="color: ${c.mut};">HUMEDAD:</span> ${_weatherData.humidity}%</div>
+            <div><span style="color: ${c.mut};">VIENTO:</span> ${_weatherData.wind}</div>
+            <div><span style="color: ${c.mut};">ÍNDICE UV:</span> ${_weatherData.uv}</div>
+          </div>
+        `;
+      }
+      tooltip.innerHTML = `${titleHtml}${bodyHtml}`;
+      
+      const svg = document.getElementById('wmap');
+      const wrap = document.getElementById('wmap-wrap');
+      const sRect = svg.getBoundingClientRect();
+      const wRect = wrap.getBoundingClientRect();
+      
+      const px = (sRect.left - wRect.left) + (428 / 2000) * sRect.width;
+      const py = (sRect.top - wRect.top) + (393 / 1001) * sRect.height;
+      
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      
+      let leftPos = px - tw / 2;
+      let topPos = py - th - 12;
+      
+      if(leftPos < 4) leftPos = 4;
+      if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
+      
+      tooltip.style.left = leftPos + 'px';
+      tooltip.style.top = topPos + 'px';
+      
+      const arrowLeft = px - leftPos;
+      tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+    });
+
+    mxWg.addEventListener('mouseout', () => {
+      const tooltip = document.getElementById('map-tooltip');
+      if(tooltip) tooltip.style.display = 'none';
+    });
+  }
+}
+
 setPalette('green');
 document.querySelectorAll('.pnl').forEach(function(p){
   var tb = p.firstElementChild;
@@ -1175,11 +1384,14 @@ document.querySelectorAll('.pnl').forEach(function(p){
   }
 });
 setTheme(_currentTheme);updateTime();
+initWeatherHover();
 setInterval(updateTime,1000);setInterval(fetchStats,3000);setInterval(fetchNetwork,15000);
 setInterval(fetchWeather,300000);setInterval(fetchCrypto,30000);
 setInterval(fetchEvents,180000);setInterval(fetchNexusLog,2000);
+setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);
 fetchStats();fetchNetwork();fetchWeather();fetchCrypto();
 setTimeout(fetchEvents,800);setTimeout(fetchNexusLog,1500);
+setTimeout(fetchFlights,2000);setTimeout(fetchSpace,3000);
 setTimeout(initMatrix,300);setTimeout(startThreatLog,400);
 // Sphere: init after layout with multiple attempts
 setTimeout(initSphere,1000);

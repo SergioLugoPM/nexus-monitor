@@ -77,6 +77,16 @@ let _statsCache = null;
 let _statsCacheTs = 0;
 let _statsInFlight = null; // deduplicación: una sola promesa en vuelo
 
+// Response caches
+let _weatherCache = null, _weatherTs = 0;
+let _cryptoCache  = null, _cryptoTs  = 0;
+let _eventsCache  = null, _eventsTs  = 0;
+let _newsCache    = null, _newsTs    = 0;
+const TTL_WEATHER = 5  * 60 * 1000;  // 5 min
+const TTL_CRYPTO  = 30 * 1000;        // 30 s
+const TTL_EVENTS  = 2  * 60 * 1000;  // 2 min
+const TTL_NEWS    = 10 * 60 * 1000;  // 10 min
+
 app.get('/logs',(req,res)=>res.json({logs:LOG_BUF.slice(-50)}));
 
 nxLog('NEXUS MONITOR backend iniciado en puerto '+PORT,'ok');
@@ -96,13 +106,14 @@ function isRealDisk(d) {
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 async function fetchStats() {
-  const [cpu, mem, gpuData, disk, osInfo, processes] = await Promise.all([
+  const [cpu, mem, gpuData, disk, osInfo, processes, tempData] = await Promise.all([
     withTimeout(si.currentLoad(),  5000, {currentLoad:0, cpus:[]},   'currentLoad'),
     withTimeout(si.mem(),          5000, {used:0, total:0},           'mem'),
     withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
     withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
     withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
     withTimeout(si.processes(),    6000, {all:0},                     'processes'),
+    withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
   ]);
   // Red: usa netstat -e nativo (no WMI, instantáneo)
   const net = getNetworkMbps();
@@ -117,7 +128,7 @@ async function fetchStats() {
   }).filter(d=>{ const k=(d.mount.charAt(0)||'?').toUpperCase(); if(seen.has(k))return false; seen.add(k); return true; });
   nxLog('Stats: CPU='+Math.round(cpu.currentLoad)+'% RAM='+parseFloat((mem.used/1073741824).toFixed(1))+'GB disks='+disks.length,'info');
   return {
-    cpu:{load:Math.round(cpu.currentLoad),cores:(cpu.cpus||[]).map(c=>Math.round(c.load))},
+    cpu:{load:Math.round(cpu.currentLoad),cores:(cpu.cpus||[]).map(c=>Math.round(c.load)),temp:tempData?.main?Math.round(tempData.main):null},
     mem:{used:parseFloat((mem.used/1073741824).toFixed(1)),total:parseFloat((mem.total/1073741824).toFixed(1)),percent:Math.round(mem.used/mem.total*100)},
     gpu:{load:gpu.utilizationGpu||0,temp:gpu.temperatureGpu||0},
     disks,
@@ -166,17 +177,23 @@ const WEATHER_CITY = process.env.NEXUS_CITY || 'Mexico_City';
 app.get('/weather', async (req,res)=>{
   try{
     const city = req.query.city || WEATHER_CITY;
+    const now = Date.now();
+    if (!req.query.city && _weatherCache && now - _weatherTs < TTL_WEATHER) return res.json(_weatherCache);
     nxLog('Fetching weather: '+city,'info');
     const r=await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1`,{signal:AbortSignal.timeout(8000), headers: {'User-Agent': 'curl/7.88.1'}});
     const d=await r.json();
     const cur=d.current_condition[0],today=d.weather[0];
     nxLog('Weather OK: '+cur.temp_C+'°C '+cur.weatherDesc[0].value,'ok');
-    res.json({temp:parseInt(cur.temp_C),desc:cur.weatherDesc[0].value,humidity:parseInt(cur.humidity),wind:parseInt(cur.windspeedKmph),uv:parseInt(cur.uvIndex),high:parseInt(today.maxtempC),low:parseInt(today.mintempC)});
+    const result = {temp:parseInt(cur.temp_C),desc:cur.weatherDesc[0].value,humidity:parseInt(cur.humidity),wind:parseInt(cur.windspeedKmph),uv:parseInt(cur.uvIndex),high:parseInt(today.maxtempC),low:parseInt(today.mintempC)};
+    if (!req.query.city) { _weatherCache = result; _weatherTs = Date.now(); }
+    res.json(result);
   }catch(e){nxLog('ERROR weather: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
 app.get('/crypto', async (req,res)=>{
   try{
+    const now = Date.now();
+    if (_cryptoCache && now - _cryptoTs < TTL_CRYPTO) return res.json(_cryptoCache);
     nxLog('Fetching crypto prices...','info');
     const[r1,r2]=await Promise.allSettled([
       fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true',{signal:AbortSignal.timeout(8000)}),
@@ -186,7 +203,9 @@ app.get('/crypto', async (req,res)=>{
     let usdmxn=null;
     if(r2.status==='fulfilled'){try{const fx=await r2.value.json();usdmxn=parseFloat((fx.rates?.MXN||0).toFixed(2));}catch(_){}}
     nxLog('Crypto OK: BTC=$'+Math.round(c.bitcoin?.usd||0)+' USD/MXN='+usdmxn,'ok');
-    res.json({btc:{price:Math.round(c.bitcoin?.usd||0),change:parseFloat((c.bitcoin?.usd_24h_change||0).toFixed(2))},eth:{price:Math.round(c.ethereum?.usd||0),change:parseFloat((c.ethereum?.usd_24h_change||0).toFixed(2))},sol:{price:Math.round(c.solana?.usd||0),change:parseFloat((c.solana?.usd_24h_change||0).toFixed(2))},usdmxn});
+    const result = {btc:{price:Math.round(c.bitcoin?.usd||0),change:parseFloat((c.bitcoin?.usd_24h_change||0).toFixed(2))},eth:{price:Math.round(c.ethereum?.usd||0),change:parseFloat((c.ethereum?.usd_24h_change||0).toFixed(2))},sol:{price:Math.round(c.solana?.usd||0),change:parseFloat((c.solana?.usd_24h_change||0).toFixed(2))},usdmxn};
+    _cryptoCache = result; _cryptoTs = Date.now();
+    res.json(result);
   }catch(e){nxLog('ERROR crypto: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
@@ -245,6 +264,8 @@ async function fetchOneFeed(feed) {
 }
 
 app.get('/news', async (req, res) => {
+  const now = Date.now();
+  if (_newsCache && now - _newsTs < TTL_NEWS) return res.json(_newsCache);
   nxLog('Fetching news feeds (parallel)...', 'info');
   const results = await Promise.allSettled(FEEDS.map(fetchOneFeed));
   const seen = new Set();
@@ -258,7 +279,9 @@ app.get('/news', async (req, res) => {
     if (items.length >= 20) break;
   }
   nxLog('News total: ' + items.length + ' items', 'ok');
-  res.json({items: items.length ? items : ['Sin noticias disponibles por ahora']});
+  const result = {items: items.length ? items : ['Sin noticias disponibles por ahora']};
+  _newsCache = result; _newsTs = Date.now();
+  res.json(result);
 });
 
 // ── SATELLITE TLE HELPERS ─────────────────────────────────────────────────────
@@ -352,8 +375,10 @@ function isValidLandFire(f) {
 }
 
 app.get('/events', async (req, res) => {
-  // Run all three independent fetches in parallel
-  const [quakeRes, satRes, fireRes, geoNewsRes] = await Promise.allSettled([
+  const now = Date.now();
+  if (_eventsCache && now - _eventsTs < TTL_EVENTS) return res.json(_eventsCache);
+  // Run all independent fetches in parallel
+  const [quakeRes, satRes, fireRes, geoNewsRes, cycloneRes] = await Promise.allSettled([
 
     // ── 1. EARTHQUAKES — USGS GeoJSON (M4.5+, last 24 h) ─────────────────────
     fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson',
@@ -371,6 +396,9 @@ app.get('/events', async (req, res) => {
     // ── 4. GEOLOCATED NEWS — Osiris (no free alternative; skip silently on error)
     fetch('https://osirisai.live/api/news', { signal: AbortSignal.timeout(6000) })
       .then(r => r.json()).catch(() => null),
+
+    // ── 5. CYCLONES — GDACS global disaster feed
+    fetch('https://www.gdacs.org/xml/rss.xml', { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'Mozilla/5.0' } }).then(r => r.text()),
   ]);
 
   const events = [];
@@ -465,7 +493,101 @@ app.get('/events', async (req, res) => {
     nxLog('Osiris geolocated news: ' + geolocated.length, 'ok');
   }
 
-  res.json({ events, ts: Date.now() });
+  // 5. Cyclones (GDACS)
+  if (cycloneRes.status === 'fulfilled') {
+    const xml = cycloneRes.value;
+    const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+    let cycCount = 0;
+    items.forEach(item => {
+      const content = item[1];
+      const evtype = (content.match(/<gdacs:eventtype[^>]*>(.*?)<\/gdacs:eventtype>/) || [])[1];
+      if (evtype !== 'TC') return;
+      const lat  = parseFloat((content.match(/<gdacs:latitude[^>]*>(.*?)<\/gdacs:latitude>/) || [])[1]);
+      const lon  = parseFloat((content.match(/<gdacs:longitude[^>]*>(.*?)<\/gdacs:longitude>/) || [])[1]);
+      const name = ((content.match(/<gdacs:eventname[^>]*>(.*?)<\/gdacs:eventname>/) || [])[1] || 'CYCLONE').toUpperCase();
+      const sev  = (content.match(/<gdacs:severity[^>]*>([^<]*)<\/gdacs:severity>/) || [])[1] || '';
+      if (isNaN(lat) || isNaN(lon)) return;
+      events.push({ type:'storm', lat, lon, label: name, classification:'TC', classLabel:'TROPICAL CYCLONE', info:`${name} | ${sev.trim()}` });
+      cycCount++;
+    });
+    nxLog('GDACS cyclones: ' + cycCount, cycCount > 0 ? 'ok' : 'info');
+  } else {
+    nxLog('GDACS unavailable: ' + cycloneRes.reason?.message, 'warn');
+  }
+
+  const response = { events, ts: Date.now() };
+  _eventsCache = response; _eventsTs = Date.now();
+  res.json(response);
+});
+
+let _flightsCache = null, _flightsTs = 0;
+const FLIGHTS_TTL = 30 * 1000;
+
+app.get('/flights', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_flightsCache && now - _flightsTs < FLIGHTS_TTL) return res.json(_flightsCache);
+    nxLog('Fetching OpenSky flights...', 'info');
+    const r = await fetch('https://opensky-network.org/api/states/all', {
+      signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    // State vector cols: icao24[0], callsign[1], country[2], lon[5], lat[6], baro_alt[7], on_ground[8], velocity[9], heading[10], geo_alt[13]
+    const flights = (d.states || [])
+      .filter(s => s[5] !== null && s[6] !== null && s[8] === false)
+      .map(s => ({
+        icao:     s[0],
+        callsign: (s[1] || '').trim() || s[0].toUpperCase(),
+        country:  s[2] || '',
+        lon:  s[5], lat: s[6],
+        alt:  Math.round((s[7] || s[13] || 0) * 3.281), // meters → feet
+        speed: Math.round((s[9] || 0) * 1.944),          // m/s → knots
+        heading: Math.round(s[10] || 0)
+      }))
+      .slice(0, 250);
+    nxLog('OpenSky: ' + flights.length + ' flights', 'ok');
+    const result = { flights, ts: Date.now() };
+    _flightsCache = result; _flightsTs = now;
+    res.json(result);
+  } catch(e) {
+    nxLog('ERROR /flights: ' + e.message, 'warn');
+    res.json(_flightsCache || { flights: [], ts: Date.now() });
+  }
+});
+
+let _spaceCache = null, _spaceTs = 0;
+const SPACE_TTL = 5 * 60 * 1000;
+
+app.get('/space', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (_spaceCache && now - _spaceTs < SPACE_TTL) return res.json(_spaceCache);
+    const [kpRes, crewRes] = await Promise.allSettled([
+      fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      fetch('http://api.open-notify.org/astros.json', { signal: AbortSignal.timeout(5000) }).then(r => r.json())
+    ]);
+    let kp = null;
+    if (kpRes.status === 'fulfilled') {
+      const arr = kpRes.value;
+      // arr is [[datetime, kp, observed, class], ...] — last row is most recent
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const v = parseFloat(arr[i][1]);
+        if (!isNaN(v)) { kp = { value: v, class: arr[i][3] || '' }; break; }
+      }
+    }
+    let crew = [];
+    if (crewRes.status === 'fulfilled') {
+      crew = (crewRes.value?.people || []).filter(p => p.craft === 'ISS').map(p => p.name);
+    }
+    nxLog(`Space: Kp=${kp?.value ?? 'N/A'} ISS crew=${crew.length}`, 'ok');
+    const result = { kp, crew };
+    _spaceCache = result; _spaceTs = now;
+    res.json(result);
+  } catch(e) {
+    nxLog('ERROR /space: ' + e.message, 'error');
+    res.json(_spaceCache || { kp: null, crew: [] });
+  }
 });
 
 app.get('/debug/disks', async (req,res)=>{
