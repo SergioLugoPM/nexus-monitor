@@ -209,6 +209,146 @@ app.get('/crypto', async (req,res)=>{
   }catch(e){nxLog('ERROR crypto: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
+// ── GEO LOOKUP — country/city name → coordinates ─────────────────────────────
+// Sorted longest-first so "New York" matches before "York", "South Korea" before "Korea".
+const GEO_TABLE = [
+  // High-frequency news regions / conflict zones
+  ['West Bank',31.95,35.29],['Gaza Strip',31.42,34.35],['Gaza',31.50,34.47],
+  ['Donbas',48.10,37.80],['Crimea',45.35,34.10],['Kashmir',34.08,74.80],
+  ['Sahel',15.0,5.0],['Horn of Africa',8.0,48.0],['South China Sea',15.0,115.0],
+  ['Taiwan Strait',24.5,119.0],['Korean Peninsula',37.5,127.5],
+  ['Nagorno-Karabakh',39.82,46.76],['Xinjiang',41.18,85.63],
+  ['Hong Kong',22.32,114.17],['Taiwan',23.69,120.96],
+  // Americas
+  ['United States',37.09,-95.71],['Canada',56.13,-106.35],['Mexico',23.63,-102.55],
+  ['Brazil',-14.24,-51.93],['Argentina',-38.42,-63.62],['Colombia',4.57,-74.30],
+  ['Venezuela',6.42,-66.59],['Chile',-35.68,-71.54],['Peru',-9.19,-75.01],
+  ['Ecuador',-1.83,-78.18],['Bolivia',-16.29,-63.59],['Paraguay',-23.44,-58.44],
+  ['Uruguay',-32.52,-55.77],['Cuba',21.52,-77.78],['Haiti',18.97,-72.29],
+  ['Dominican Republic',18.74,-70.16],['Puerto Rico',18.22,-66.59],
+  ['Guatemala',15.78,-90.23],['Honduras',15.20,-86.24],['El Salvador',13.79,-88.90],
+  ['Nicaragua',12.87,-85.21],['Costa Rica',9.75,-83.75],['Panama',8.54,-80.78],
+  ['Washington',38.89,-77.03],['New York',40.71,-74.01],['Los Angeles',34.05,-118.24],
+  ['Chicago',41.88,-87.63],['Miami',25.77,-80.19],['Houston',29.76,-95.37],
+  ['Toronto',43.65,-79.38],['São Paulo',-23.55,-46.63],['Buenos Aires',-34.60,-58.38],
+  ['Bogotá',4.71,-74.07],['Lima',-12.05,-77.04],['Santiago',-33.45,-70.67],
+  ['Caracas',10.48,-66.88],['Havana',23.14,-82.36],['Port-au-Prince',18.54,-72.34],
+  // Europe
+  ['Russia',61.52,105.32],['Ukraine',48.37,31.17],['Germany',51.17,10.45],
+  ['France',46.23,2.21],['United Kingdom',55.38,-3.44],['Italy',41.87,12.57],
+  ['Spain',40.46,-3.75],['Poland',51.92,19.15],['Netherlands',52.13,5.29],
+  ['Belgium',50.50,4.47],['Sweden',60.13,18.64],['Norway',60.47,8.47],
+  ['Finland',61.92,25.75],['Denmark',56.26,9.50],['Switzerland',46.82,8.23],
+  ['Austria',47.52,14.55],['Czechia',49.82,15.47],['Slovakia',48.67,19.70],
+  ['Hungary',47.16,19.50],['Romania',45.94,24.97],['Bulgaria',42.73,25.49],
+  ['Serbia',44.02,21.01],['Croatia',45.10,15.20],['Greece',39.07,21.82],
+  ['Portugal',39.40,-8.22],['Ireland',53.41,-8.24],['Belarus',53.71,27.95],
+  ['Moldova',47.41,28.37],['Georgia',42.32,43.36],['Armenia',40.07,45.04],
+  ['Azerbaijan',40.14,47.58],['Kosovo',42.60,20.90],['Bosnia',44.00,17.50],
+  ['Albania',41.15,20.17],['North Macedonia',41.61,21.75],['Montenegro',42.71,19.37],
+  ['Estonia',58.60,25.01],['Latvia',56.88,24.60],['Lithuania',55.17,23.88],
+  ['Luxembourg',49.82,6.13],['Malta',35.94,14.37],['Cyprus',35.13,33.43],
+  ['Iceland',64.96,-19.02],['Slovenia',46.15,15.00],
+  ['Moscow',55.75,37.62],['Kyiv',50.45,30.52],['Kharkiv',49.99,36.23],
+  ['Mariupol',47.10,37.54],['Odesa',46.48,30.73],['London',51.51,-0.13],
+  ['Paris',48.85,2.35],['Berlin',52.52,13.41],['Rome',41.90,12.50],
+  ['Madrid',40.42,-3.70],['Warsaw',52.23,21.01],['Kyiv',50.45,30.52],
+  ['Athens',37.98,23.73],['Bucharest',44.43,26.10],['Belgrade',44.79,20.46],
+  // Middle East
+  ['Israel',31.05,34.85],['Palestine',31.95,35.29],['Lebanon',33.85,35.86],
+  ['Syria',34.80,38.99],['Iraq',33.22,43.68],['Iran',32.43,53.69],
+  ['Saudi Arabia',23.89,45.08],['Yemen',15.55,48.52],['Oman',21.51,55.92],
+  ['Qatar',25.35,51.18],['Kuwait',29.31,47.48],['Bahrain',25.93,50.64],
+  ['Jordan',30.59,36.24],['Turkey',38.96,35.24],['Egypt',26.82,30.80],
+  ['UAE',23.42,53.85],['Afghanistan',33.93,67.71],
+  ['Tehran',35.69,51.39],['Baghdad',33.34,44.40],['Damascus',33.51,36.29],
+  ['Beirut',33.89,35.50],['Riyadh',24.69,46.72],['Jerusalem',31.77,35.22],
+  ['Tel Aviv',32.08,34.78],['Istanbul',41.01,28.95],['Ankara',39.93,32.85],
+  ['Kabul',34.53,69.17],['Sanaa',15.35,44.21],
+  // Africa
+  ['Nigeria',9.08,8.68],['Ethiopia',9.14,40.49],['Egypt',26.82,30.80],
+  ['South Africa',-30.56,22.94],['Kenya',-1.29,36.82],['Tanzania',-6.37,34.89],
+  ['Sudan',15.55,32.53],['South Sudan',7.86,29.69],['Somalia',5.15,46.20],
+  ['Morocco',31.79,-7.09],['Algeria',28.03,1.66],['Tunisia',33.89,9.54],
+  ['Libya',26.34,17.23],['Ghana',7.95,-1.02],['Senegal',14.50,-14.45],
+  ['Mali',17.57,-3.99],['Niger',17.61,8.08],['Burkina Faso',12.36,-1.56],
+  ['Chad',15.45,18.73],['Cameroon',3.85,11.50],['Congo',4.04,21.76],
+  ['DRC',-4.04,21.76],['Angola',-11.20,17.87],['Mozambique',-18.67,35.53],
+  ['Zimbabwe',-19.02,29.15],['Zambia',-13.13,27.85],['Uganda',1.37,32.29],
+  ['Rwanda',-1.94,29.87],['Madagascar',-18.77,46.87],['Ivory Coast',7.54,-5.55],
+  ['Cape Verde',14.93,-23.51],['Sahara',23.0,-13.0],
+  ['Lagos',6.46,3.39],['Nairobi',-1.29,36.82],['Cairo',30.04,31.24],
+  ['Khartoum',15.55,32.53],['Addis Ababa',9.02,38.75],['Mogadishu',2.05,45.34],
+  ['Johannesburg',-26.20,28.04],['Tripoli',32.90,13.18],['Tunis',36.82,10.18],
+  ['Kinshasa',-4.32,15.32],['Luanda',-8.84,13.23],['Bamako',12.65,-8.00],
+  ['Ouagadougou',12.37,-1.52],['N\'Djamena',12.11,15.04],
+  // Asia
+  ['China',35.86,104.20],['India',20.59,78.96],['Japan',36.20,138.25],
+  ['South Korea',35.91,127.77],['North Korea',40.34,127.51],
+  ['Pakistan',30.38,69.35],['Bangladesh',23.68,90.36],['Sri Lanka',7.87,80.77],
+  ['Myanmar',21.91,95.96],['Thailand',15.87,100.99],['Vietnam',14.06,108.28],
+  ['Indonesia',-0.79,113.92],['Philippines',12.88,121.77],['Malaysia',4.21,108.00],
+  ['Singapore',1.35,103.82],['Cambodia',12.57,104.99],['Laos',19.86,102.50],
+  ['Mongolia',46.86,103.85],['Nepal',28.39,84.12],['Bhutan',27.51,90.43],
+  ['Maldives',3.20,73.22],['Papua New Guinea',-6.31,143.96],
+  ['Uzbekistan',41.38,64.59],['Kazakhstan',48.02,66.92],['Kyrgyzstan',41.20,74.76],
+  ['Tajikistan',38.86,71.28],['Turkmenistan',38.97,59.56],
+  ['Beijing',39.91,116.39],['Shanghai',31.22,121.46],['Taipei',25.03,121.57],
+  ['Tokyo',35.68,139.69],['Seoul',37.57,126.98],['Pyongyang',39.03,125.75],
+  ['New Delhi',28.61,77.21],['Mumbai',19.08,72.88],['Islamabad',33.72,73.06],
+  ['Karachi',24.86,67.01],['Dhaka',23.81,90.41],['Colombo',6.93,79.84],
+  ['Bangkok',13.75,100.52],['Jakarta',-6.21,106.85],['Manila',14.60,120.98],
+  ['Hanoi',21.03,105.85],['Naypyidaw',19.76,96.08],['Kathmandu',27.71,85.31],
+  ['Almaty',43.26,76.95],['Tashkent',41.30,69.24],
+  // Oceania
+  ['Australia',-25.27,133.78],['New Zealand',-40.90,174.89],['Fiji',-17.71,178.07],
+  ['Papua New Guinea',-6.31,143.96],
+  ['Sydney',-33.87,151.21],['Melbourne',-37.81,144.96],['Auckland',-36.87,174.77],
+].sort((a,b) => b[0].length - a[0].length); // longest names first → greedy match
+
+function geolocate(text) {
+  if (!text) return null;
+  const t = ' ' + text.toLowerCase() + ' ';
+  for (const [name, lat, lon] of GEO_TABLE) {
+    // word-boundary-ish match: check spaces/punctuation around the name
+    const n = name.toLowerCase();
+    const idx = t.indexOf(n);
+    if (idx === -1) continue;
+    const before = t[idx - 1];
+    const after  = t[idx + n.length];
+    if (/[\w]/.test(before) || /[\w]/.test(after)) continue; // not a word boundary
+    return { lat, lon, name };
+  }
+  return null;
+}
+
+async function getGeolocatedNews() {
+  // Use cached news if fresh enough
+  const raw = (_newsCache && Date.now() - _newsTs < TTL_NEWS) ? _newsCache.items : null;
+  const titles = raw || [];
+
+  // If cache is empty, do a quick parallel fetch of all feeds
+  if (!titles.length) {
+    const results = await Promise.allSettled(FEEDS.map(f => fetchOneFeed(f)));
+    for (const r of results) {
+      if (r.status === 'fulfilled') titles.push(...r.value);
+    }
+  }
+
+  const events = [];
+  const seen = new Set();
+  for (const title of titles) {
+    if (seen.has(title)) continue;
+    seen.add(title);
+    const geo = geolocate(title);
+    if (!geo) continue;
+    events.push({ title, lat: geo.lat, lon: geo.lon, name: geo.name });
+    if (events.length >= 20) break;
+  }
+  nxLog('Geolocated news: ' + events.length + ' items', 'ok');
+  return events;
+}
+
 // ── NEWS FEEDS — global coverage ─────────────────────────────────────────────
 // One feed per major region so headlines aren't skewed toward any single area.
 const FEEDS = [
@@ -393,9 +533,8 @@ app.get('/events', async (req, res) => {
       { signal: AbortSignal.timeout(12000), headers: { 'User-Agent': 'Mozilla/5.0' } })
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }),
 
-    // ── 4. GEOLOCATED NEWS — Osiris (no free alternative; skip silently on error)
-    fetch('https://osirisai.live/api/news', { signal: AbortSignal.timeout(6000) })
-      .then(r => r.json()).catch(() => null),
+    // ── 4. GEOLOCATED NEWS — RSS feeds + city/country geo-lookup
+    getGeolocatedNews(),
 
     // ── 5. CYCLONES — GDACS global disaster feed
     fetch('https://www.gdacs.org/xml/rss.xml', { signal: AbortSignal.timeout(8000), headers: { 'User-Agent': 'Mozilla/5.0' } }).then(r => r.text()),
@@ -473,24 +612,18 @@ app.get('/events', async (req, res) => {
     nxLog('ERROR NASA FIRMS: ' + fireRes.reason?.message, 'error');
   }
 
-  // 4. Geolocated news (Osiris, best-effort)
-  const geoNewsData = geoNewsRes.status === 'fulfilled' ? geoNewsRes.value : null;
-  if (geoNewsData) {
-    const list = geoNewsData.news || geoNewsData || [];
-    const geolocated = list.filter(item => item.coords?.length === 2 && !item.coords_default);
-    geolocated.slice(0, 20).forEach(item => {
+  // 4. Geolocated news (RSS + geo-lookup)
+  if (geoNewsRes.status === 'fulfilled' && geoNewsRes.value?.length) {
+    geoNewsRes.value.forEach(item => {
       events.push({
-        type:   'news',
-        lat:    parseFloat(item.coords[0]),
-        lon:    parseFloat(item.coords[1]),
-        label:  'NEWS',
-        title:  item.title,
-        source: item.source,
-        link:   item.link,
-        info:   `${item.title} (${item.source})`
+        type:  'news',
+        lat:   item.lat,
+        lon:   item.lon,
+        label: 'NEWS',
+        title: item.title,
+        info:  `${item.title} [${item.name}]`
       });
     });
-    nxLog('Osiris geolocated news: ' + geolocated.length, 'ok');
   }
 
   // 5. Cyclones (GDACS)
