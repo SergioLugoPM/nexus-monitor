@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -11,6 +11,10 @@ body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse
 @keyframes flicker{0%,95%,100%{opacity:1;}96%{opacity:.97;}97%{opacity:.99;}98%{opacity:.96;}}
 #crt-overlay{position:fixed;inset:0;z-index:9997;pointer-events:none;animation:flicker 8s infinite;}
 @keyframes hline{0%{top:-4px;}100%{top:102vh;}}
+@keyframes crit-pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0)}50%{box-shadow:0 0 10px 2px rgba(226,75,74,0.45)}}
+@keyframes crit-row-pulse{0%,100%{background:transparent}50%{background:rgba(226,75,74,0.08)}}
+.crit-alert-card{border-radius:3px;padding:7px 9px;position:relative;animation:crit-pulse 2.5s ease-in-out infinite;}
+.crit-ev-row{animation:crit-row-pulse 2.5s ease-in-out infinite;border-left:2px solid;padding-left:4px;border-radius:1px;}
 #crt-line{position:fixed;left:0;right:0;height:2px;z-index:9996;pointer-events:none;background:rgba(255,255,255,0.03);animation:hline 12s linear infinite;}
 body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;overflow:hidden;width:100vw;height:100vh;display:flex;align-items:stretch;padding:10px 10px 54px 10px;box-sizing:border-box;}
 #root{width:100%;border-radius:12px;padding:1px;}
@@ -21,19 +25,19 @@ body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;
 .col-m{display:flex;flex-direction:column;gap:7px;min-height:0;}
 .pnl{border-width:1px;border-style:solid;border-radius:5px;padding:8px 10px;flex-shrink:0;}
 .pnl.grow{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
-.lbl{font-size:11px;letter-spacing:2px;margin-bottom:5px;flex-shrink:0;}
+.lbl{font-size:12px;letter-spacing:2px;margin-bottom:5px;flex-shrink:0;}
 .vxl{font-size:26px;line-height:1;}.vlg{font-size:23px;line-height:1;}.vmd{font-size:19px;line-height:1;}.vsm{font-size:15px;line-height:1;}.vxs{font-size:14px;line-height:1;}
 .bt{height:4px;border-radius:2px;margin:5px 0 2px;}.bf{height:4px;border-radius:2px;transition:width 1.2s ease;}
 .cores{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-top:5px;}.core{height:14px;border-radius:1px;}
-.rsp{display:flex;justify-content:space-between;align-items:baseline;}.rmd{display:flex;justify-content:space-between;align-items:center;}.mut{font-size:11px;}
+.rsp{display:flex;justify-content:space-between;align-items:baseline;}.rmd{display:flex;justify-content:space-between;align-items:center;}.mut{font-size:12px;}
 .clks{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;text-align:center;}
 .cc{border-radius:4px;padding:8px 3px;}.ccl{font-size:10px;letter-spacing:1px;}.cct{font-size:16px;margin-top:3px;font-weight:bold;}.ccamp{font-size:10px;opacity:.8;margin-top:2px;}
 .cc.hl{border-width:1px;border-style:solid;}
 .wm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;}.wc{border-radius:4px;padding:5px;text-align:center;}.wcl{font-size:10px;letter-spacing:1px;}
-.cr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.cr{display:grid;grid-template-columns:95px 1fr 75px;align-items:center;margin-bottom:6px;}
 .log-scroll{flex:1;overflow-y:auto;min-height:0;scrollbar-width:thin;}
 .log-scroll::-webkit-scrollbar{width:2px;}.log-scroll::-webkit-scrollbar-track{background:transparent;}
-.log-line{font-size:11px;line-height:1.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;}
+.log-line{font-size:12px;line-height:1.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2px;}
 .ftr{border-top-width:1px;border-top-style:solid;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-size:11px;flex-shrink:0;}
 .sw{width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .15s,border-color .15s;}
 .sw:hover{transform:scale(1.3);}.sw.active{border-color:rgba(255,255,255,0.75);transform:scale(1.15);}
@@ -105,7 +109,7 @@ body.theme-win98 .bt { border: 1px solid #808080; border-right: 1px solid white;
 body.theme-win98 .bf { background: #000080 !important; }
 body.theme-win98 #p-status { font-weight: bold; }
 body.theme-win98 #greeting, body.theme-win98 #status-l, body.theme-win98 #bigampm, body.theme-win98 #bigdate, body.theme-win98 #bigday, body.theme-win98 #syshealth { color: black !important; text-shadow: none !important; }
-body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot) { color: white !important; }
+body.theme-win98 #ttl, body.theme-win98 #hostname, body.theme-win98 #ftr, body.theme-win98 #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: white !important; }
 body.theme-win98 #p-wth #w-tmp, body.theme-win98 #p-wth #w-dsc, body.theme-win98 #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-win98 #bigclock { font-family: "Terminal", "Consolas", monospace !important; text-shadow: 1px 1px 0px black; }
 body.theme-win98::before, body.theme-win98::after, body.theme-win98 #crt-overlay, body.theme-win98 #crt-line { display: none !important; }
@@ -114,6 +118,13 @@ body.theme-win98 #p-sphere canvas { background: #000 !important; border-top: 2px
 body.theme-win98 #mtx-cv { background: black !important; }
 body.theme-win98 #p-map { position: relative; overflow: hidden; }
 body.theme-win98 #wmap-wrap::after { content: ""; position: absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 10; }
+/* New elements — theme overrides */
+body.theme-win98 #cpu-tmp { color: black !important; }
+body.theme-macos #cpu-tmp { color: black !important; }
+body.theme-win98 #flight-pins circle, body.theme-win98 #event-pins circle { filter: grayscale(0.4); }
+body.theme-macos  #flight-pins, body.theme-macos #event-pins { filter: grayscale(0.6) brightness(0.9); }
+body.theme-macos #map-legend rect { fill: rgba(255,255,255,0.88) !important; }
+body.theme-macos #map-legend text { fill: #111 !important; }
 /* THEME: MACOS */
 body.theme-macos, body.theme-macos * { font-family: "Chicago", "Geneva", "Lucida Grande", sans-serif !important; }
 body.theme-macos .log-line { font-family: "Monaco", "Courier", monospace !important; }
@@ -125,7 +136,7 @@ body.theme-macos .title-bar { background: repeating-linear-gradient(180deg, #fff
 body.theme-macos .title-bar .lbl, body.theme-macos .title-bar .tb-text { display: inline-block !important; background: white !important; margin: 0 auto !important; padding: 0 8px !important; border: 1px solid black; font-weight: bold; letter-spacing: 1px !important; font-size: 10px; line-height: 14px; position: relative; z-index: 2; height: 14px; box-sizing: border-box; }
 body.theme-macos .title-bar::before { content: "\25A3"; position: absolute; left: 4px; top: 1px; background: white; padding: 0 4px; border: 1px solid black; font-size: 8px; color: black; z-index: 2; line-height: 12px; height: 12px; box-sizing: border-box; }
 body.theme-macos .vxl, body.theme-macos .vlg, body.theme-macos .vmd, body.theme-macos .vsm, body.theme-macos .vxs, body.theme-macos .mut, body.theme-macos .disk-val, body.theme-macos #net-u, body.theme-macos #net-d, body.theme-macos #crl1, body.theme-macos #crl2, body.theme-macos #crl3, body.theme-macos #fxl, body.theme-macos #btc-c, body.theme-macos #eth-c, body.theme-macos #sol-c { color: black !important; text-shadow: none !important; }
-body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot) { color: black !important; text-shadow: none !important; }
+body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: black !important; text-shadow: none !important; }
 body.theme-macos #p-wth #w-tmp, body.theme-macos #p-wth #w-dsc, body.theme-macos #p-wth #w-hl { color: black !important; text-shadow: none !important; }
 body.theme-macos canvas { filter: grayscale(1) invert(1); }
 body.theme-macos #greeting, body.theme-macos #status-l, body.theme-macos #bigampm, body.theme-macos #bigdate, body.theme-macos #bigday, body.theme-macos #syshealth { color: black !important; text-shadow: none !important; }
@@ -139,6 +150,31 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 .btn-mini:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.5); }
 .thm-btn { font-size:10px; cursor:pointer; padding:2px 6px; border:1px solid transparent; opacity:0.6; }
 .thm-btn.active { opacity:1; border-color:rgba(255,255,255,0.4); border-radius:3px; }
+.sub-lbl { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 2px; }
+@keyframes seismic-pulse {
+  0%   { r: 4; opacity: .9; }
+  60%  { r: 14; opacity: .4; }
+  100% { r: 22; opacity: 0; }
+}
+.eq-pulse {
+  animation: seismic-pulse 2.5s ease-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes aurora-glow {
+  0%,100% { box-shadow: 0 0 12px 2px var(--aurora-color, #5DCAA5); }
+  50%      { box-shadow: 0 0 28px 6px var(--aurora-color, #5DCAA5); }
+}
+.aurora-active {
+  animation: aurora-glow 3s ease-in-out infinite;
+}
+.vtab{background:transparent;border:.5px solid;border-radius:3px;padding:2px 9px;font-family:monospace;font-size:9px;letter-spacing:.08em;cursor:pointer;transition:background .12s,color .12s;outline:none;}
+.vtab.vp-active{font-weight:bold;}
+#view-tabs{display:flex;gap:4px;padding:2px 8px 4px;flex-shrink:0;align-items:center;}
+.view-pane{display:none;flex:1;min-height:0;flex-direction:column;width:100%;}
+.view-pane.vp-active{display:flex;}
+#snake-wrap{flex:1;position:relative;background:#030a05;min-height:0;}
+#snake-canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
 </style>
 </head>
 <body>
@@ -164,14 +200,16 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
        <span class="thm-btn" onclick="setTheme('win98')" id="thm-win98">WIN98</span>
        <span class="thm-btn" onclick="setTheme('macos')" id="thm-macos">MAC OS</span>
     </div>
+    <span id="settings-btn" onclick="openSettings()" title="Settings" style="cursor:pointer;font-size:15px;opacity:.65;padding:0 4px;user-select:none;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='.65'">⚙</span>
   </div>
   <div id="ftr" style="display:flex;gap:12px;align-items:center;font-size:11px;white-space:nowrap;justify-content:flex-end;border:none !important;margin:0;padding:0;">
     <span>UPTIME <span id="uptime">--</span></span>
     <span>IP <span id="ipval">--</span></span>
     <span>PING <span id="pingval">-- ms</span></span>
     <span>PROCS <span id="procs">--</span></span>
+    <span id="kp-badge" title="Geomagnetic Kp index" style="display:none;cursor:default;padding:1px 5px;border-radius:3px;font-weight:bold;letter-spacing:1px;">KP <span id="kp-val">--</span></span>
     <span id="eq-footer"></span>
-    <span id="hostname" style="font-size:12px;font-weight:bold;letter-spacing:1px;">SERGIO@DESKTOP</span>
+    <span id="hostname" style="font-size:12px;font-weight:bold;letter-spacing:1px;">NEXUS@DESKTOP</span>
     <span style="display:flex;align-items:center;"><span class="ldot" id="ldot"></span><span id="llbl">LIVE</span></span>
   </div>
 </div>
@@ -182,7 +220,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <div style="display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden;">
   <div style="display:flex;gap:10px;flex:1;min-height:0;overflow:hidden;">
     <div class="col" style="flex:1;min-width:0;">
-      <div class="pnl" id="p-cpu"><div class="lbl" id="l-cpu">CPU USAGE</div><div class="rsp"><span id="cpu-val" class="vxl">--</span><span class="mut" id="cpu-pct">%</span></div><div class="bt" id="bt-cpu"><div class="bf" id="bf-cpu" style="width:0%"></div></div><div class="cores"><div class="core" id="c0"></div><div class="core" id="c1"></div><div class="core" id="c2"></div><div class="core" id="c3"></div><div class="core" id="c4"></div><div class="core" id="c5"></div><div class="core" id="c6"></div><div class="core" id="c7"></div></div></div>
+      <div class="pnl" id="p-cpu"><div class="lbl" id="l-cpu">CPU USAGE</div><div class="rsp"><span id="cpu-val" class="vxl">--</span><span class="mut" id="cpu-pct">%</span><span id="cpu-tmp" class="vsm" style="margin-left:6px;opacity:.65;">--°C</span></div><div class="bt" id="bt-cpu"><div class="bf" id="bf-cpu" style="width:0%"></div></div><div class="cores"><div class="core" id="c0"></div><div class="core" id="c1"></div><div class="core" id="c2"></div><div class="core" id="c3"></div><div class="core" id="c4"></div><div class="core" id="c5"></div><div class="core" id="c6"></div><div class="core" id="c7"></div></div></div>
       <div class="pnl" id="p-ram"><div class="lbl" id="l-ram">MEMORY</div><div class="rsp"><span id="ram-v" class="vlg">--</span><span id="ram-t" class="mut">/ -- GB</span></div><div class="bt" id="bt-ram"><div class="bf" id="bf-ram" style="width:0%"></div></div></div>
       <div class="pnl" id="p-gpu"><div class="lbl" id="l-gpu">GPU · TEMP</div><div class="rsp"><span id="gpu-v" class="vmd">--%</span><span id="gpu-t" class="vsm">--°C</span></div><div class="bt" id="bt-gpu"><div class="bf" id="bf-gpu" style="width:0%"></div></div></div>
       <div id="disks-wrap" style="display:flex;flex-direction:column;gap:7px;flex-shrink:0;"></div>
@@ -193,7 +231,57 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       </div>
     </div>
     <div class="col" style="flex:1;min-width:0;">
-      <div class="pnl grow" id="p-thr"><div class="lbl" id="l-thr">ATTACK LOG</div><div class="log-scroll" id="thr-log"></div></div>
+      <div class="pnl grow" id="p-gs">
+  <div class="lbl" id="l-gs">GLOBAL STATUS</div>
+  <div id="gs-defcon" style="margin-bottom:6px">
+    <div class="sub-lbl">DEFCON</div>
+    <div id="gs-defcon-val" style="font-size:22px;letter-spacing:.05em">◼◼◼◼◻</div>
+    <div id="gs-defcon-lvl" style="font-size:10px"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+    <div>
+      <div class="sub-lbl">CO₂ PPM</div>
+      <div id="gs-co2" style="font-size:18px;font-weight:500">—</div>
+      <div id="gs-co2-delta" style="font-size:9px"></div>
+    </div>
+    <div>
+      <div class="sub-lbl">MOON</div>
+      <div id="gs-moon" style="font-size:18px">—</div>
+      <div id="gs-moon-name" style="font-size:9px"></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+    <div>
+      <div class="sub-lbl">SOLAR X-RAY</div>
+      <div id="gs-solar" style="font-size:18px;font-weight:500">—</div>
+      <div id="gs-solar-sub" style="font-size:9px">flux</div>
+    </div>
+    <div>
+      <div class="sub-lbl">SEISMIC E</div>
+      <div id="gs-seismic-e" style="font-size:14px;font-weight:500">—</div>
+      <div id="gs-seismic-sub" style="font-size:9px">joules / 24h</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div>
+      <div class="sub-lbl">DEBRIS</div>
+      <div id="gs-debris" style="font-size:16px;font-weight:500">—</div>
+    </div>
+    <div>
+      <div class="sub-lbl">AVIATION</div>
+      <div id="gs-aviation" style="font-size:16px;font-weight:500">—</div>
+      <div style="font-size:9px">flights live</div>
+    </div>
+  </div>
+  <div id="gs-pulse-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px">
+    <div class="sub-lbl">24H PULSE</div>
+    <div id="gs-pulse" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px"></div>
+  </div>
+  <div id="gs-ev-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+    <div class="sub-lbl">RECENT EVENTS</div>
+    <div id="gs-events" style="margin-top:4px;overflow-y:auto;flex:1;min-height:0;font-size:11px;line-height:1.6"></div>
+  </div>
+</div>
     </div>
   </div>
   <div class="pnl" id="p-mtx" style="flex:1;min-height:180px;position:relative;overflow:hidden;">
@@ -217,7 +305,17 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <div class="lbl" id="l-map" style="margin-bottom:0;">GLOBAL VIEW</div>
       <span id="eq-count" style="font-size:10px;letter-spacing:1px;"></span>
     </div>
+    <div id="view-tabs">
+      <button class="vtab vp-active" data-view="map" onclick="showView('map')">G&nbsp;MAP</button>
+      <button class="vtab" data-view="terminal" onclick="showView('terminal')">T&nbsp;TERM</button>
+      <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
+      <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
+      <button class="vtab" onclick="startMapCalib()" style="margin-left:8px;opacity:.6" title="Calibrar proyección del mapa arrastrando un pin">⊕&nbsp;CALIB</button>
+      <span id="calib-info" style="display:none;font-size:9px;font-family:monospace;color:#ff0;margin-left:6px;align-self:center"></span>
+    </div>
+    <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
+      <div id="crit-alert-wrap" style="display:none;position:absolute;top:8px;left:8px;z-index:20;width:230px;pointer-events:auto"></div>
       <div id="map-tooltip"></div>
       <svg id="wmap" viewBox="0 0 2000 1001" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;height:100%;">
       <rect id="map-bg" width="2000" height="1001" rx="3"/>
@@ -439,57 +537,509 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <path id="CW" d="m 595.9,494.9 0,-0.6 -0.9,-0.4 0,0.3 0.1,0.2 0.3,0.1 0.1,0.2 -0.1,0.6 0.2,0.3 0.3,-0.7 z"/>
 <path id="IC" d="m 879.6,395.2 -0.2,-0.2 -0.7,0.5 -0.6,0 0.1,0.2 0.1,0.2 0.7,0.4 0.6,-1.1 z m 13.5,-2.1 0,-0.1 -0.1,0 -0.1,0.1 -1.3,-0.1 -0.2,0.6 -0.5,0.4 0,0.7 0.5,0.7 0.3,0.1 0.5,0.1 0.7,-0.4 0.2,-0.4 0.1,-0.8 -0.1,-0.4 0,-0.5 z m -9.7,0.8 0.5,-0.4 0,-0.2 -0.1,-0.3 -0.5,-0.3 -0.2,0 -0.2,0.2 -0.2,0.4 0.3,0.5 0.2,0.1 0.2,0 z m 4.7,-2.3 1.2,-1 0,-0.3 -1,0.1 -1.1,1 -0.3,0.1 -1,0.1 -0.5,0 -0.4,0.2 0.2,0.3 0.4,1 0.7,0.9 0.6,-0.2 0.3,-0.2 0.4,-0.6 0.5,-1.4 z m 11.6,1.3 1.5,-0.5 0.3,-1 0.3,-1.1 0,-0.7 -0.2,-0.3 -0.1,0 -0.4,0 -0.3,0.2 -0.1,0.6 -0.7,1.3 -0.5,1.2 -0.7,0.6 -0.7,0.2 0.1,0.1 0.7,0.1 0.8,-0.7 z m -19.7,-2 0.5,-0.5 0.1,-0.3 -0.1,-0.5 0.2,-0.2 -0.1,-0.4 -0.3,-0.4 -0.7,0 -0.4,0.6 0.6,1.2 0.1,0.5 0.1,0 z m 22.4,-2.7 0.9,-0.3 0.5,-0.3 0.1,-0.9 0.2,-0.3 -0.2,-0.3 -0.2,0.2 -0.2,0.4 -0.6,0.2 -0.8,0.4 -0.2,0.3 -0.2,0.9 0.4,0.1 0.3,-0.4 z"/></g>
       <g id="hubs"><circle cx="557" cy="308" r="3" class="hub" opacity=".4"/><circle cx="957" cy="223" r="3" class="hub" opacity=".4"/><circle cx="1701" cy="349" r="3" class="hub" opacity=".4"/><circle cx="1020" cy="233" r="3" class="hub" opacity=".4"/><circle cx="1007" cy="210" r="3" class="hub" opacity=".4"/><circle cx="1510" cy="625" r="3" class="hub" opacity=".4"/><circle cx="1565" cy="457" r="3" class="hub" opacity=".4"/><circle cx="1252" cy="433" r="3" class="hub" opacity=".4"/><circle cx="688" cy="722" r="3" class="hub" opacity=".4"/><circle cx="1762" cy="906" r="3" class="hub" opacity=".4"/><circle cx="1153" cy="725" r="3" class="hub" opacity=".4"/><circle cx="344" cy="351" r="3" class="hub" opacity=".4"/><circle cx="530" cy="368" r="3" class="hub" opacity=".4"/></g>
-      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath xlink:href="#rt0"/></animateMotion></circle><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath xlink:href="#rt1"/></animateMotion></circle><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.7s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.7s" repeatCount="indefinite"><mpath xlink:href="#rt2"/></animateMotion></circle><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.0s" repeatCount="indefinite"><mpath xlink:href="#rt3"/></animateMotion></circle><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.4s" repeatCount="indefinite"><mpath xlink:href="#rt4"/></animateMotion></circle><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath xlink:href="#rt5"/></animateMotion></circle><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.1s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.1s" repeatCount="indefinite"><mpath xlink:href="#rt6"/></animateMotion></circle><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.4s" repeatCount="indefinite"><mpath xlink:href="#rt7"/></animateMotion></circle><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.8s" repeatCount="indefinite"><mpath xlink:href="#rt8"/></animateMotion></circle><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.2s" repeatCount="indefinite"><mpath xlink:href="#rt9"/></animateMotion></circle><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath xlink:href="#rt10"/></animateMotion></circle><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.8s" repeatCount="indefinite"><mpath xlink:href="#rt11"/></animateMotion></circle><path id="rt12" d="M557,308 Q496.5,292.27 436,445" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.2s" repeatCount="indefinite"><mpath xlink:href="#rt12"/></animateMotion></circle><path id="rt13" d="M436,445 Q483,355.78 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.5s" repeatCount="indefinite"><mpath xlink:href="#rt13"/></animateMotion></circle><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.9s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.9s" repeatCount="indefinite"><mpath xlink:href="#rt14"/></animateMotion></circle><path id="rt15" d="M957,223 Q1055,197.52 1153,725" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="8.3s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="8.3s" repeatCount="indefinite"><mpath xlink:href="#rt15"/></animateMotion></circle><path id="rt16" d="M1153,645 Q1202.5,420.13 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="8.6s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="8.6s" repeatCount="indefinite"><mpath xlink:href="#rt16"/></animateMotion></circle></g>
+      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath xlink:href="#rt0"/></animateMotion></circle><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath xlink:href="#rt1"/></animateMotion></circle><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.7s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.7s" repeatCount="indefinite"><mpath xlink:href="#rt2"/></animateMotion></circle><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.0s" repeatCount="indefinite"><mpath xlink:href="#rt3"/></animateMotion></circle><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.4s" repeatCount="indefinite"><mpath xlink:href="#rt4"/></animateMotion></circle><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath xlink:href="#rt5"/></animateMotion></circle><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.1s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.1s" repeatCount="indefinite"><mpath xlink:href="#rt6"/></animateMotion></circle><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.4s" repeatCount="indefinite"><mpath xlink:href="#rt7"/></animateMotion></circle><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.8s" repeatCount="indefinite"><mpath xlink:href="#rt8"/></animateMotion></circle><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.2s" repeatCount="indefinite"><mpath xlink:href="#rt9"/></animateMotion></circle><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath xlink:href="#rt10"/></animateMotion></circle><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.8s" repeatCount="indefinite"><mpath xlink:href="#rt11"/></animateMotion></circle><path id="rt12" d="M557,308 Q496.5,292.27 428,442" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.2s" repeatCount="indefinite"><mpath xlink:href="#rt12"/></animateMotion></circle><path id="rt13" d="M428,442 Q488,380 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.5s" repeatCount="indefinite"><mpath xlink:href="#rt13"/></animateMotion></circle><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.9s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.9s" repeatCount="indefinite"><mpath xlink:href="#rt14"/></animateMotion></circle></g>
       <g id="radar-g">
-        <circle id="rr1" cx="436" cy="445" r="55"  fill="none" stroke-width="1.2" opacity=".45"/>
-        <circle id="rr2" cx="436" cy="445" r="110" fill="none" stroke-width="0.8" opacity=".30"/>
-        <circle id="rr3" cx="436" cy="445" r="165" fill="none" stroke-width="0.5" opacity=".20"/>
-        <line id="rch1" x1="261" y1="445" x2="611" y2="445" stroke-width="0.4" opacity=".18"/>
-        <line id="rch2" x1="436" y1="270" x2="436" y2="620" stroke-width="0.4" opacity=".18"/>
-        <g><line x1="436" y1="445" x2="436" y2="275" id="radar-arm" stroke-width="2" opacity=".7"/>
-        <path d="M436,445 L396,280 A170,170 0 0,1 476,280 Z" id="radar-fade" opacity=".18"/>
-        <animateTransform attributeName="transform" type="rotate" from="0 436 445" to="360 436 445" dur="4s" repeatCount="indefinite"/></g>
+        <circle id="rr1" cx="428" cy="442" r="55"  fill="none" stroke-width="1.2" opacity=".45"/>
+        <circle id="rr2" cx="428" cy="442" r="110" fill="none" stroke-width="0.8" opacity=".30"/>
+        <circle id="rr3" cx="428" cy="442" r="165" fill="none" stroke-width="0.5" opacity=".20"/>
+        <line id="rch1" x1="271" y1="393" x2="621" y2="393" stroke-width="0.4" opacity=".18"/>
+        <line id="rch2" x1="428" y1="267" x2="428" y2="617" stroke-width="0.4" opacity=".18"/>
+        <g><line x1="428" y1="442" x2="428" y2="272" id="radar-arm" stroke-width="2" opacity=".7"/>
+        <path d="M428,442 L388,277 A170,170 0 0,1 468,277 Z" id="radar-fade" opacity=".18"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 428 442" to="360 428 442" dur="4s" repeatCount="indefinite"/></g>
       </g>
       <line id="scan-line" x1="0" y1="-2" x2="2000" y2="-2" stroke-width="2.5" opacity=".09">
         <animate attributeName="y1" values="-2;1003;-2" dur="11s" repeatCount="indefinite"/>
         <animate attributeName="y2" values="-2;1003;-2" dur="11s" repeatCount="indefinite"/>
       </line>
-      <g id="obj-pins">
-        <circle cx="880" cy="178" r="5" fill="#A855F7" opacity=".9"/><circle cx="880" cy="178" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="1.6s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="1.6s" repeatCount="indefinite"/></circle><text x="889" y="182" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-01</text>
-        <circle cx="1512" cy="627" r="5" fill="#A855F7" opacity=".9"/><circle cx="1512" cy="627" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="2.1s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="2.1s" repeatCount="indefinite"/></circle><text x="1521" y="631" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-02</text>
-        <circle cx="1010" cy="470" r="5" fill="#A855F7" opacity=".9"/><circle cx="1010" cy="470" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="1.9s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="1.9s" repeatCount="indefinite"/></circle><text x="1019" y="474" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-03</text>
-        <circle cx="1400" cy="188" r="5" fill="#A855F7" opacity=".9"/><circle cx="1400" cy="188" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="2.4s" repeatCount="indefinite"/></circle><text x="1409" y="192" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-04</text>
-        <circle cx="630" cy="810" r="5" fill="#A855F7" opacity=".9"/><circle cx="630" cy="810" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="3.2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="3.2s" repeatCount="indefinite"/></circle><text x="639" y="814" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-05</text>
-        <circle cx="1570" cy="310" r="5" fill="#A855F7" opacity=".9"/><circle cx="1570" cy="310" r="5" fill="#A855F7" opacity=".3"><animate attributeName="r" values="5;18;5" dur="2.7s" repeatCount="indefinite"/><animate attributeName="opacity" values=".3;0;.3" dur="2.7s" repeatCount="indefinite"/></circle><text x="1579" y="314" font-size="11" font-family="monospace" fill="#C084FC" opacity=".85">OBJ-06</text>
-      </g>
+      <g id="obj-pins"></g>
+      <g id="terminator-layer" style="pointer-events:none"></g>
       <g id="event-pins"></g>
-      <circle id="pin-ring" cx="436" cy="445" r="18" fill="none" stroke-width="2.5" opacity=".8"/>
-      <circle id="pin-dot"  cx="436" cy="445" r="9"/>
-      <circle id="pin-pulse" cx="436" cy="445" r="9" opacity=".8">
-        <animate attributeName="r" values="9;42;9" dur="3s" repeatCount="indefinite"/>
-        <animate attributeName="opacity" values=".8;0;.8" dur="3s" repeatCount="indefinite"/>
-      </circle>
-      <g id="wx-pill" opacity="0">
-        <rect id="wx-bg" x="462" y="450" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
-        <text id="wx-temp" x="468" y="466" font-size="16" font-family="monospace" font-weight="bold"></text>
-        <text id="wx-desc" x="468" y="481" font-size="10" font-family="monospace"></text>
+      <g id="flight-pins" opacity=".7"></g>
+      <g id="mx-weather-group" style="cursor:pointer;">
+        <circle id="pin-ring" cx="428" cy="442" r="18" fill="none" stroke-width="2.5" opacity=".8"/>
+        <circle id="pin-dot"  cx="428" cy="442" r="9"/>
+        <circle id="pin-pulse" cx="428" cy="442" r="9" opacity=".8">
+          <animate attributeName="r" values="9;42;9" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".8;0;.8" dur="3s" repeatCount="indefinite"/>
+        </circle>
+        <g id="wx-pill" opacity="0">
+          <rect id="wx-bg" x="454" y="447" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
+          <text id="wx-temp" x="460" y="463" font-size="16" font-family="monospace" font-weight="bold"></text>
+          <text id="wx-desc" x="460" y="478" font-size="10" font-family="monospace"></text>
+        </g>
       </g>
       <text id="lbl-eq" x="8" y="505" font-size="14" font-family="monospace" opacity=".2">EQ</text>
       <!-- MAP LEGEND bottom-left -->
       <g id="map-legend" opacity=".85">
-        <rect x="12" y="880" width="200" height="112" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
-        <circle cx="26" cy="898" r="4" fill="#1D9E75"/><text x="36" y="902" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
-        <circle cx="26" cy="916" r="4" fill="#E24B4A"/><text x="36" y="920" fill="#FF8080" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
-        <circle cx="26" cy="934" r="4" fill="#FAC775"/><text x="36" y="938" fill="#FAC775" font-size="12" font-family="monospace">ISS TRACKER</text>
-        <circle cx="26" cy="952" r="4" fill="#A855F7"/><text x="36" y="956" fill="#C084FC" font-size="12" font-family="monospace">ANOMALY OBJ</text>
-        <circle cx="26" cy="970" r="4" fill="#EF4444"/><text x="36" y="974" fill="#F87171" font-size="12" font-family="monospace">VOLCANO</text>
-        <circle cx="26" cy="988" r="4" fill="#06B6D4"/><text x="36" y="992" fill="#67E8F9" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <rect x="12" y="826" width="220" height="170" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
+        <circle cx="26" cy="844" r="3" fill="#F0F0F0"/><text x="36" y="848" fill="#E0E0E0" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
+        <circle cx="26" cy="862" r="3" fill="#FF6D00"/><text x="36" y="866" fill="#FFB74D" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
+        <circle cx="26" cy="880" r="4" fill="#1D9E75"/><text x="36" y="884" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
+        <circle cx="26" cy="898" r="4" fill="#EF4444"/><text x="36" y="902" fill="#FCA5A5" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
+        <circle cx="26" cy="916" r="4" fill="#F59E0B"/><text x="36" y="920" fill="#FCD34D" font-size="12" font-family="monospace">ISS TRACKER</text>
+        <circle cx="26" cy="934" r="4" fill="#38BDF8"/><text x="36" y="938" fill="#BAE6FD" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
+        <circle cx="26" cy="952" r="4" fill="#EC4899"/><text x="36" y="956" fill="#F9A8D4" font-size="12" font-family="monospace">VOLCANO</text>
+        <circle cx="26" cy="970" r="4" fill="#8B5CF6"/><text x="36" y="974" fill="#C4B5FD" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <circle cx="26" cy="988" r="4" fill="#84CC16"/><text x="36" y="992" fill="#D9F99D" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
       </g>
       <!-- MAP STATUS TICKER bottom-right -->
       <g id="map-ticker" opacity="0">
         <text id="map-ticker-txt" x="1988" y="985" text-anchor="end" font-size="16" font-family="monospace" font-weight="bold" fill="#5DCAA5"></text>
       </g>
     </svg>
+    <div id="news-ticker" style="overflow:hidden;height:20px;position:relative;border-top:1px solid">
+      <div id="news-ticker-inner" style="white-space:nowrap;position:absolute;top:0;left:0;line-height:20px;font-size:10px;letter-spacing:.06em;padding:0 8px"></div>
+    </div>
+    </div>
+    </div>
+    <div class="view-pane" id="view-terminal" style="flex:1;min-height:0;flex-direction:column;background:#020a04;font-family:monospace;">
+<div style="display:flex;flex-direction:column;height:100%;font-family:monospace;font-size:11px;letter-spacing:.02em">
+  <div id="term-out" style="flex:1;overflow-y:auto;padding:8px 12px;min-height:0;line-height:1.6;word-break:break-all"></div>
+  <div style="display:flex;align-items:center;padding:4px 8px;border-top:.5px solid;flex-shrink:0" id="term-input-row">
+    <span id="term-ps1" style="white-space:nowrap;margin-right:6px">nexus@monitor:~$</span>
+    <input id="term-input" type="text" autocomplete="off" spellcheck="false"
+      style="flex:1;background:transparent;border:none;outline:none;font-family:monospace;font-size:11px;letter-spacing:.02em"
+      placeholder="type a command..." />
+  </div>
+</div>
+<script>
+(function(){
+  const WELCOME=[
+    '╔══════════════════════════════════════════════╗',
+    '║         NEXUS MONITOR — TERMINAL v1.0        ║',
+    '║  Allowed: dir ls pwd ps tasklist ipconfig    ║',
+    '║           netstat ping uptime whoami etc.    ║',
+    '║  [ESC] return to map   [↑↓] history         ║',
+    '╚══════════════════════════════════════════════╝',
+    ''
+  ];
+  let _history=[],_histIdx=-1,_termInit=false;
+
+  function termColor(txt,col){return`<span style="color:${col}">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`;}
+
+  function termPrint(html,col){
+    const out=document.getElementById('term-out');
+    if(!out)return;
+    const line=document.createElement('div');
+    line.innerHTML=col?termColor(html,col):html;
+    out.appendChild(line);
+    out.scrollTop=out.scrollHeight;
+  }
+
+  function termInitDisplay(){
+    if(_termInit)return;
+    _termInit=true;
+    const out=document.getElementById('term-out');
+    if(out)out.innerHTML='';
+    const c=window._pal||{hi:'#5DCAA5',mid:'#1D9E75',lbl:'#38B891',neg:'#E24B4A',warn:'#EF9F27'};
+    WELCOME.forEach(l=>termPrint(termColor(l,c.hi)));
+    // Show system info on open
+    termExec('uptime');
+  }
+
+  async function termExec(cmd){
+    const c=window._pal||{hi:'#5DCAA5',mid:'#1D9E75',lbl:'#38B891',neg:'#E24B4A',warn:'#EF9F27'};
+    termPrint(termColor('nexus@monitor:~$ ',c.hi)+termColor(cmd,c.lbl));
+    try{
+      const r=await fetch('http://localhost:19234/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd})});
+      const ct=r.headers.get('content-type')||'';
+      if(!ct.includes('application/json')){termPrint(termColor('nexus: server needs restart — run: node server.js',c.warn));return;}
+      const d=await r.json();
+      if(d.output){
+        const lines=d.output.split('\n');
+        lines.forEach(l=>{if(l)termPrint(termColor(l,d.error?c.neg:c.mid));});
+      }
+    }catch(e){termPrint(termColor('nexus: cannot reach server (localhost:19234)',c.neg));}
+  }
+
+  function termApplyPalette(){
+    const c=window._pal||{};
+    const out=document.getElementById('term-out');
+    const row=document.getElementById('term-input-row');
+    const ps1=document.getElementById('term-ps1');
+    const inp=document.getElementById('term-input');
+    if(out){out.style.background=c.base||'#030a05';out.style.color=c.mid||'#1D9E75';}
+    if(row){row.style.background=c.deep||'#03280F';row.style.borderTopColor=c.lo||'#085041';}
+    if(ps1)ps1.style.color=c.hi||'#5DCAA5';
+    if(inp){inp.style.color=c.lbl||'#38B891';inp.style.caretColor=c.hi||'#5DCAA5';}
+  }
+
+  // Hook into the view switcher
+  const _prev=window.onShowView;
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='terminal'){
+      setTimeout(()=>{
+        termApplyPalette();
+        termInitDisplay();
+        const inp=document.getElementById('term-input');
+        if(inp)inp.focus();
+      },30);
+    }
+  };
+
+  // Input handling — wire after DOM ready
+  document.addEventListener('DOMContentLoaded',wireTerminal);
+  if(document.readyState!=='loading')wireTerminal();
+
+  function wireTerminal(){
+    const inp=document.getElementById('term-input');
+    if(!inp||inp._wired)return;
+    inp._wired=true;
+    inp.addEventListener('keydown',function(e){
+      e.stopPropagation();
+      if(e.key==='Enter'){
+        const cmd=inp.value.trim();
+        if(!cmd)return;
+        _history.unshift(cmd);if(_history.length>50)_history.pop();
+        _histIdx=-1;
+        inp.value='';
+        if(cmd==='clear'){document.getElementById('term-out').innerHTML='';return;}
+        if(cmd==='exit'||cmd==='map'){showView('map');return;}
+        if(cmd==='help'){
+          const c=window._pal||{};
+          ['Commands: dir ls pwd ps tasklist ipconfig netstat ping uptime whoami hostname','         systeminfo echo date time ver route arp','Type "clear" to clear, "exit" to return to map'].forEach(l=>termPrint(termColor(l,c.hi||'#5DCAA5')));
+          return;
+        }
+        termExec(cmd);
+      } else if(e.key==='ArrowUp'){
+        e.preventDefault();
+        if(_histIdx<_history.length-1){_histIdx++;inp.value=_history[_histIdx];}
+      } else if(e.key==='ArrowDown'){
+        e.preventDefault();
+        if(_histIdx>0){_histIdx--;inp.value=_history[_histIdx];}else{_histIdx=-1;inp.value='';}
+      } else if(e.key==='Escape'){
+        showView('map');
+      }
+    });
+  }
+})();
+</script>
+    </div>
+    <div class="view-pane" id="view-snake" style="flex:1;min-height:0;">
+      <div id="snake-wrap"><canvas id="snake-canvas"></canvas></div>
+    </div>
+    <div class="view-pane" id="view-invaders" style="flex:1;min-height:0;position:relative;">
+      <canvas id="inv-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block"></canvas>
+<div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none"></div>
+<script>
+(function(){
+  const _prev=window.onShowView;
+  let _invCleanup=null;
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='invaders'){
+      if(_invCleanup){_invCleanup();_invCleanup=null;}
+      setTimeout(()=>{
+        const cv=document.getElementById('inv-canvas');
+        if(!cv)return;
+        const wrap=cv.parentElement;
+        cv.width=wrap.offsetWidth||900;cv.height=wrap.offsetHeight||550;
+        _invCleanup=initInvaders(cv);
+      },50);
+    } else {
+      if(_invCleanup){_invCleanup();_invCleanup=null;}
+    }
+  };
+
+  function initInvaders(canvas){
+    const ctx=canvas.getContext('2d');
+    const W=canvas.width,H=canvas.height;
+    const c=window._pal||{base:'#030a05',hi:'#5DCAA5',mid:'#1D9E75',lo:'#085041',neg:'#E24B4A',warn:'#EF9F27',lbl:'#38B891',wB:'#1D9E75'};
+
+    // Game constants
+    const ROWS=4,COLS=11,INV_W=36,INV_H=28,INV_PAD_X=10,INV_PAD_Y=12;
+    // Classic pixel-art invader bitmaps (11 cols x 8 rows), two animation frames each
+    // Each row: bit=1 means filled pixel, scanned left to right
+    const INV_SPRITES=[
+      // Type A — squid (top row, 30pts) — two frames
+      {col:'#E24B4A',pts:30,frames:[
+        [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[0,0,1,0,0,1,0,0],[0,1,0,0,0,0,1,0],[0,0,1,0,0,1,0,0]],
+        [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[0,1,1,0,0,1,1,0],[1,0,0,0,0,0,0,1],[0,1,0,0,0,0,1,0]]
+      ]},
+      // Type B — crab (middle rows, 20pts) — two frames
+      {col:'#EF9F27',pts:20,frames:[
+        [[0,0,0,1,0,0,1,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,1,1,0,1,1,0,1,1,0],[1,1,1,1,1,1,1,1,1,1],[1,0,1,1,1,1,1,1,0,1],[1,0,1,0,0,0,0,1,0,1],[0,0,0,1,1,1,1,0,0,0],[0,1,0,0,0,0,0,0,1,0]],
+        [[0,0,0,1,0,0,1,0,0,0],[0,0,1,1,1,1,1,1,0,0],[0,1,1,0,1,1,0,1,1,0],[1,1,1,1,1,1,1,1,1,1],[1,0,1,1,1,1,1,1,0,1],[0,1,0,0,0,0,0,0,1,0],[0,0,1,1,0,0,1,1,0,0],[1,1,0,0,0,0,0,0,1,1]]
+      ]},
+      // Type C — octopus (bottom rows, 10pts) — two frames
+      {col:'#5DCAA5',pts:10,frames:[
+        [[0,0,1,1,1,1,0,0],[1,1,1,1,1,1,1,1],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[1,0,0,0,0,0,0,1],[1,0,1,0,0,1,0,1],[0,1,0,0,0,0,1,0]],
+        [[0,0,1,1,1,1,0,0],[1,1,1,1,1,1,1,1],[1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[0,1,1,0,0,1,1,0],[0,0,1,0,0,1,0,0],[1,1,0,0,0,0,1,1]]
+      ]}
+    ];
+    const types=[INV_SPRITES[0],INV_SPRITES[1],INV_SPRITES[1],INV_SPRITES[2]];
+
+    // Grid of invaders: {alive,type,x,y}
+    let invaders=[];
+    const GRID_START_X=(W-(COLS*(INV_W+INV_PAD_X)))/2;
+    const GRID_START_Y=70;
+    function resetInvaders(){
+      invaders=[];
+      for(let r=0;r<ROWS;r++)for(let col=0;col<COLS;col++){
+        invaders.push({
+          alive:true,
+          type:types[r===0?0:r===1?1:2],
+          x:GRID_START_X+col*(INV_W+INV_PAD_X),
+          y:GRID_START_Y+r*(INV_H+INV_PAD_Y),
+          col:col,row:r
+        });
+      }
+    }
+
+    // Player (ISS)
+    let player={x:W/2,vx:0,w:52,h:14};
+    const PLAYER_Y=H-50;
+    const BULLET_SPD=9;
+    let bullets=[],invBullets=[];
+    let score=0,lives=3,level=1;
+    let invDir=1,invSpeed=1.2,invDropTimer=0,invDropInterval=800;
+    let shooting=false,shootTimer=0;
+    let dead=false,won=false,raf=null,lastTs=0;
+    let animFrame=0,animTimer=0;
+    const ANIM_INTERVAL=600;
+    let barriers=[],paused=false;
+    const INV_HI_KEY='nexus-inv-hi';
+    let hiScore=parseInt(localStorage.getItem(INV_HI_KEY)||'0');
+
+    function makeBarriers(){
+      barriers=[];
+      const bCount=4,bW=52,bH=22;
+      for(let i=0;i<bCount;i++){
+        const bx=W*(i+1)/(bCount+1)-bW/2;
+        for(let brow=0;brow<3;brow++)for(let bcol=0;bcol<5;bcol++){
+          barriers.push({x:bx+bcol*(bW/5),y:H-110+brow*8,w:bW/5,h:8,hp:3});
+        }
+      }
+    }
+
+    function reset(nextLevel){
+      if(!nextLevel){score=0;lives=3;level=1;}
+      player.x=W/2;player.vx=0;
+      bullets=[];invBullets=[];
+      dead=false;won=false;
+      invSpeed=1.2+level*0.25;invDir=1;invDropTimer=0;
+      resetInvaders();makeBarriers();
+      if(!raf)raf=requestAnimationFrame(loop);
+    }
+
+    // Draw functions
+    function drawISS(x,y){
+      const c2=window._pal||c;
+      // Body
+      ctx.fillStyle=c2.hi;ctx.fillRect(x-20,y-4,40,8);
+      // Solar panels
+      ctx.fillStyle=c2.wB||c2.mid;
+      ctx.fillRect(x-36,y-3,14,6);ctx.fillRect(x+22,y-3,14,6);
+      // Panel lines
+      ctx.strokeStyle=c2.lo;ctx.lineWidth=1;
+      for(let i=0;i<3;i++){
+        ctx.beginPath();ctx.moveTo(x-36+i*5,y-3);ctx.lineTo(x-36+i*5,y+3);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x+22+i*5,y-3);ctx.lineTo(x+22+i*5,y+3);ctx.stroke();
+      }
+      // Engine
+      ctx.fillStyle=c2.hi;ctx.fillRect(x-6,y+4,12,5);
+    }
+
+    function drawInvader(inv,frame){
+      const bitmap=inv.type.frames[frame%inv.type.frames.length];
+      const rows=bitmap.length,cols=bitmap[0].length;
+      const pw=Math.floor(INV_W/cols),ph=Math.floor(INV_H/rows);
+      const offX=Math.floor((INV_W-cols*pw)/2),offY=Math.floor((INV_H-rows*ph)/2);
+      ctx.fillStyle=inv.type.col;
+      for(let r=0;r<rows;r++)for(let cc=0;cc<cols;cc++){
+        if(bitmap[r][cc])ctx.fillRect(inv.x+offX+cc*pw,inv.y+offY+r*ph,pw,ph);
+      }
+    }
+
+    function draw(){
+      const cp=window._pal||c;
+      ctx.fillStyle=cp.base;ctx.fillRect(0,0,W,H);
+      // Starfield
+      ctx.fillStyle=cp.lo;
+      for(let i=0;i<60;i++){
+        const sx=(i*317)%W,sy=(i*177)%H;
+        ctx.fillRect(sx,sy,1,1);
+      }
+      // HUD
+      ctx.font='11px monospace';ctx.textAlign='left';ctx.fillStyle=cp.lbl;
+      ctx.fillText(`SCORE: ${score}`,10,18);
+      ctx.textAlign='center';
+      ctx.fillText(`NEXUS INVADERS — LEVEL ${level}  |  ARROWS/AD + SPACE  |  P=PAUSE  |  ESC=MAP`,W/2,18);
+      ctx.textAlign='right';
+      ctx.fillText(`HI:${hiScore}  LIVES:`+'◼'.repeat(lives)+'◻'.repeat(Math.max(0,3-lives)),W-10,18);
+      ctx.textAlign='left';
+      // Barriers
+      barriers.forEach(b=>{
+        if(b.hp>0){ctx.fillStyle=`rgba(29,158,117,${b.hp/3})`;ctx.fillRect(b.x,b.y,b.w,b.h);}
+      });
+      // Invaders
+      invaders.filter(i=>i.alive).forEach(i=>drawInvader(i,animFrame));
+      // Player
+      drawISS(player.x,PLAYER_Y);
+      // Player bullets
+      ctx.fillStyle=cp.hi;
+      bullets.forEach(b=>{ctx.fillRect(b.x-1.5,b.y-6,3,12);});
+      // Enemy bullets
+      ctx.fillStyle=cp.neg;
+      invBullets.forEach(b=>{
+        ctx.font='14px monospace';ctx.textAlign='center';
+        ctx.fillText('|',b.x,b.y);
+      });
+      // Messages
+      if(paused&&!dead&&!won){
+        ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,W,H);
+        ctx.font='bold 28px monospace';ctx.textAlign='center';ctx.fillStyle=cp.warn||'#EF9F27';
+        ctx.fillText('PAUSED',W/2,H/2-10);
+        ctx.font='13px monospace';ctx.fillStyle=cp.lbl;
+        ctx.fillText('P = RESUME  |  ESC = MAP',W/2,H/2+20);
+        ctx.textAlign='left';
+      }
+      if(dead||won){
+        ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(0,0,W,H);
+        ctx.font='bold 28px monospace';ctx.textAlign='center';
+        ctx.fillStyle=dead?cp.neg:cp.hi;
+        ctx.fillText(dead?'SIGNAL LOST':'SECTOR CLEAR',W/2,H/2-28);
+        ctx.font='14px monospace';ctx.fillStyle=cp.lbl;
+        ctx.fillText(`SCORE: ${score}  |  BEST: ${hiScore}`,W/2,H/2+4);
+        ctx.font='13px monospace';ctx.fillStyle=cp.hi;
+        ctx.fillText('SPACE = PLAY AGAIN  |  ESC = MAP',W/2,H/2+28);
+        ctx.textAlign='left';
+      }
+    }
+
+    function update(dt){
+      // Player movement
+      player.x+=player.vx*dt*0.26;
+      player.x=Math.max(30,Math.min(W-30,player.x));
+
+      // Shooting cooldown
+      if(shootTimer>0)shootTimer-=dt;
+
+      // Move player bullets
+      bullets=bullets.filter(b=>{b.y-=BULLET_SPD;return b.y>0;});
+
+      // Move invader bullets
+      invBullets=invBullets.filter(b=>{b.y+=4;return b.y<H;});
+
+      // Animate invaders
+      animTimer+=dt;
+      if(animTimer>ANIM_INTERVAL){animTimer=0;animFrame=1-animFrame;}
+
+      // Move invaders
+      invDropTimer+=dt;
+      const alive=invaders.filter(i=>i.alive);
+      if(!alive.length){won=true;return;}
+
+      // Horizontal movement
+      let hitWall=false;
+      alive.forEach(i=>{i.x+=invSpeed*invDir*(dt/16);});
+      const minX=Math.min(...alive.map(i=>i.x));
+      const maxX=Math.max(...alive.map(i=>i.x+INV_W));
+      if(maxX>W-10||minX<10){
+        hitWall=true;invDir*=-1;
+        alive.forEach(i=>{i.y+=14;});
+        invSpeed=Math.min(invSpeed+0.1,8);
+      }
+
+      // Invaders reach bottom
+      if(alive.some(i=>i.y+INV_H>PLAYER_Y-10)){if(score>hiScore){hiScore=score;localStorage.setItem(INV_HI_KEY,score);}dead=true;return;}
+
+      // Random invader shoots
+      if(Math.random()<0.008*level){
+        const shooters=alive.filter(inv=>{
+          return !alive.some(o=>o.row>inv.row&&o.col===inv.col);
+        });
+        if(shooters.length){
+          const s=shooters[Math.floor(Math.random()*shooters.length)];
+          invBullets.push({x:s.x+INV_W/2,y:s.y+INV_H});
+        }
+      }
+
+      // Check bullet-invader collisions
+      bullets.forEach(b=>{
+        invaders.filter(i=>i.alive).forEach(i=>{
+          if(b.x>i.x&&b.x<i.x+INV_W&&b.y>i.y&&b.y<i.y+INV_H){
+            i.alive=false;score+=i.type.pts;
+            b.y=-999; // mark for removal
+          }
+        });
+      });
+
+      // Check invader bullets vs player
+      invBullets.forEach(b=>{
+        if(Math.abs(b.x-player.x)<22&&b.y>PLAYER_Y-10&&b.y<PLAYER_Y+10){
+          lives--;b.y=H+1;
+          if(lives<=0){if(score>hiScore){hiScore=score;localStorage.setItem(INV_HI_KEY,score);}dead=true;}
+        }
+      });
+
+      // Check invader bullets vs barriers
+      invBullets.forEach(b=>{
+        barriers.forEach(br=>{
+          if(br.hp>0&&b.x>br.x&&b.x<br.x+br.w&&b.y>br.y&&b.y<br.y+br.h){
+            br.hp--;b.y=H+1;
+          }
+        });
+      });
+
+      // Check player bullets vs barriers
+      bullets.forEach(b=>{
+        barriers.forEach(br=>{
+          if(br.hp>0&&b.x>br.x&&b.x<br.x+br.w&&b.y>br.y&&b.y<br.y+br.h){
+            br.hp--;b.y=-999;
+          }
+        });
+      });
+    }
+
+    const keys={};
+    function onKey(e){
+      keys[e.code]=(e.type==='keydown');
+      if(e.type==='keydown'){
+        if(e.code==='Space'){
+          e.preventDefault();e.stopPropagation();
+          if(dead||won){
+            if(won&&invaders.filter(i=>i.alive).length===0){level++;reset(true);}
+            else{reset(false);}
+            return;
+          }
+          if(shootTimer<=0&&bullets.length<4){
+            bullets.push({x:player.x,y:PLAYER_Y-14});
+            shootTimer=220;
+          }
+        }
+        if(e.code==='KeyP'){e.preventDefault();e.stopPropagation();if(!dead&&!won)paused=!paused;}
+        if(e.code==='Escape'){if(!dead&&!won&&!paused){paused=true;}else{showView('map');}}
+      }
+      if(['ArrowLeft','ArrowRight','KeyA','KeyD','Space'].includes(e.code))e.preventDefault();
+    }
+
+    function loop(ts){
+      raf=requestAnimationFrame(loop);
+      const dt=Math.min(ts-lastTs,50);lastTs=ts;
+      if(!dead&&!won&&!paused){
+        if(keys['ArrowLeft']||keys['KeyA'])player.vx=-5;
+        else if(keys['ArrowRight']||keys['KeyD'])player.vx=5;
+        else player.vx=0;
+        update(dt);
+      }
+      draw();
+    }
+
+    document.addEventListener('keydown',onKey,true);
+    document.addEventListener('keyup',onKey,true);
+    reset(false);
+
+    return function cleanup(){
+      cancelAnimationFrame(raf);raf=null;
+      document.removeEventListener('keydown',onKey,true);
+      document.removeEventListener('keyup',onKey,true);
+    };
+  }
+})();
+</script>
     </div>
   </div>
 
@@ -538,7 +1088,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     <div class="clks">
       <div class="cc" id="cc1"><div class="ccl" id="cl1">CDMX</div><div class="cct" id="t-cdmx">--:--</div><div class="ccamp" id="ap-cdmx"></div></div>
       <div class="cc" id="cc2"><div class="ccl" id="cl2">NYC</div><div class="cct" id="t-nyc">--:--</div><div class="ccamp" id="ap-nyc"></div></div>
-      <div class="cc hl" id="cc6"><div class="ccl" id="cl6">PR ★</div><div class="cct" id="t-pr">--:--</div><div class="ccamp" id="ap-pr"></div></div>
+      <div class="cc" id="cc6"><div class="ccl" id="cl6">PR</div><div class="cct" id="t-pr">--:--</div><div class="ccamp" id="ap-pr"></div></div>
       <div class="cc" id="cc3"><div class="ccl" id="cl3">LON</div><div class="cct" id="t-lon">--:--</div><div class="ccamp" id="ap-lon"></div></div>
       <div class="cc" id="cc4"><div class="ccl" id="cl4">DXB</div><div class="cct" id="t-dxb">--:--</div><div class="ccamp" id="ap-dxb"></div></div>
       <div class="cc" id="cc5"><div class="ccl" id="cl5">TOK</div><div class="cct" id="t-tok">--:--</div><div class="ccamp" id="ap-tok"></div></div>
@@ -550,10 +1100,10 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 <div class="col">
   <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div id="w-hum" style="font-size:13px;margin-top:2px;">--%</div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div id="w-wnd" style="font-size:13px;margin-top:2px;">--</div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div id="w-uv" style="font-size:13px;margin-top:2px;">--</div></div></div></div>
   <div class="pnl" id="p-cry"><div class="lbl" id="l-cry">CRYPTO · FX</div>
-    <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs">$--</span><span id="btc-c" style="font-size:12px;">--%</span></div>
-    <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs">$--</span><span id="eth-c" style="font-size:12px;">--%</span></div>
-    <div class="cr"><span id="crl3" style="font-size:13px;font-weight:bold;">SOL</span><span id="sol-p" class="vxs">$--</span><span id="sol-c" style="font-size:12px;">--%</span></div>
-    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;">live</span></div>
+    <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="btc-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="eth-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr"><span id="crl3" style="font-size:13px;font-weight:bold;">SOL</span><span id="sol-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="sol-c" style="font-size:12px;text-align:right;">--%</span></div>
+    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;text-align:right;">live</span></div>
   </div>
 
   <!-- NEURAL CORE — flex:1 grows to fill -->
@@ -569,10 +1119,20 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     <div id="sphere-stats" style="font-size:10px;letter-spacing:1px;line-height:1.9;flex-shrink:0;margin-top:3px;"></div>
   </div>
 
-  <!-- NEXUS LOG + feed -->
-  <div class="pnl grow" id="p-nxlog" style="min-height:90px;display:flex;flex-direction:column;">
-    <div class="lbl" id="l-nxlog">NEXUS LOG</div>
-    <div class="log-scroll" id="nx-scroll" style="flex:1;min-height:0;"><div id="nx-content"></div></div>
+  <!-- NEXUS RADAR — permanent mini radar panel -->
+  <div class="pnl grow" id="p-nxlog" style="min-height:220px;display:flex;flex-direction:column;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;margin-bottom:3px;">
+      <div class="lbl" id="l-nxlog" style="margin-bottom:0">NEXUS RADAR</div>
+      <span id="nxr-status" style="font-size:10px;letter-spacing:1px;opacity:.65"></span>
+      <span class="btn-mini" id="nxp-toggle" onclick="toggleNxPanel()" style="margin-left:6px">[ LOG ]</span>
+    </div>
+    <div id="nxp-radar" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+      <canvas id="nxr-canvas" style="flex:1;min-height:0;width:100%;display:block;min-height:120px"></canvas>
+      <div id="nxr-contacts" style="font-size:10px;line-height:1.5;margin-top:3px;flex-shrink:0;max-height:55px;overflow-y:auto;letter-spacing:.03em"></div>
+    </div>
+    <div id="nxp-log" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden;">
+      <div class="log-scroll" id="nx-scroll" style="flex:1;overflow-y:auto;max-height:100%;"><div id="nx-content"></div></div>
+    </div>
   </div>
 </div>
 
@@ -582,18 +1142,47 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 
 <script>
 const P={
-  green:{base:'#050e09',wrap:'#04342C',wB:'#1D9E75',hi:'#5DCAA5',mid:'#1D9E75',lo:'#085041',deep:'#03280F',lbl:'#0F6E56',mut:'#085041',bar:'#1D9E75',trk:'#04342C',mapBg:'#03280F',mapLine:'#085041',land:'#0F6E56',pin:'#1D9E75',pulse:'#9FE1CB',pos:'#1D9E75',neg:'#D4537E',warn:'#EF9F27',fB:'#085041',fM:'#085041',fH:'#0F6E56',live:'#1D9E75',thumb:'#0F6E56',prHL:'#5DCAA5',cores:['#04342C','#04342C','#085041','#0F6E56','#1D9E75','#5DCAA5']},
-  blue:{base:'#020a14',wrap:'#042C53',wB:'#378ADD',hi:'#85B7EB',mid:'#378ADD',lo:'#0C447C',deep:'#020d1a',lbl:'#185FA5',mut:'#0C447C',bar:'#378ADD',trk:'#042C53',mapBg:'#020d1a',mapLine:'#0C447C',land:'#185FA5',pin:'#378ADD',pulse:'#B5D4F4',pos:'#378ADD',neg:'#D4537E',warn:'#EF9F27',fB:'#0C447C',fM:'#0C447C',fH:'#185FA5',live:'#378ADD',thumb:'#185FA5',prHL:'#85B7EB',cores:['#042C53','#042C53','#0C447C','#185FA5','#378ADD','#85B7EB']},
-  amber:{base:'#120900',wrap:'#412402',wB:'#EF9F27',hi:'#FAC775',mid:'#EF9F27',lo:'#633806',deep:'#0d0700',lbl:'#854F0B',mut:'#633806',bar:'#BA7517',trk:'#412402',mapBg:'#0d0700',mapLine:'#633806',land:'#854F0B',pin:'#EF9F27',pulse:'#FAC775',pos:'#EF9F27',neg:'#E24B4A',warn:'#EF9F27',fB:'#633806',fM:'#633806',fH:'#854F0B',live:'#EF9F27',thumb:'#854F0B',prHL:'#FAC775',cores:['#412402','#412402','#633806','#854F0B','#BA7517','#FAC775']},
-  purple:{base:'#08051a',wrap:'#26215C',wB:'#7F77DD',hi:'#AFA9EC',mid:'#7F77DD',lo:'#3C3489',deep:'#060418',lbl:'#534AB7',mut:'#3C3489',bar:'#7F77DD',trk:'#26215C',mapBg:'#060418',mapLine:'#3C3489',land:'#534AB7',pin:'#7F77DD',pulse:'#CECBF6',pos:'#7F77DD',neg:'#D4537E',warn:'#EF9F27',fB:'#3C3489',fM:'#3C3489',fH:'#534AB7',live:'#7F77DD',thumb:'#534AB7',prHL:'#CECBF6',cores:['#26215C','#26215C','#3C3489','#534AB7','#7F77DD','#AFA9EC']},
-  red:{base:'#130303',wrap:'#501313',wB:'#E24B4A',hi:'#F09595',mid:'#E24B4A',lo:'#791F1F',deep:'#0e0202',lbl:'#A32D2D',mut:'#791F1F',bar:'#E24B4A',trk:'#501313',mapBg:'#0e0202',mapLine:'#791F1F',land:'#A32D2D',pin:'#E24B4A',pulse:'#F7C1C1',pos:'#E24B4A',neg:'#F09595',warn:'#EF9F27',fB:'#791F1F',fM:'#791F1F',fH:'#A32D2D',live:'#E24B4A',thumb:'#A32D2D',prHL:'#F7C1C1',cores:['#501313','#501313','#791F1F','#A32D2D','#E24B4A','#F09595']}
+  green:{base:'#050e09',wrap:'#04342C',wB:'#1D9E75',hi:'#5DCAA5',mid:'#1D9E75',lo:'#085041',deep:'#03280F',lbl:'#38B891',mut:'#1D9E75',bar:'#1D9E75',trk:'#04342C',mapBg:'#03280F',mapLine:'#085041',land:'#0F6E56',pin:'#1D9E75',pulse:'#9FE1CB',pos:'#1D9E75',neg:'#D4537E',warn:'#EF9F27',fB:'#085041',fM:'#1D9E75',fH:'#38B891',live:'#1D9E75',thumb:'#0F6E56',prHL:'#5DCAA5',cores:['#04342C','#04342C','#085041','#0F6E56','#1D9E75','#5DCAA5']},
+  blue:{base:'#020a14',wrap:'#042C53',wB:'#378ADD',hi:'#85B7EB',mid:'#378ADD',lo:'#0C447C',deep:'#020d1a',lbl:'#5499E0',mut:'#378ADD',bar:'#378ADD',trk:'#042C53',mapBg:'#020d1a',mapLine:'#0C447C',land:'#185FA5',pin:'#378ADD',pulse:'#B5D4F4',pos:'#378ADD',neg:'#D4537E',warn:'#EF9F27',fB:'#0C447C',fM:'#378ADD',fH:'#5499E0',live:'#378ADD',thumb:'#185FA5',prHL:'#85B7EB',cores:['#042C53','#042C53','#0C447C','#185FA5','#378ADD','#85B7EB']},
+  amber:{base:'#120900',wrap:'#412402',wB:'#EF9F27',hi:'#FAC775',mid:'#EF9F27',lo:'#633806',deep:'#0d0700',lbl:'#F4B84A',mut:'#EF9F27',bar:'#BA7517',trk:'#412402',mapBg:'#0d0700',mapLine:'#633806',land:'#854F0B',pin:'#EF9F27',pulse:'#FAC775',pos:'#EF9F27',neg:'#E24B4A',warn:'#EF9F27',fB:'#633806',fM:'#EF9F27',fH:'#F4B84A',live:'#EF9F27',thumb:'#854F0B',prHL:'#FAC775',cores:['#412402','#412402','#633806','#854F0B','#BA7517','#FAC775']},
+  purple:{base:'#08051a',wrap:'#26215C',wB:'#7F77DD',hi:'#AFA9EC',mid:'#7F77DD',lo:'#3C3489',deep:'#060418',lbl:'#9B95E8',mut:'#7F77DD',bar:'#7F77DD',trk:'#26215C',mapBg:'#060418',mapLine:'#3C3489',land:'#534AB7',pin:'#7F77DD',pulse:'#CECBF6',pos:'#7F77DD',neg:'#D4537E',warn:'#EF9F27',fB:'#3C3489',fM:'#7F77DD',fH:'#9B95E8',live:'#7F77DD',thumb:'#534AB7',prHL:'#CECBF6',cores:['#26215C','#26215C','#3C3489','#534AB7','#7F77DD','#AFA9EC']},
+  red:{base:'#130303',wrap:'#501313',wB:'#E24B4A',hi:'#F09595',mid:'#E24B4A',lo:'#791F1F',deep:'#0e0202',lbl:'#E86868',mut:'#E24B4A',bar:'#E24B4A',trk:'#501313',mapBg:'#0e0202',mapLine:'#791F1F',land:'#A32D2D',pin:'#E24B4A',pulse:'#F7C1C1',pos:'#E24B4A',neg:'#F09595',warn:'#EF9F27',fB:'#791F1F',fM:'#E24B4A',fH:'#E86868',live:'#E24B4A',thumb:'#A32D2D',prHL:'#F7C1C1',cores:['#501313','#501313','#791F1F','#A32D2D','#E24B4A','#F09595']}
 };
 let _pal=P.green;
+let _weatherData=null;
+
+let _activeView='map';
+let _snakeCleanup=null;
+
+function showView(name){
+  if(_snakeCleanup){_snakeCleanup();_snakeCleanup=null;}
+  _activeView=name;
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.toggle('vp-active',t.dataset.view===name));
+  document.querySelectorAll('.view-pane').forEach(p=>p.classList.toggle('vp-active',p.id==='view-'+name));
+  if(name==='snake'){
+    setTimeout(()=>{
+      const cv=document.getElementById('snake-canvas');
+      if(!cv)return;
+      const wr=document.getElementById('snake-wrap');
+      cv.width=wr.offsetWidth||800;cv.height=wr.offsetHeight||500;
+      _snakeCleanup=initSnake(cv);
+    },50);
+  }
+  if(typeof onShowView==='function') onShowView(name);
+}
+
+document.addEventListener('keydown',function(e){
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'radar'};
+  if(vm[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){showView(vm[e.code]);e.preventDefault();}
+});
 
 function h2r(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
 function ca(hex,a){const[r,g,b]=h2r(hex);return'rgba('+r+','+g+','+b+','+a+')';}
 
+function currentPalette(){ return _pal; }
 function applyPalette(c){
+  _pal = c;
   document.getElementById('root').style.cssText='background:'+c.wrap+';border:1px solid '+c.wB+';border-radius:12px;padding:1px;width:100%;';
   const inn=document.getElementById('inner');inn.style.background=c.base;inn.style.color=c.hi;
   document.getElementById('hdr').style.borderBottomColor=c.lo;
@@ -626,17 +1215,17 @@ function applyPalette(c){
   const wb=document.getElementById('wx-bg');if(wb){wb.setAttribute('fill',c.deep);wb.setAttribute('stroke',c.lo);}
   const wt=document.getElementById('wx-temp');if(wt)wt.setAttribute('fill',c.hi);
   const wd=document.getElementById('wx-desc');if(wd)wd.setAttribute('fill',c.mut);
-  ['cc1','cc2','cc3','cc4','cc5','cc6'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.background=c.deep;if(id==='cc6'){el.style.borderColor=c.prHL;document.getElementById('t-pr').style.color=c.prHL;document.getElementById('cl6').style.color=c.prHL;}});
+  ['cc1','cc2','cc3','cc4','cc5','cc6'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.style.background=c.deep;el.style.borderColor='';});
   document.getElementById('t-cdmx').style.color=c.mid;
-  ['t-nyc','t-lon','t-dxb','t-tok'].forEach(id=>document.getElementById(id).style.color=c.hi);
-  ['cl1','cl2','cl3','cl4','cl5'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.color=c.mut;});
+  ['t-nyc','t-lon','t-dxb','t-tok','t-pr'].forEach(id=>document.getElementById(id).style.color=c.hi);
+  ['cl1','cl2','cl3','cl4','cl5','cl6'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.color=c.mid;});
   ['wc1','wc2','wc3'].forEach(id=>document.getElementById(id).style.background=c.deep);
   ['wl1','wl2','wl3'].forEach(id=>document.getElementById(id).style.color=c.mut);
   const eqc=document.getElementById('eq-count');if(eqc)eqc.style.color=c.mut;
   const eqf=document.getElementById('eq-footer');if(eqf)eqf.style.color=c.fH;
-  document.getElementById('ftr').style.borderTopColor=c.fB;document.getElementById('ftr').style.color=c.fM;
+  document.getElementById('ftr').style.borderTopColor=c.fB;document.getElementById('ftr').style.color=c.mid;
   const vs=document.getElementById('v-sig');if(vs){vs.style.color=c.hi;vs.style.opacity="0.8";}
-  ['uptime','ipval','pingval','procs'].forEach(id=>document.getElementById(id).style.color=c.fH);
+  ['uptime','ipval','pingval','procs'].forEach(id=>document.getElementById(id).style.color=c.hi);
   document.getElementById('ldot').style.background=c.live;document.getElementById('llbl').style.color=c.live;
   const bc=document.getElementById('bigclock');if(bc)bc.style.color=c.mid;
   const ba=document.getElementById('bigampm');if(ba)ba.style.color=c.mid;
@@ -656,7 +1245,9 @@ function applyPalette(c){
   const ss2=document.getElementById('sc-s');if(ss2)ss2.style.color=c.mid;
   const lsp=document.getElementById('l-sphere');if(lsp)lsp.style.color=c.lbl;
   let ss=document.getElementById('_ss');if(!ss){ss=document.createElement('style');ss.id='_ss';document.head.appendChild(ss);}
-  ss.textContent='.log-scroll::-webkit-scrollbar-thumb{background:'+c.thumb+'}.log-scroll{scrollbar-color:'+c.thumb+' transparent}';
+  ss.textContent='.log-scroll::-webkit-scrollbar-thumb{background:'+c.thumb+'}.log-scroll{scrollbar-color:'+c.thumb+' transparent}'
+    +'::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:'+c.thumb+';border-radius:0}'
+    +'*{scrollbar-width:thin;scrollbar-color:'+c.thumb+' transparent}';
   
   // Style map tooltip
   const tooltip = document.getElementById('map-tooltip');
@@ -666,6 +1257,22 @@ function applyPalette(c){
     tooltip.style.color = c.hi;
   }
 
+  // Global Stats panel
+  const gsLbl = document.getElementById('l-gs');
+  if (gsLbl) gsLbl.style.color = c.wB;
+  // News ticker
+  const ticker = document.getElementById('news-ticker');
+  if (ticker) { ticker.style.borderTopColor = c.lo; ticker.style.background = c.deep; }
+  const tickerInner = document.getElementById('news-ticker-inner');
+  if (tickerInner) tickerInner.style.color = c.lbl;
+
+  document.querySelectorAll('.vtab').forEach(t=>{
+    t.style.borderColor=c.lo;t.style.color=t.classList.contains('vp-active')?c.hi:c.mut;
+    t.style.background=t.classList.contains('vp-active')?c.deep:'transparent';
+  });
+  const vstWrap=document.getElementById('view-tabs');
+  if(vstWrap)vstWrap.style.borderBottom='1px solid '+c.lo;
+
   renderEventPins();drawNetGraph();initMatrix();
 }
 function setPalette(name){_pal=P[name];document.querySelectorAll('.sw').forEach(s=>s.classList.remove('active'));document.getElementById('sw-'+name).classList.add('active');applyPalette(_pal);}
@@ -673,8 +1280,8 @@ function setPalette(name){_pal=P[name];document.querySelectorAll('.sw').forEach(
 // ── TIME ──────────────────────────────────────────────────────────────────
 const DAYS=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-const GREET=[['GOOD MORNING, SERGIO.','RISE AND GRIND, SERGIO.'],['PRODUCTIVE AFTERNOON, SERGIO.','GOOD AFTERNOON, SERGIO.'],['GOOD EVENING, SERGIO.','NIGHT SHIFT, SERGIO.']];
-let greetSet=false;
+function _greet(){const u=(_settings&&_settings.username)||'SERGIO';return[['GOOD MORNING, '+u+'.','RISE AND GRIND, '+u+'.'],['PRODUCTIVE AFTERNOON, '+u+'.','GOOD AFTERNOON, '+u+'.'],['GOOD EVENING, '+u+'.','NIGHT SHIFT, '+u+'.']];}
+var greetSet=false;
 function fmt12(now,tz){const s=now.toLocaleTimeString('en-US',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:true});const m=s.match(/(d+:d+)s*(AM|PM)/i);return m?{t:m[1].replace(/^0/,''),ap:m[2]}:{t:s,ap:''};} 
 function updateTime(){
   const c=_pal,now=new Date(),h=now.getHours(),m=now.getMinutes(),s=now.getSeconds(),h12=h%12||12;
@@ -682,7 +1289,7 @@ function updateTime(){
   const ba=document.getElementById('bigampm');if(ba){ba.textContent=h<12?'AM':'PM';ba.style.color=c.mid;}
   const bd=document.getElementById('bigdate');if(bd){bd.textContent=now.getDate()+' '+MONTHS[now.getMonth()]+' '+now.getFullYear();bd.style.color=c.hi;}
   const bdy=document.getElementById('bigday');if(bdy)bdy.textContent=DAYS[now.getDay()];
-  if(!greetSet){const hh=h;const pool=hh<12?GREET[0]:hh<19?GREET[1]:GREET[2];const gr=document.getElementById('greeting');if(gr){gr.textContent=pool[Math.floor(Math.random()*pool.length)];gr.style.color=c.hi;greetSet=true;}}
+  if(!greetSet){const hh=h;const G=_greet();const pool=hh<12?G[0]:hh<19?G[1]:G[2];const gr=document.getElementById('greeting');if(gr){gr.textContent=pool[Math.floor(Math.random()*pool.length)];gr.style.color=c.hi;greetSet=true;}}
   const sl=document.getElementById('status-l');if(sl){const cv2=document.getElementById('cpu-val').textContent,rv=document.getElementById('ram-v').textContent,tv=document.getElementById('gpu-t').textContent,cn=parseInt(cv2),tn=parseInt(tv);sl.textContent=isNaN(cn)?'CONNECTING...':(cn>80?'⚠ ':'')+'CPU '+cv2+'%  ·  RAM '+rv+'GB  ·  '+(tn>80?'⚠ ':'')+'GPU '+tv;sl.style.color=c.mut;}
   const sh=document.getElementById('syshealth');if(sh){const cn=parseInt(document.getElementById('cpu-val').textContent),tn=parseInt(document.getElementById('gpu-t').textContent);if(cn>85||tn>85){sh.textContent='⚠ ATTENTION';sh.style.color='#E24B4A';}else{sh.textContent='● SYSTEMS OK';sh.style.color=c.mid;}}
   [['cdmx','America/Mexico_City'],['nyc','America/New_York'],['pr','America/Puerto_Rico'],['lon','Europe/London'],['dxb','Asia/Dubai'],['tok','Asia/Tokyo']].forEach(([id,tz])=>{const r=fmt12(now,tz);const te=document.getElementById('t-'+id);if(te)te.textContent=r.t;const ae=document.getElementById('ap-'+id);if(ae)ae.textContent=r.ap;});
@@ -728,9 +1335,89 @@ function updateDoomClock(sec){
 setInterval(updateSingularity,1000);updateSingularity();
 
 // ── PC STATS ───────────────────────────────────────────────────────────────
+let _issCrew = [];
+
+function renderFlightPins(flights) {
+  const g = document.getElementById('flight-pins'); if(!g) return;
+  g.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  flights.forEach(f => {
+    const [x, y] = ll2xy(f.lon, f.lat);
+    if(x < 2 || x > 1998 || y < 2 || y > 998) return;
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+    dot.setAttribute('r', '2'); dot.setAttribute('fill', '#F0F0F0');
+    dot.setAttribute('opacity', '.55');
+    dot.style.cursor = 'pointer';
+    dot.addEventListener('mouseover', () => {
+      const tooltip = document.getElementById('map-tooltip'); if(!tooltip) return;
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong>✈️ ${f.callsign}</strong><div style="margin-top:4px;font-size:11px;color:#80EEFF;">${f.country} · ${f.alt.toLocaleString()} ft · ${f.speed} kts · HDG ${f.heading}°</div>`;
+      const rect = tooltip.closest('#wmap-wrap')?.getBoundingClientRect() || {left:0,top:0};
+      const svg = document.getElementById('wmap').getBoundingClientRect();
+      const px = svg.left + (x / 2000) * svg.width - rect.left;
+      const py = svg.top  + (y / 1001) * svg.height - rect.top;
+      tooltip.style.left = Math.min(px + 8, rect.width - 220) + 'px';
+      tooltip.style.top  = Math.max(py - 50, 4) + 'px';
+    });
+    dot.addEventListener('mouseout', () => { const t = document.getElementById('map-tooltip'); if(t) t.style.display='none'; });
+    g.appendChild(dot);
+  });
+}
+
+async function fetchFlights() {
+  if(_settings && !_settings.showFlights) { renderFlightPins([]); return; }
+  try {
+    const d = await (await fetch('http://localhost:19234/flights')).json();
+    renderFlightPins(d.flights || []);
+  } catch(e) {}
+}
+
+async function fetchISSLive() {
+  try {
+    const d = await (await fetch('http://localhost:19234/iss')).json();
+    if (d.lat == null) return;
+    _evts = _evts.filter(e => e.type !== 'iss');
+    _evts.push({ type: 'iss', lat: d.lat, lon: d.lon, label: 'ISS', info: 'Alt: ' + d.alt + ' km | ISS' });
+    renderEventPins();
+  } catch(e) {}
+}
+
+async function fetchSpace() {
+  try {
+    const d = await (await fetch('http://localhost:19234/space')).json();
+    _issCrew = d.crew || [];
+    const kp = d.kp;
+    const badge = document.getElementById('kp-badge');
+    const kpEl = document.getElementById('kp-val');
+    if(badge && kp !== null && kp !== undefined) {
+      badge.style.display = '';
+      kpEl.textContent = kp.value;
+      const v = kp.value;
+      const col = v >= 7 ? '#E24B4A' : v >= 5 ? '#EF9F27' : v >= 3 ? '#7F77DD' : _pal.mut;
+      badge.style.color = col;
+      badge.style.borderColor = col;
+      badge.style.border = '1px solid ' + col;
+      badge.title = v >= 5 ? '⚡ AURORA POSSIBLE (Kp ' + v + ')' : 'Geomagnetic Kp = ' + v;
+      // Aurora header glow
+      const hdr = document.getElementById('hdr');
+      if (hdr) {
+        if (v >= 5) {
+          const kpColor = v >= 8 ? '#FF4444' : v >= 7 ? '#FF8800' : v >= 6 ? '#FFBB00' : '#5DCAA5';
+          hdr.style.setProperty('--aurora-color', kpColor);
+          hdr.classList.add('aurora-active');
+        } else {
+          hdr.classList.remove('aurora-active');
+          hdr.style.removeProperty('--aurora-color');
+        }
+      }
+    }
+  } catch(e) {}
+}
+
 async function fetchStats(){
   try{
-    const d=await(await fetch('http://localhost:3000/stats')).json();const c=_pal;
+    const d=await(await fetch('http://localhost:19234/stats')).json();const c=_pal;
     document.getElementById('cpu-val').textContent=d.cpu.load;document.getElementById('bf-cpu').style.width=d.cpu.load+'%';
     const cl=d.cpu.cores.length;for(let i=0;i<8;i++){const v=cl>0?d.cpu.cores[i%cl]:d.cpu.load;const idx=Math.min(Math.floor(v/22),c.cores.length-1);document.getElementById('c'+i).style.background=c.cores[idx];}
     document.getElementById('ram-v').textContent=d.mem.used;document.getElementById('ram-t').textContent='/ '+d.mem.total+' GB';document.getElementById('bf-ram').style.width=d.mem.percent+'%';
@@ -740,13 +1427,34 @@ async function fetchStats(){
     if(dw){dw.innerHTML='';if(d.disks&&d.disks.length){d.disks.forEach(disk=>{const div=document.createElement('div');div.className='pnl disk-pnl';div.style.borderColor=c.lo;const tbh = document.body.classList.contains('theme-win98') || document.body.classList.contains('theme-macos') ? ' title-bar' : ''; div.innerHTML='<div class="lbl disk-lbl'+tbh+'" style="color:'+c.lbl+';margin-bottom:3px;position:relative;"><span class="tb-text">Disk '+disk.mount+'</span><div class="win-btns"><div class="wb-min">_</div><div class="wb-max">&#x25A1;</div><div class="wb-cls">X</div></div></div><div class="rsp"><span class="disk-val" style="font-size:13px;color:'+c.hi+'">'+disk.used+' GB</span><span class="disk-tot mut" style="color:'+c.mut+';font-size:10px;">/ '+disk.total+' GB</span></div><div class="bt disk-bt" style="background:'+c.trk+'"><div class="bf disk-bf" style="width:'+disk.percent+'%;background:'+c.bar+'"></div></div>';dw.appendChild(div);});}}
     document.getElementById('net-u').textContent=d.net.upload+' MB/s';document.getElementById('net-d').textContent=d.net.download+' MB/s';updateNetGraph(d.net.upload,d.net.download);
     document.getElementById('hostname').textContent=d.os.hostname.toUpperCase();document.getElementById('procs').textContent=d.processes;
+    const ct=d.cpu?.temp,ctel=document.getElementById('cpu-tmp');if(ctel){if(ct!=null){ctel.textContent=ct+'°C';ctel.style.color=ct>85?'#E24B4A':ct>70?c.warn:c.mut;}else{ctel.style.display='none';}}
     const s=d.uptime,ud=Math.floor(s/86400),uh=Math.floor((s%86400)/3600),um=Math.floor((s%3600)/60);document.getElementById('uptime').textContent=ud+'d '+uh+'h '+um+'m';
+    _ncCpuLoad=Math.min(1,d.cpu.load/100);_ncRamLoad=Math.min(1,d.mem.percent/100);
+    _ncCores=d.cpu.cores.map(v=>Math.min(1,v/100));
   }catch(e){document.getElementById('cpu-val').textContent='ERR';}
 }
-async function fetchNetwork(){try{const d=await(await fetch('http://localhost:3000/network')).json();document.getElementById('ipval').textContent=d.ip;document.getElementById('pingval').textContent=d.ping+' ms';}catch(e){}}
+async function fetchNetwork(){try{const d=await(await fetch('http://localhost:19234/network')).json();document.getElementById('ipval').textContent=d.ip;document.getElementById('pingval').textContent=d.ping+' ms';}catch(e){}}
+let _nxLogTs=0;
+async function fetchNexusLog(){
+  try{
+    const d=await(await fetch('http://localhost:19234/logs')).json();
+    const c=currentPalette();
+    const el=document.getElementById('nx-content');
+    if(!el)return;
+    const cols={ok:c.mid,error:'#E24B4A',warn:c.warn,info:c.lbl};
+    el.innerHTML=d.logs.slice(-40).map(e=>{
+      const col=cols[e.type]||c.lbl;
+      return`<div style="color:${col};font-size:9px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="opacity:.5">${e.ts}</span> <span>${e.msg}</span></div>`;
+    }).join('');
+    const sc=document.getElementById('nx-scroll');
+    if(sc)sc.scrollTop=sc.scrollHeight;
+  }catch(e){}
+}
 async function fetchWeather(){
   try{
-    const d=await(await fetch('http://localhost:3000/weather')).json();
+    const cityParam = (_settings&&_settings.city) ? '?city='+encodeURIComponent(_settings.city) : '';
+    const d=await(await fetch('http://localhost:19234/weather'+cityParam)).json();
+    _weatherData=d;
     if(d.temp!==undefined)document.getElementById('w-tmp').textContent=d.temp+'°';
     if(d.desc)document.getElementById('w-dsc').textContent=d.desc;
     if(d.high!==undefined&&d.low!==undefined)document.getElementById('w-hl').textContent='H:'+d.high+'° L:'+d.low+'°';
@@ -757,22 +1465,15 @@ async function fetchWeather(){
     if(d.temp!==undefined&&d.desc){document.getElementById('wx-temp').textContent=d.temp+'°';document.getElementById('wx-desc').textContent=(d.desc||'').substring(0,11);document.getElementById('wx-pill').setAttribute('opacity','1');document.getElementById('wx-bg').setAttribute('fill',c.deep);document.getElementById('wx-bg').setAttribute('stroke',c.lo);document.getElementById('wx-temp').setAttribute('fill',c.hi);document.getElementById('wx-desc').setAttribute('fill',c.mut);}
   }catch(e){}
 }
-async function fetchCrypto(){try{const d=await(await fetch('http://localhost:3000/crypto')).json();const c=_pal;const fmt=(coin,pid,cid)=>{if(!coin||!coin.price)return;document.getElementById(pid).textContent='$'+coin.price.toLocaleString();const ch=coin.change||0,el=document.getElementById(cid);el.textContent=(ch>=0?'▲ ':'▼ ')+Math.abs(ch)+'%';el.style.color=ch>=0?c.pos:c.neg;};fmt(d.btc,'btc-p','btc-c');fmt(d.eth,'eth-p','eth-c');fmt(d.sol,'sol-p','sol-c');if(d.usdmxn&&d.usdmxn>0){document.getElementById('usdmxn').textContent='$'+d.usdmxn.toFixed(2);document.getElementById('usdmxn').style.color=c.hi;}}catch(e){}}
+async function fetchCrypto(){try{const d=await(await fetch('http://localhost:19234/crypto')).json();const c=_pal;const fmt=(coin,pid,cid)=>{if(!coin||!coin.price)return;document.getElementById(pid).textContent='$'+coin.price.toLocaleString();const ch=coin.change||0,el=document.getElementById(cid);el.textContent=(ch>=0?'▲ ':'▼ ')+Math.abs(ch)+'%';el.style.color=ch>=0?c.pos:c.neg;};fmt(d.btc,'btc-p','btc-c');fmt(d.eth,'eth-p','eth-c');fmt(d.sol,'sol-p','sol-c');if(d.usdmxn&&d.usdmxn>0){document.getElementById('usdmxn').textContent='$'+d.usdmxn.toFixed(2);document.getElementById('usdmxn').style.color=c.hi;}}catch(e){}}
 
 
-async function fetchNexusLog(){
-  try{
-    const d=await(await fetch('http://localhost:3000/logs')).json();const c=_pal;
-    const cont=document.getElementById('nx-content');if(!cont||!d.logs||!d.logs.length)return;
-    cont.innerHTML='';
-    d.logs.slice().reverse().forEach(entry=>{const div=document.createElement('div');div.className='log-line';div.style.color=entry.type==='error'?'#E24B4A':entry.type==='warn'?c.warn:entry.type==='ok'?c.mid:c.mut;div.textContent=entry.ts+' '+entry.msg;cont.appendChild(div);});
-  }catch(e){}
-}
 
 // ── NET GRAPH ──────────────────────────────────────────────────────────────
 const NH={up:Array(60).fill(0),dn:Array(60).fill(0),max:1};
 function updateNetGraph(up,dn){NH.up.push(up);NH.up.shift();NH.dn.push(dn);NH.dn.shift();NH.max=Math.max(1,...NH.up,...NH.dn)*1.2;drawNetGraph();}
 function drawNetGraph(){
+
   const cv=document.getElementById('net-cv');if(!cv)return;const c=_pal,W=cv.offsetWidth||180,H=44;cv.width=W;cv.height=H;
   const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.strokeStyle=c.lo;ctx.lineWidth=0.5;ctx.setLineDash([2,6]);
   [.33,.66].forEach(f=>{ctx.beginPath();ctx.moveTo(0,H-f*H);ctx.lineTo(W,H-f*H);ctx.stroke();});ctx.setLineDash([]);
@@ -780,55 +1481,160 @@ function drawNetGraph(){
   ctx.fillStyle=_pal.mid;ctx.font='9px monospace';ctx.globalAlpha=.5;ctx.fillText(NH.max.toFixed(1)+'M',2,12);ctx.globalAlpha=1;
 }
 
-// ── MAP EVENTS ─────────────────────────────────────────────────────────────
-function ll2xy(lon,lat){return[Math.round((lon+180)*5.555556),Math.round((90-lat)*5.555556)];}
+// ── MAP EVENTS ─────────────────────────────────────────────
+var _mapCalib={dx:0,dy:0};
+(function(){try{var c=JSON.parse(localStorage.getItem('nexus_map_calib')||'{}');_mapCalib.dx=c.dx||0;_mapCalib.dy=c.dy||0;}catch(e){}}());
+function ll2xy(lon,lat){
+  const x=Math.round((lon+180)/360*2000)+_mapCalib.dx;
+  const y=Math.round((90-lat)/180*1001)+_mapCalib.dy;
+  return[x,y];
+}
 let _evts=[];
+
+// Draw a subtle orbital arc in the satellite's direction of travel
+function drawSatOrbit(ns, sat, x, y, orbitGroup){
+  const degPer5min = (sat.degPerMin || 3.913) * 5;
+  // Satellites orbit West-to-East mostly; approximate heading based on inclination
+  // Use a gentle curved arc forward and backward ~15deg of orbital travel
+  // In our equirectangular map: 1 lon degree = 5.555556 px
+  const lonSpread = Math.min(degPer5min * 0.4, 30); // arc half-span in degrees
+  const lonPxSpan = lonSpread * 5.555556;
+  
+  const x0 = x - lonPxSpan;
+  const x1 = x + lonPxSpan;
+  // Satellites generally follow a sinusoidal ground track — offset y slightly
+  const yOff = (sat.lat && Math.abs(sat.lat) > 50) ? 0 : 8; // higher inclination = less lat offset
+  
+  const path = document.createElementNS(ns, 'path');
+  const d = `M${Math.round(x0)},${y} Q${x},${y - yOff} ${Math.round(x1)},${y}`;
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#2196F3');
+  path.setAttribute('stroke-width', '0.6');
+  path.setAttribute('stroke-dasharray', '3,6');
+  path.setAttribute('opacity', '0.22');
+  orbitGroup.appendChild(path);
+  
+  // Moving dot along the arc
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('r', '1.5');
+  dot.setAttribute('fill', '#BAE6FD');
+  dot.setAttribute('opacity', '0.45');
+  dot.innerHTML = `<animateMotion dur="${(6 + Math.random()*4).toFixed(1)}s" repeatCount="indefinite" path="${d}"/>`;
+  orbitGroup.appendChild(dot);
+}
+
 function renderEventPins(){
   const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
+  // Separate orbit group (drawn first, under pins)
+  const orbitGroup = document.createElementNS(ns,'g');
+  orbitGroup.setAttribute('id','sat-orbits');
+  orbitGroup.setAttribute('opacity','1');
+  g.appendChild(orbitGroup);
+  
   _evts.forEach(ev=>{
     if(ev.type==='cctv')return;
+    if(ev.type==='fire' && !_settings.showFires) return;
+    if(ev.type==='news' && !_settings.showNews) return;
+    if(ev.type==='quake' && ev.mag !== undefined && ev.mag < _settings.seismicMin) return;
     const[x,y]=ll2xy(ev.lon,ev.lat);if(x<5||x>1995||y<5||y>996)return;
-    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isFire=ev.type==='fire',isSat=ev.type==='satellite',isNews=ev.type==='news';
+    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
     
     let dc=c.hi, tc=c.mid, r=5;
-    if(isISS){dc='#FAC775';tc='#FAC775';r=9;}
-    else if(isVolc){dc='#EF4444';tc='#F87171';r=7;}
-    else if(isStorm){dc='#06B6D4';tc='#67E8F9';r=7;}
-    else if(isBig){dc='#E24B4A';tc='#FF8080';r=8;}
-    else if(isFire){dc='#FF5722';tc='#FF8A65';r=6;}
-    else if(isSat){dc='#2196F3';tc='#64B5F6';r=6;}
-    else if(isNews){dc='#FFEB3B';tc='#FFF176';r=5;}
+    if(isISS){dc='#F59E0B';tc='#FCD34D';r=9;}        // amber
+    else if(isVolc){dc='#EC4899';tc='#F9A8D4';r=7;} // magenta (≠ red quakes)
+    else if(isStorm){dc='#8B5CF6';tc='#C4B5FD';r=7;}// violet (≠ flights)
+    else if(isBig){dc='#EF4444';tc='#FCA5A5';r=8;}  // red ≥M6
+    else if(isSat){dc='#38BDF8';tc='#BAE6FD';r=4;}  // sky blue
+    else if(isNews){dc='#84CC16';tc='#D9F99D';r=5;} // lime (≠ ISS amber)
+    else if(isFire){dc='#FF6D00';tc='#FFB74D';r=2;} // deep orange
+
+    // Draw satellite orbit trail before the pin
+    if(isSat || isISS) drawSatOrbit(ns, ev, x, y, orbitGroup);
 
     const pinGroup = document.createElementNS(ns, 'g');
     pinGroup.style.cursor = 'pointer';
 
-    const pulse=document.createElementNS(ns,'circle');
-    pulse.setAttribute('cx',x);
-    pulse.setAttribute('cy',y);
-    pulse.setAttribute('r',r);
-    pulse.setAttribute('fill',dc);
-    pulse.setAttribute('opacity','.28');
-    pulse.innerHTML='<animate attributeName="r" values="'+r+';'+(r*3.5)+';'+r+'" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/><animate attributeName="opacity" values=".28;0;.28" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/>';
-    pinGroup.appendChild(pulse);
+    if(isStorm){
+      // Storm icon: spiral/hurricane symbol
+      const stormClass = ev.classification || 'TS';
+      const stormR = stormClass === 'HU' ? 11 : 8;
+      // Outer ring with dashed spiral effect
+      const ring1 = document.createElementNS(ns,'circle');
+      ring1.setAttribute('cx',x); ring1.setAttribute('cy',y);
+      ring1.setAttribute('r',stormR); ring1.setAttribute('fill','none');
+      ring1.setAttribute('stroke','#8B5CF6'); ring1.setAttribute('stroke-width','1.5');
+      ring1.setAttribute('stroke-dasharray','4,3'); ring1.setAttribute('opacity','.85');
+      ring1.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="0 ${x} ${y}" to="360 ${x} ${y}" dur="4s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(ring1);
+      // Inner ring counter-rotate
+      const ring2 = document.createElementNS(ns,'circle');
+      ring2.setAttribute('cx',x); ring2.setAttribute('cy',y);
+      ring2.setAttribute('r',stormR*0.55); ring2.setAttribute('fill','none');
+      ring2.setAttribute('stroke','#C4B5FD'); ring2.setAttribute('stroke-width','1');
+      ring2.setAttribute('stroke-dasharray','3,4'); ring2.setAttribute('opacity','.7');
+      ring2.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="360 ${x} ${y}" to="0 ${x} ${y}" dur="3s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(ring2);
+      // Center dot
+      const center = document.createElementNS(ns,'circle');
+      center.setAttribute('cx',x); center.setAttribute('cy',y);
+      center.setAttribute('r','2.5'); center.setAttribute('fill','#EDE9FE'); center.setAttribute('opacity','.95');
+      pinGroup.appendChild(center);
+      // Pulse
+      const pulse = document.createElementNS(ns,'circle');
+      pulse.setAttribute('cx',x); pulse.setAttribute('cy',y);
+      pulse.setAttribute('r',stormR); pulse.setAttribute('fill','#8B5CF6'); pulse.setAttribute('opacity','.12');
+      pulse.innerHTML = `<animate attributeName="r" values="${stormR};${stormR*2.5};${stormR}" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".12;0;.12" dur="2.8s" repeatCount="indefinite"/>`;
+      pinGroup.appendChild(pulse);
+    } else if(isFire) {
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',x);dot.setAttribute('cy',y);
+      dot.setAttribute('r',r);dot.setAttribute('fill',dc);dot.setAttribute('opacity','.75');
+      pinGroup.appendChild(dot);
+    } else {
+      const pulse=document.createElementNS(ns,'circle');
+      pulse.setAttribute('cx',x);
+      pulse.setAttribute('cy',y);
+      pulse.setAttribute('r',r);
+      pulse.setAttribute('fill',dc);
+      pulse.setAttribute('opacity','.28');
+      pulse.innerHTML='<animate attributeName="r" values="'+r+';'+(r*3.5)+';'+r+'" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/><animate attributeName="opacity" values=".28;0;.28" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/>';
+      pinGroup.appendChild(pulse);
 
-    const dot=document.createElementNS(ns,'circle');
-    dot.setAttribute('cx',x);
-    dot.setAttribute('cy',y);
-    dot.setAttribute('r',r);
-    dot.setAttribute('fill',dc);
-    dot.setAttribute('opacity','.92');
-    pinGroup.appendChild(dot);
+      const dot=document.createElementNS(ns,'circle');
+      dot.setAttribute('cx',x);
+      dot.setAttribute('cy',y);
+      dot.setAttribute('r',isSat?3:r);
+      dot.setAttribute('fill',dc);
+      dot.setAttribute('opacity',isSat?'.7':'.92');
+      pinGroup.appendChild(dot);
 
-    const lbl=document.createElementNS(ns,'text');
-    lbl.setAttribute('x',x+r+3);
-    lbl.setAttribute('y',y+4);
-    lbl.setAttribute('font-size',(isISS||isNews)?'14':'12');
-    lbl.setAttribute('font-family','monospace');
-    lbl.setAttribute('fill',tc);
-    lbl.setAttribute('opacity','.88');
-    lbl.setAttribute('font-weight',(isISS||isBig)?'bold':'normal');
-    lbl.textContent=ev.label;
-    pinGroup.appendChild(lbl);
+      // Seismic pulse ring for M≥6
+      if(ev.type==='quake' && (ev.mag||0) >= 6.0) {
+        const eqPulse = document.createElementNS(ns,'circle');
+        eqPulse.setAttribute('cx',x); eqPulse.setAttribute('cy',y);
+        eqPulse.setAttribute('r','4');
+        eqPulse.setAttribute('fill','none');
+        eqPulse.setAttribute('stroke',dc);
+        eqPulse.setAttribute('stroke-width','2');
+        eqPulse.setAttribute('opacity','0.9');
+        eqPulse.classList.add('eq-pulse');
+        pinGroup.appendChild(eqPulse);
+      }
+    }
+
+    if(!isSat && !isFire){
+      const lbl=document.createElementNS(ns,'text');
+      lbl.setAttribute('x',x+(isStorm?12:r+3));
+      lbl.setAttribute('y',y+4);
+      lbl.setAttribute('font-size',(isISS||isNews)?'14':isStorm?'11':'12');
+      lbl.setAttribute('font-family','monospace');
+      lbl.setAttribute('fill',tc);
+      lbl.setAttribute('opacity','.88');
+      lbl.setAttribute('font-weight',(isISS||isBig||isStorm)?'bold':'normal');
+      lbl.textContent=ev.label;
+      pinGroup.appendChild(lbl);
+    }
 
     // Event listeners
     pinGroup.addEventListener('mouseover', () => {
@@ -839,9 +1645,9 @@ function renderEventPins(){
       let titleHtml = `<strong>${ev.type.toUpperCase()}: ${ev.label || ''}</strong>`;
       if(isNews) titleHtml = `<strong>📰 NEWS: ${ev.source || ''}</strong>`;
       if(isSat) titleHtml = `<strong>🛰️ SAT: ${ev.label || ''}</strong>`;
-      if(isISS) titleHtml = `<strong>🛸 ISS (Space Station)</strong>`;
+      if(isISS) { const crew = _issCrew.length ? '<br><span style="font-size:10px;opacity:.8;">' + _issCrew.join(' · ') + '</span>' : ''; titleHtml = `<strong>🛸 ISS (Space Station)</strong>${crew}`; }
       if(ev.type === 'quake') titleHtml = `<strong>⚠️ EARTHQUAKE: ${ev.label || ''}</strong>`;
-      if(isFire) titleHtml = `<strong>🔥 ACTIVE FIRE</strong>`;
+      if(isStorm) titleHtml = `<strong>🌀 ${ev.classLabel||'STORM'}: ${ev.label}</strong>`;
       
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
       if(isNews) {
@@ -855,7 +1661,6 @@ function renderEventPins(){
       const sRect = svg.getBoundingClientRect();
       const wRect = wrap.getBoundingClientRect();
       
-      // Calculate precise pin position on screen relative to wmap-wrap container
       const px = (sRect.left - wRect.left) + (x / 2000) * sRect.width;
       const py = (sRect.top - wRect.top) + (y / 1001) * sRect.height;
       
@@ -863,18 +1668,14 @@ function renderEventPins(){
       const th = tooltip.offsetHeight;
       
       let leftPos = px - tw / 2;
-      let topPos = py - th - 12; // 12px above the pin to clear the speech bubble arrow
+      let topPos = py - th - 12;
       
-      // Keep tooltip box fully inside container boundary
       if(leftPos < 4) leftPos = 4;
       if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
       
       tooltip.style.left = leftPos + 'px';
       tooltip.style.top = topPos + 'px';
-      
-      // Set arrow offset dynamically to point directly at the pin
-      const arrowLeft = px - leftPos;
-      tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+      tooltip.style.setProperty('--arrow-left', (px - leftPos) + 'px');
     });
 
     pinGroup.addEventListener('mouseout', () => {
@@ -891,21 +1692,84 @@ function renderEventPins(){
     g.appendChild(pinGroup);
   });
 }
+function startMapCalib(){
+  const svg=document.getElementById('wmap');
+  const info=document.getElementById('calib-info');
+  const ns='http://www.w3.org/2000/svg';
+  // Pick best quake to calibrate on — prefer M7+, fallback to largest available
+  const quake=_evts.filter(e=>e.type==='quake'&&e.lat!=null&&e.lon!=null)
+    .sort((a,b)=>(b.mag||0)-(a.mag||0))[0];
+  if(!quake){if(info){info.style.display='inline';info.textContent='⚠ No hay sismos cargados — espera y vuelve a intentar';}return;}
+  const [ox,oy]=ll2xy(quake.lon,quake.lat);
+  // Remove any existing calib pin
+  const old=document.getElementById('_cpin');if(old)old.remove();
+  // Build draggable crosshair group
+  const g=document.createElementNS(ns,'g');g.id='_cpin';g.style.cursor='grab';
+  const mkC=(r,stroke,sw,fill)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('r',r);c.setAttribute('fill',fill||'none');c.setAttribute('stroke',stroke);c.setAttribute('stroke-width',sw);return c;};
+  const mkL=(x1,y1,x2,y2)=>{const l=document.createElementNS(ns,'line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke','#ff0');l.setAttribute('stroke-width','1.5');return l;};
+  const outer=mkC(20,'#ff0',2);const inner=mkC(4,'#ff0',1,'#ff0');
+  const pulse=mkC(20,'#ff0',1);pulse.setAttribute('opacity','0.4');
+  const mkA=(attr,vals,dur)=>{const a=document.createElementNS(ns,'animate');a.setAttribute('attributeName',attr);a.setAttribute('values',vals);a.setAttribute('dur',dur);a.setAttribute('repeatCount','indefinite');return a;};
+  pulse.appendChild(mkA('r','20;34;20','1.4s'));pulse.appendChild(mkA('opacity','0.4;0;0.4','1.4s'));
+  const lh=mkL(-32,0,32,0);const lv=mkL(0,-32,0,32);
+  const lbl=document.createElementNS(ns,'text');
+  lbl.setAttribute('font-size','18');lbl.setAttribute('font-family','monospace');
+  lbl.setAttribute('fill','#ff0');lbl.setAttribute('text-anchor','start');
+  lbl.textContent=`M${quake.mag?.toFixed(1)} ${(quake.place||'').substring(0,28)} — ARRASTRA AL LUGAR CORRECTO`;
+  [pulse,outer,inner,lh,lv,lbl].forEach(el=>g.appendChild(el));
+  // Position all elements at current pin location
+  const moveG=(x,y)=>{
+    [outer,inner,pulse].forEach(c=>{c.setAttribute('cx',x);c.setAttribute('cy',y);});
+    lh.setAttribute('x1',x-32);lh.setAttribute('x2',x+32);lh.setAttribute('y1',y);lh.setAttribute('y2',y);
+    lv.setAttribute('x1',x);lv.setAttribute('x2',x);lv.setAttribute('y1',y-32);lv.setAttribute('y2',y+32);
+    lbl.setAttribute('x',x+24);lbl.setAttribute('y',y-24);
+  };
+  moveG(ox,oy);
+  svg.appendChild(g);
+  // SVG coordinate helper
+  const toSVG=(e)=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(svg.getScreenCTM().inverse());};
+  let dragging=false,nx=ox,ny=oy;
+  g.addEventListener('mousedown',(e)=>{dragging=true;g.style.cursor='grabbing';e.preventDefault();e.stopPropagation();});
+  const onMove=(e)=>{if(!dragging)return;const p=toSVG(e);nx=p.x;ny=p.y;moveG(nx,ny);};
+  const onUp=(e)=>{
+    if(!dragging)return;dragging=false;g.style.cursor='grab';
+    const dx=Math.round(nx-ox),dy=Math.round(ny-oy);
+    const newCalib={dx:(_mapCalib.dx||0)+dx,dy:(_mapCalib.dy||0)+dy};
+    if(info){info.style.display='inline';info.textContent=`✓ dx=${newCalib.dx} dy=${newCalib.dy} — aplicado`;}
+    localStorage.setItem('nexus_map_calib',JSON.stringify(newCalib));
+    _mapCalib.dx=newCalib.dx;_mapCalib.dy=newCalib.dy;
+    g.remove();
+    svg.removeEventListener('mousemove',onMove);
+    svg.removeEventListener('mouseup',onUp);
+    renderEventPins();
+    setTimeout(()=>{if(info)info.style.display='none';},4000);
+  };
+  svg.addEventListener('mousemove',onMove);
+  svg.addEventListener('mouseup',onUp);
+  if(info){info.style.display='inline';info.textContent=`Arrastra el pin amarillo M${quake.mag?.toFixed(1)} al lugar exacto y suelta`;}
+}
+
 async function fetchEvents(){
   try{
-    const d=await(await fetch('http://localhost:3000/events')).json();_evts=d.events||[];renderEventPins();
+    const d=await(await fetch('http://localhost:19234/events')).json();_evts=d.events||[];renderEventPins();
     const qc=_evts.filter(e=>e.type==='quake').length;
     const fc=_evts.filter(e=>e.type==='fire').length;
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
     const nc=_evts.filter(e=>e.type==='news').length;
+    const stc=_evts.filter(e=>e.type==='storm').length;
     const eqc=document.getElementById('eq-count');
-    if(eqc){eqc.textContent=`EQ:${qc} · FR:${fc} · SAT:${sc} · NW:${nc}`;eqc.style.color=_pal.mut;}
+    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
     const eqf=document.getElementById('eq-footer');if(eqf){eqf.textContent='EQ '+qc;eqf.style.color=_pal.fH;}
+    // Feed news headlines to ticker
+    const newsTitles=_evts.filter(e=>e.type==='news').map(e=>e.title||e.info).filter(Boolean);
+    if(newsTitles.length) runNewsTicker(newsTitles);
+    renderGSPulseAndEvents(_evts);
+    checkCriticalEvents(_evts);
   }catch(e){}
 }
 
 // ── MAP TICKER ─────────────────────────────────────────────────────────────
-var _mapTickerMsgs=['▶ ISS TRACKING ONLINE','▶ SEISMIC SCAN ACTIVE','▶ SAT UPLINK OK','▶ OBJ MONITOR 6/6','▶ GEOMAG: STABLE','▶ SOLAR WIND: NOMINAL','▶ GPS SYNC: LOCKED','▶ DATA STREAM: LIVE'];
+var _mapTickerMsgs=['▶ ISS TRACKING ONLINE','▶ SEISMIC SCAN ACTIVE','▶ SAT UPLINK OK','▶ GEOMAG: STABLE','▶ SOLAR WIND: NOMINAL','▶ GPS SYNC: LOCKED','▶ DATA STREAM: LIVE'];
 var _mapTickerIdx=0;
 function cycleMapTicker(){
   var g=document.getElementById('map-ticker'),txt=document.getElementById('map-ticker-txt');if(!g||!txt)return;
@@ -931,17 +1795,228 @@ function initMatrix(){
   draw();
 }
 
-// ── THREAT LOG ─────────────────────────────────────────────────────────────
-const THREATS=['SYN FLOOD → 45.227.18.x','BRUTE FORCE → admin:****','PORT SCAN → 0.0.0.0/0','SQL INJECT → /login.php','DNS SPOOF → 8.8.8.8','MITM → LAN','RANSOMWARE → BLOCKED','BOTNET → TOR EXIT','ZERO-DAY CVE-2025-????','C2 CALLBACK → DROPPED','XSS → SANITIZED','RCE → REJECTED','EXFIL 2.3MB → BLOCKED','HONEYPOT → 103.x.x.x','DDOS → 80/tcp'];
-let _thrIdx=0,_thrT=null;
-function startThreatLog(){
-  if(_thrT)clearTimeout(_thrT);
-  function addLine(){const c=_pal,t=THREATS[_thrIdx%THREATS.length];_thrIdx++;const ok=Math.random()>.28;const line=document.createElement('div');line.className='log-line';line.style.color=ok?c.mid:'#E24B4A';line.textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})+' '+(ok?'BLK':'ATK')+' '+t;const log=document.getElementById('thr-log');if(!log)return;log.insertBefore(line,log.firstChild);while(log.children.length>120)log.removeChild(log.lastChild);_thrT=setTimeout(addLine,500+Math.random()*900);}
-  addLine();
+// ── NEWS TICKER ────────────────────────────────────────────────────────────
+let _tickerAnim = null;
+function runNewsTicker(titles) {
+  const inner = document.getElementById('news-ticker-inner');
+  if (!inner || !titles.length) return;
+  const c = currentPalette();
+  inner.textContent = '▶  ' + titles.join('  ·  ') + '  ◀';
+  inner.style.color = c.lbl;
+  const ticker = document.getElementById('news-ticker');
+  if (ticker) { ticker.style.borderTopColor = c.lo; ticker.style.background = c.deep; }
+  const fullW = inner.scrollWidth;
+  const containerW = ticker ? ticker.offsetWidth : 300;
+  let pos = containerW;
+  if (_tickerAnim) cancelAnimationFrame(_tickerAnim);
+  function step() {
+    pos -= 0.5;
+    if (pos < -fullW) pos = containerW;
+    inner.style.transform = 'translateX('+pos+'px)';
+    _tickerAnim = requestAnimationFrame(step);
+  }
+  step();
+}
+
+// ── GLOBAL STATS ───────────────────────────────────────────────────────────
+let _gsCache = null, _gsTs = 0;
+async function fetchGlobalStats() {
+  if (_gsCache && Date.now() - _gsTs < 120000) { renderGlobalStats(_gsCache); return; }
+  try {
+    const r = await fetch('http://localhost:19234/globalstats');
+    const d = await r.json();
+    _gsCache = d; _gsTs = Date.now();
+    renderGlobalStats(d);
+  } catch(e) { console.warn('globalstats', e); }
+}
+
+function renderGlobalStats(d) {
+  const c = currentPalette();
+  if (d.co2) {
+    const co2El = document.getElementById('gs-co2');
+    if (co2El) { co2El.textContent = d.co2.ppm != null ? d.co2.ppm.toFixed(1) : '—'; co2El.style.color = c.hi; }
+    const dEl = document.getElementById('gs-co2-delta');
+    if (dEl) { dEl.textContent = d.co2.delta ? '+'+d.co2.delta.toFixed(1)+' vs 10yr ago' : ''; dEl.style.color = c.warn; }
+  }
+  if (d.moon) {
+    const mEl = document.getElementById('gs-moon');
+    if (mEl) { mEl.textContent = (d.moon.emoji||'') + ' ' + (d.moon.illumination != null ? d.moon.illumination.toFixed(0) : '—') + '%'; mEl.style.color = c.hi; }
+    const mnEl = document.getElementById('gs-moon-name');
+    if (mnEl) { mnEl.textContent = d.moon.name || ''; mnEl.style.color = c.lbl; }
+  }
+  if (d.solar) {
+    const sEl = document.getElementById('gs-solar');
+    if (sEl) {
+      const cls = d.solar.class || '—';
+      sEl.textContent = cls;
+      const solarColors = {X: c.neg, M: c.warn, C: c.hi, B: c.mid, A: c.lo};
+      sEl.style.color = solarColors[cls[0]] || c.mid;
+    }
+    const ssEl = document.getElementById('gs-solar-sub');
+    if (ssEl) { ssEl.textContent = d.solar.flux ? d.solar.flux.toExponential(1)+' W/m²' : 'flux'; ssEl.style.color = c.lbl; }
+  }
+  if (d.seismicEnergyJ !== undefined) {
+    const seEl = document.getElementById('gs-seismic-e');
+    if (seEl) {
+      const e = d.seismicEnergyJ;
+      let txt = e >= 1e15 ? (e/1e15).toFixed(1)+'×10¹⁵' : e >= 1e12 ? (e/1e12).toFixed(1)+'×10¹²' : e >= 1e9 ? (e/1e9).toFixed(1)+'×10⁹' : e.toFixed(0);
+      seEl.textContent = txt; seEl.style.color = e > 1e15 ? c.neg : e > 1e12 ? c.warn : c.hi;
+    }
+  }
+  if (d.debris) {
+    const dbEl = document.getElementById('gs-debris');
+    if (dbEl) { dbEl.textContent = (d.debris.count||0).toLocaleString(); dbEl.style.color = c.hi; }
+  }
+  if (d.aviation) {
+    const avEl = document.getElementById('gs-aviation');
+    if (avEl) { avEl.textContent = (d.aviation.count||0).toLocaleString(); avEl.style.color = c.hi; }
+  }
+  computeDefcon(d);
+  // Style dividers
+  const c2=currentPalette();
+  ['gs-pulse-wrap','gs-ev-wrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.borderTopColor=c2.lo;});
+}
+
+function renderGSPulseAndEvents(events) {
+  const c = currentPalette();
+  // 24H PULSE — counts by type
+  const counts = {quake:0, fire:0, news:0, volcano:0, storm:0, satellite:0};
+  events.forEach(e => { if(counts[e.type]!==undefined) counts[e.type]++; });
+  const pulseEl = document.getElementById('gs-pulse');
+  if (pulseEl) {
+    const icons = {quake:'⬡',fire:'⬡',news:'⬡',volcano:'⬡',storm:'⬡',satellite:'⬡'};
+    const colors = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:c.hi};
+    const labels = {quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',satellite:'SATELLITES'};
+    pulseEl.innerHTML = Object.entries(counts).map(([k,v])=>
+      `<div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:${colors[k]};opacity:.7">${labels[k]}</span>
+        <span style="color:${colors[k]};font-weight:600">${v}</span>
+      </div>`
+    ).join('');
+  }
+  // RECENT EVENTS — last 8 significant events (M4.5+, volcanoes, storms, news)
+  const evEl = document.getElementById('gs-events');
+  if (evEl) {
+    const typeIcon = {quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',satellite:'◈',iss:'◈'};
+    const typeColor = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:c.hi,iss:c.hi};
+    const significant = events
+      .filter(e => {
+        if(e.type==='quake') return (e.mag||0)>=4.5;
+        if(e.type==='fire') return false; // too many
+        return ['volcano','storm','news'].includes(e.type);
+      })
+      .slice(0,8);
+    if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; return; }
+    evEl.innerHTML = significant.map(e=>{
+      const ic = typeIcon[e.type]||'◉';
+      const col = typeColor[e.type]||c.mid;
+      const isCrit=(e.type==='quake'&&(e.mag||0)>=6.0)||e.type==='volcano'||e.type==='storm';
+      const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
+      let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,28)}`
+              : e.type==='news'  ? (e.title||e.info||'').substring(0,36)
+              : (e.info||e.label||'').substring(0,36);
+      if(isCrit) return`<div class="crit-ev-row" style="display:flex;gap:5px;margin-bottom:2px;overflow:hidden;border-left-color:${critCol}">
+        <span style="color:${critCol};flex-shrink:0;font-weight:bold">${ic}</span>
+        <span style="color:${critCol};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="${txt}">${txt}</span>
+      </div>`;
+      return`<div style="display:flex;gap:5px;margin-bottom:1px;overflow:hidden">
+        <span style="color:${col};flex-shrink:0">${ic}</span>
+        <span style="color:${c.lbl};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${txt}">${txt}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function computeDefcon(d) {
+  let score = 0;
+  if (d.solar) {
+    const cls = (d.solar.class||'A')[0];
+    score += ({X:40, M:20, C:8, B:3, A:0}[cls] || 0);
+  }
+  const kpEl = document.getElementById('kp-val');
+  if (kpEl) {
+    const kp = parseFloat(kpEl.textContent);
+    if (!isNaN(kp)) score += Math.min(30, kp * 3);
+  }
+  if (d.seismicEnergyJ > 1e16) score += 30;
+  else if (d.seismicEnergyJ > 1e15) score += 15;
+  else if (d.seismicEnergyJ > 1e12) score += 5;
+  const level = score < 10 ? 5 : score < 25 ? 4 : score < 50 ? 3 : score < 75 ? 2 : 1;
+  const names = {5:'PEACETIME',4:'ELEVATED',3:'GUARDED',2:'HIGH',1:'CRITICAL'};
+  const filled = 6 - level;
+  const c = currentPalette();
+  const defColors = {5:c.mid, 4:c.hi, 3:c.warn, 2:c.neg, 1:'#ff0000'};
+  const dv = document.getElementById('gs-defcon-val');
+  const dl = document.getElementById('gs-defcon-lvl');
+  if (dv) { dv.textContent = '◼'.repeat(filled) + '◻'.repeat(5-filled); dv.style.color = defColors[level]; }
+  if (dl) { dl.textContent = 'DEFCON '+level+' — '+names[level]; dl.style.color = defColors[level]; }
+}
+
+// ── DAY/NIGHT TERMINATOR ───────────────────────────────────────────────────
+function updateTerminator() {
+  const layer = document.getElementById('terminator-layer');
+  if (!layer) return;
+  layer.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const W = 2000, H = 1001;
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const declDeg = -23.45 * Math.cos(2 * Math.PI * (dayOfYear + 10) / 365);
+  const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60;
+  const subsolarLon = (12 - utcHours) * 15;
+  const subsolarLat = declDeg;
+  const subLatR = subsolarLat * Math.PI / 180;
+  const subLonR = subsolarLon * Math.PI / 180;
+
+  function llToXY(lat, lon) {
+    const x = (lon + 180) / 360 * W;
+    const lr = Math.max(-85, Math.min(85, lat)) * Math.PI / 180;
+    const y = (0.5 - Math.log(Math.tan(Math.PI / 4 + lr / 2)) / (2 * Math.PI)) * H;
+    return [x, y];
+  }
+
+  // Generate 360 terminator points (great circle 90° from subsolar point)
+  const geoPoints = [];
+  for (let azi = 0; azi < 360; azi++) {
+    const aziR = azi * Math.PI / 180;
+    const lat = Math.asin(Math.sin(subLatR) * Math.cos(Math.PI / 2) +
+                          Math.cos(subLatR) * Math.sin(Math.PI / 2) * Math.cos(aziR));
+    const lon = subLonR + Math.atan2(Math.sin(aziR) * Math.sin(Math.PI / 2) * Math.cos(subLatR),
+                                     Math.cos(Math.PI / 2) - Math.sin(subLatR) * Math.sin(lat));
+    geoPoints.push([lat * 180 / Math.PI, ((lon * 180 / Math.PI) + 540) % 360 - 180]);
+  }
+
+  // Sort by longitude (-180→+180) so screen x goes left→right without antimeridian jumps
+  geoPoints.sort((a, b) => a[1] - b[1]);
+  const xyPts = geoPoints.map(([la, lo]) => llToXY(la, lo));
+
+  // Night pole: when sun is in north, south pole (y=H) is in polar night, and vice versa
+  const nightY = subsolarLat >= 0 ? H : 0;
+
+  // Night shadow polygon: terminator (L→R) + night-side corners
+  const shadowPts = [...xyPts, [W, nightY], [0, nightY]];
+  const shadowStr = shadowPts.map(([x, y]) => x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
+  const shadow = document.createElementNS(ns, 'polygon');
+  shadow.setAttribute('points', shadowStr);
+  shadow.setAttribute('fill', 'rgba(0,8,28,0.22)');
+  layer.appendChild(shadow);
+
+  // Terminator line on top
+  const lineStr = xyPts.map(([x, y]) => x.toFixed(1) + ',' + y.toFixed(1)).join(' ');
+  const termLine = document.createElementNS(ns, 'polyline');
+  termLine.setAttribute('points', lineStr);
+  termLine.setAttribute('fill', 'none');
+  termLine.setAttribute('stroke', '#4488FF');
+  termLine.setAttribute('stroke-width', '1.2');
+  termLine.setAttribute('stroke-dasharray', '5 4');
+  termLine.setAttribute('opacity', '0.55');
+  layer.appendChild(termLine);
 }
 
 // ── NEURAL CORE SPHERE ─────────────────────────────────────────────────────
 var _spAnimId=null,_spNodes=[],_spSyn=[],_spAngX=0,_spAngY=0,_spFrame=0,_spFlipOn=false;
+var _nlActs=null,_nlW=0,_nlH=0;
+let _ncCpuLoad=0.5,_ncRamLoad=0.5,_ncCores=[];
 
 function spRotX(x,y,z,a){return{x:x,y:y*Math.cos(a)-z*Math.sin(a),z:y*Math.sin(a)+z*Math.cos(a)};}
 function spRotY(x,y,z,a){return{x:x*Math.cos(a)+z*Math.sin(a),y:y,z:-x*Math.sin(a)+z*Math.cos(a)};}
@@ -949,27 +2024,22 @@ function spProj(x,y,z,W,H,fov){var s=fov/(fov+z);return{x:x*s+W/2,y:y*s+H/2,s:s}
 
 function spInit(R){
   _spNodes=[];_spSyn=[];
-  // True uniform spherical distribution - ensures nodes spread across entire sphere
-  var N=50;
+  // Fibonacci sphere — 90 evenly-distributed surface nodes (no inner layers)
+  var N=90,phi=(1+Math.sqrt(5))/2;
   for(var i=0;i<N;i++){
-    // Box-Muller → normalize → uniform sphere
-    var u1=Math.random(),u2=Math.random(),u3=Math.random();
-    var x=Math.sqrt(-2*Math.log(u1+0.0001))*Math.cos(2*Math.PI*u2);
-    var y=Math.sqrt(-2*Math.log(u1+0.0001))*Math.sin(2*Math.PI*u2);
-    var z=Math.sqrt(-2*Math.log(u3+0.0001))*Math.cos(2*Math.PI*Math.random());
-    var len=Math.sqrt(x*x+y*y+z*z)+0.0001;
-    // Distribute at multiple radii: outer, mid, inner layers
-    var rad=i<30?R:i<42?R*0.6:R*0.3;
-    _spNodes.push({ox:(x/len)*rad,oy:(y/len)*rad,oz:(z/len)*rad,on:Math.random()>.3,en:Math.random(),ph:Math.random()*Math.PI*2,lay:i<30?2:i<42?1:0});
+    var theta=2*Math.PI*i/phi;
+    var cosP=1-2*(i+0.5)/N, sinP=Math.sqrt(1-cosP*cosP);
+    _spNodes.push({
+      ox:R*sinP*Math.cos(theta), oy:R*sinP*Math.sin(theta), oz:R*cosP,
+      on:true, en:Math.random(), ph:Math.random()*Math.PI*2, lay:2
+    });
   }
-  // Connect ALL nodes within a generous distance — full-sphere connectivity
-  var nlen=_spNodes.length;
-  for(var i=0;i<nlen;i++){for(var j=i+1;j<nlen;j++){
+  // Connect neighbours within ~34° angular distance → geodesic mesh
+  for(var i=0;i<N;i++){for(var j=i+1;j<N;j++){
     var ni=_spNodes[i],nj=_spNodes[j];
-    var dist=Math.sqrt((ni.ox-nj.ox)**2+(ni.oy-nj.oy)**2+(ni.oz-nj.oz)**2);
-    // Connect across hemisphere — larger threshold = more cross-sphere connections
-    if(dist<R*2.2&&_spSyn.length<150&&Math.random()>0.25){
-      _spSyn.push({a:i,b:j,on:Math.random()>.4,sig:Math.random(),spd:0.035+Math.random()*0.065});
+    var dot=(ni.ox*nj.ox+ni.oy*nj.oy+ni.oz*nj.oz)/(R*R);
+    if(Math.acos(Math.max(-1,Math.min(1,dot)))<0.61&&_spSyn.length<260){
+      _spSyn.push({a:i,b:j,on:true,sig:Math.random(),spd:0.004+Math.random()*0.008,pulse:Math.random()*Math.PI*2});
     }
   }}
 }
@@ -1010,97 +2080,195 @@ function spDraw(cv){
   ctx.restore();
 
   if(_coreMode === 0) {
-    var breathe=0.70+Math.sin(t*0.8)*0.30+Math.sin(t*1.5)*0.08;
-    var R=Math.min(W,H)*0.33*breathe;
-    var fov=Math.min(W,H)*0.9;
-    _spAngX+=0.008;_spAngY+=0.015;
-    var pulse=(Math.sin(t*1.3)+1)*0.5;
-    var proj=_spNodes.map(function(n){
-      var p=spRotX(n.ox,n.oy,n.oz,_spAngX);p=spRotY(p.x,p.y,p.z,_spAngY);
-      var pr=spProj(p.x,p.y,p.z,W,H,fov);return{x:pr.x,y:pr.y,z:p.z,s:pr.s,n:n};
+    // ── JARVIS HOLOGRAPHIC SPHERE ────────────────────────────
+    var R3=Math.min(W,H)*0.38, fov3=R3*4.2;
+    var ax=t*(0.06+_ncCpuLoad*0.14), ay=t*(0.10+_ncCpuLoad*0.09); // CPU drives spin speed
+    var cx3=W/2, cy3=H/2;
+
+    // Helper: rotate + project a 3D point
+    function rp(ox,oy,oz){
+      var r1=spRotX(ox,oy,oz,ax);
+      var r2=spRotY(r1.x,r1.y,r1.z,ay);
+      return spProj(r2.x,r2.y,r2.z,W,H,fov3);
+    }
+
+    // 1. Sphere silhouette glow
+    var sGlow=ctx.createRadialGradient(cx3,cy3,R3*0.7,cx3,cy3,R3*1.1);
+    sGlow.addColorStop(0,'rgba(0,0,0,0)');sGlow.addColorStop(1,ca(c.hi,0.04));
+    ctx.fillStyle=sGlow;ctx.beginPath();ctx.arc(cx3,cy3,R3*1.1,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx3,cy3,R3,0,Math.PI*2);
+    ctx.strokeStyle=c.hi;ctx.globalAlpha=0.12;ctx.lineWidth=1;ctx.stroke();
+
+    // 2. Latitude rings (structural skeleton)
+    [-60,-30,0,30,60].forEach(function(latDeg){
+      var latR=latDeg*Math.PI/180;
+      var ringR=R3*Math.cos(latR), ringY=R3*Math.sin(latR);
+      ctx.beginPath();var fst=true;
+      for(var a=0;a<=360;a+=6){
+        var ar=a*Math.PI/180;
+        var p=rp(ringR*Math.cos(ar),ringY,ringR*Math.sin(ar));
+        if(fst){ctx.moveTo(p.x,p.y);fst=false;}else ctx.lineTo(p.x,p.y);
+      }
+      ctx.closePath();ctx.strokeStyle=c.hi;ctx.globalAlpha=0.07;ctx.lineWidth=0.6;ctx.stroke();
     });
-    ctx.save();ctx.translate(W/2,H/2);
-    [{rf:0.98,tilt:0.3,spd:0.4,ry:0.28},{rf:0.78,tilt:0.9,spd:-0.55,ry:0.4},{rf:0.58,tilt:1.4,spd:0.85,ry:0.35}].forEach(function(rd,ri){
-      var rr=R*rd.rf;ctx.save();ctx.rotate(rd.tilt);ctx.scale(1,rd.ry);
-      ctx.beginPath();ctx.arc(0,0,rr,0,Math.PI*2);ctx.strokeStyle=c.pin;ctx.globalAlpha=0.14+ri*0.03;ctx.lineWidth=0.8;ctx.setLineDash([3,9]);ctx.stroke();ctx.setLineDash([]);
-      var da=t*rd.spd;ctx.beginPath();ctx.arc(Math.cos(da)*rr,Math.sin(da)*rr,3,0,Math.PI*2);ctx.fillStyle=c.hi;ctx.globalAlpha=0.85;ctx.fill();ctx.restore();
+
+    // 3. Meridian arcs (longitude lines)
+    [0,30,60,90,120,150].forEach(function(lonDeg){
+      var lonR=lonDeg*Math.PI/180;
+      ctx.beginPath();var fst=true;
+      for(var b=0;b<=180;b+=6){
+        var br=b*Math.PI/180;
+        var p=rp(R3*Math.sin(br)*Math.cos(lonR),R3*Math.cos(br),R3*Math.sin(br)*Math.sin(lonR));
+        if(fst){ctx.moveTo(p.x,p.y);fst=false;}else ctx.lineTo(p.x,p.y);
+      }
+      ctx.strokeStyle=c.mid;ctx.globalAlpha=0.06;ctx.lineWidth=0.5;ctx.stroke();
     });
-    ctx.restore();
-    var grd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,R*0.5);
-    grd.addColorStop(0,ca(c.pin,0.22));grd.addColorStop(0.5,ca(c.pin,0.08));grd.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(W/2,H/2,R*0.5,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(W/2,H/2,R,0,Math.PI*2);ctx.strokeStyle=c.pin;ctx.globalAlpha=0.08;ctx.lineWidth=0.5;ctx.stroke();ctx.globalAlpha=1;
-    _spSyn.slice().sort(function(a,b){return((proj[a.a].z+proj[a.b].z)/2)-((proj[b.a].z+proj[b.b].z)/2);}).forEach(function(s){
-      if(s.on)s.sig=(s.sig+s.spd)%1;
-      var pa=proj[s.a],pb=proj[s.b],depth=((pa.z+pb.z)/2+R)/(R*2);
-      ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);
-      ctx.strokeStyle=s.on?c.mid:c.lo;ctx.globalAlpha=(s.on?0.55:0.12)*depth;ctx.lineWidth=s.on?1.2:0.4;ctx.stroke();
-      if(s.on){var sx=pa.x+(pb.x-pa.x)*s.sig,sy=pa.y+(pb.y-pa.y)*s.sig;ctx.beginPath();ctx.arc(sx,sy,3,0,Math.PI*2);ctx.fillStyle=c.hi;ctx.globalAlpha=0.9*depth;ctx.fill();}
+
+    // 4. Project all nodes
+    var sp3=_spNodes.map(function(n){
+      var r1=spRotX(n.ox,n.oy,n.oz,ax);
+      var r2=spRotY(r1.x,r1.y,r1.z,ay);
+      var p=spProj(r2.x,r2.y,r2.z,W,H,fov3);
+      return{px:p.x,py:p.y,sc:p.s,z:r2.z,n:n};
+    });
+
+    // 5. Synapse connections — all always drawn, pulsing intensity
+    ctx.lineWidth=0.7;
+    _spSyn.forEach(function(syn){
+      var a=sp3[syn.a],b=sp3[syn.b];if(!a||!b)return;
+      syn.sig=(syn.sig+syn.spd)%1;
+      syn.pulse=(syn.pulse||0)+0.018;
+      var depth=Math.min(a.sc,b.sc);
+      var pulse=0.5+0.5*Math.sin(syn.pulse);
+      ctx.beginPath();ctx.moveTo(a.px,a.py);ctx.lineTo(b.px,b.py);
+      ctx.strokeStyle=c.hi;
+      ctx.globalAlpha=(0.05+depth*0.28)*(0.5+_ncRamLoad*0.5)*pulse;
+      ctx.stroke();
+      // Moving signal spark — faster with higher CPU
+      if(pulse>0.7-_ncCpuLoad*0.3){
+        var sx=a.px+(b.px-a.px)*syn.sig,sy=a.py+(b.py-a.py)*syn.sig;
+        ctx.beginPath();ctx.arc(sx,sy,1.5,0,Math.PI*2);
+        ctx.fillStyle=c.hi;ctx.globalAlpha=depth*0.95;ctx.fill();
+      }
     });
     ctx.globalAlpha=1;
-    proj.slice().sort(function(a,b){return a.z-b.z;}).forEach(function(p){
-      var n=p.n,depth=(p.z+R)/(R*2);
-      n.en+=(Math.random()-0.5)*0.04;n.en=Math.max(0.1,Math.min(1,n.en));
-      var pl=(Math.sin(t*2+n.ph)+1)*0.5,r=(2+n.lay*1.8)*p.s*(0.75+pl*0.5);
-      if(n.on&&depth>0.25){var g2=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,r*4);g2.addColorStop(0,ca(c.hi,0.35*depth*n.en));g2.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g2;ctx.beginPath();ctx.arc(p.x,p.y,r*4,0,Math.PI*2);ctx.fill();}
-      ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fillStyle=n.on?c.hi:c.mid;ctx.globalAlpha=n.on?(0.45+pl*0.55)*depth:0.18*depth;ctx.fill();ctx.globalAlpha=1;
+
+    // 6. Nodes — small bright vertices, depth-sorted
+    sp3.slice().sort(function(a,b){return a.z-b.z;}).forEach(function(p){
+      var n=p.n;
+      n.en=(n.en+0.003+_ncCpuLoad*0.004)%1;
+      var coreV=_ncCores.length>0?_ncCores[Math.abs(n.ph*7|0)%_ncCores.length]:_ncCpuLoad;
+      var firing=Math.sin(n.en*Math.PI*2+n.ph)>(0.8-coreV*1.2);
+      var nr=1.2+p.sc*2.2;
+      if(firing){
+        ctx.beginPath();ctx.arc(p.px,p.py,nr*4,0,Math.PI*2);
+        ctx.fillStyle=ca(c.hi,0.18*p.sc);ctx.fill();
+      }
+      ctx.beginPath();ctx.arc(p.px,p.py,nr,0,Math.PI*2);
+      ctx.fillStyle=c.hi;ctx.globalAlpha=0.35+p.sc*0.65;ctx.fill();
+      ctx.globalAlpha=1;
     });
-    var cr=R*0.18*(1+pulse*0.5);
-    var cg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,cr);
-    cg.addColorStop(0,c.hi);cg.addColorStop(0.5,ca(c.mid,0.7));cg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=cg;ctx.beginPath();ctx.arc(W/2,H/2,cr,0,Math.PI*2);ctx.fill();
   } else if(_coreMode === 1) {
-    var cy = H/2;
-    // Grid already drawn above
-    for(var j=0; j<4; j++) {
+    // ── FREQUENCY WAVES — amplitude/speed driven by CPU, center by RAM ───────
+    var cy2=H*(0.38+_ncRamLoad*0.12); // RAM shifts wave center vertically
+    var waveAmp=18+_ncCpuLoad*28;     // CPU drives amplitude
+    var waveSpd=0.8+_ncCpuLoad*1.4;   // CPU drives speed
+    var waveCount=_ncCpuLoad>0.65?5:4; // extra harmonic above 65% CPU
+    for(var j=0;j<waveCount;j++){
       ctx.beginPath();
-      ctx.strokeStyle = j===0 ? c.hi : j===1 ? c.warn : c.mid;
-      ctx.globalAlpha = 0.8 - j*0.15;
-      for(var i=0; i<W; i+=2) {
-        var a = i*0.02 + t*(1+j*0.3);
-        var yy = cy + Math.sin(a)*(30+j*10)*Math.cos(i*0.01 + t*0.5);
-        if(i===0) ctx.moveTo(i, yy);
-        else ctx.lineTo(i, yy+Math.sin(i*0.1)*j*3);
+      ctx.strokeStyle=j===0?c.hi:j===1?c.warn:j===2?c.mid:j===3?c.lbl:c.pin;
+      ctx.globalAlpha=0.85-j*0.14;ctx.lineWidth=j===0?1.5:1;
+      for(var i=0;i<W;i+=2){
+        var a2=i*0.02+t*(waveSpd+j*0.3);
+        var yy=cy2+Math.sin(a2)*(waveAmp+j*8)*Math.cos(i*0.01+t*0.5);
+        if(i===0)ctx.moveTo(i,yy);else ctx.lineTo(i,yy+Math.sin(i*0.1)*j*3);
+        if(j===0&&i%60===0){
+          var pd=Math.sin(a2)*waveAmp*Math.cos(i*0.01+t*0.5);
+          ctx.save();ctx.fillStyle=c.hi;ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(i,cy2+pd,2.5,0,Math.PI*2);ctx.fill();ctx.restore();
+        }
       }
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
-    var scanX = (t*40) % W;
-    ctx.beginPath(); ctx.moveTo(scanX,0); ctx.lineTo(scanX,H);
-    ctx.strokeStyle=c.hi; ctx.globalAlpha=0.8; ctx.stroke(); ctx.globalAlpha=1;
+    ctx.globalAlpha=1;
+    // Vertical scan — speed scales with CPU
+    var scanX=(t*(30+_ncCpuLoad*40))%W;
+    ctx.beginPath();ctx.moveTo(scanX,0);ctx.lineTo(scanX,H);
+    ctx.strokeStyle=c.hi;ctx.globalAlpha=0.7;ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+    // Freq axis labels
+    ['20','200','2k','10k'].forEach(function(fl,fi){
+      ctx.font='7px monospace';ctx.fillStyle=c.lbl;ctx.globalAlpha=0.35;ctx.textAlign='center';
+      ctx.fillText(fl+'Hz',fi*(W/3)+12,H-2);
+    });
+    ctx.globalAlpha=1;ctx.textAlign='left';
   } else if(_coreMode === 2) {
-    var cx = W/2, cy = H/2, R_ring = Math.min(W,H)*0.4;
-    ctx.translate(cx, cy);
-    ctx.strokeStyle = ca(c.lo,0.5); ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(-W,0); ctx.lineTo(W,0); ctx.moveTo(0,-H); ctx.lineTo(0,H); ctx.stroke();
-    for(var i=0; i<7; i++) {
-      ctx.save();
-      var dir = (i%2===0?1:-1);
-      ctx.rotate(dir * t * (0.1 + i*0.05));
-      ctx.beginPath();
-      ctx.arc(0, 0, R_ring - i*12, 0, Math.PI * (1.2 + i*0.2));
-      ctx.strokeStyle = i===0 ? c.hi : c.mid;
-      ctx.lineWidth = i%3===0 ? 3 : 1;
-      if(i%2!==0) ctx.setLineDash([4+i*2, 8]);
-      ctx.globalAlpha = 0.9 - i*0.1;
-      ctx.stroke();
-      if(i%2===0){
-        ctx.font = '8px monospace'; ctx.fillStyle = c.hi;
-        ctx.fillText((Math.random()>0.5?'SYS_OK':'0x'+Math.floor(Math.random()*99).toString(16)), R_ring - i*12 + 5, 0);
-      }
-      ctx.restore();
+    // ── HUD TARGETING RETICLE ───────────────────────────────
+    var cx2=W/2,cy3=H/2,R2=Math.min(W,H)*0.41;
+    ctx.translate(cx2,cy3);
+    // Background glow
+    var bg=ctx.createRadialGradient(0,0,0,0,0,R2);
+    bg.addColorStop(0,ca(c.pin,0.06));bg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,R2,0,Math.PI*2);ctx.fill();
+    // Outer ring + tick marks — CPU drives rotation speed
+    ctx.save();ctx.rotate(t*(0.05+_ncCpuLoad*0.11));
+    ctx.beginPath();ctx.arc(0,0,R2,0,Math.PI*2);
+    ctx.strokeStyle=c.mid;ctx.lineWidth=1;ctx.globalAlpha=0.4;
+    ctx.setLineDash([2,14]);ctx.stroke();ctx.setLineDash([]);
+    for(var i2=0;i2<24;i2++){
+      var ang2=i2*Math.PI/12;
+      var r1=R2-1,r2=i2%6===0?R2-11:i2%3===0?R2-7:R2-4;
+      ctx.beginPath();ctx.moveTo(Math.cos(ang2)*r1,Math.sin(ang2)*r1);ctx.lineTo(Math.cos(ang2)*r2,Math.sin(ang2)*r2);
+      ctx.strokeStyle=i2%6===0?c.hi:c.mid;ctx.lineWidth=i2%6===0?1.5:0.5;ctx.globalAlpha=i2%6===0?0.9:0.35;ctx.stroke();
     }
-    for(var k=0;k<3;k++){
-      ctx.save();
-      ctx.rotate(t*0.5 + k*(Math.PI*2/3));
-      ctx.beginPath();
-      ctx.moveTo(R_ring+5,0); ctx.lineTo(R_ring+15,-5); ctx.lineTo(R_ring+15,5);
-      ctx.fillStyle=c.warn; ctx.fill();
-      ctx.restore();
+    ctx.restore();
+    // Middle ring — counter-rotate (RAM speed) + sector sweep proportional to CPU
+    ctx.save();ctx.rotate(-t*(0.15+_ncRamLoad*0.14));
+    ctx.beginPath();ctx.arc(0,0,R2*0.72,0,Math.PI*2);
+    ctx.strokeStyle=c.hi;ctx.lineWidth=2;ctx.globalAlpha=0.55;ctx.stroke();
+    var sA2=t*0.7;
+    var sectorW=0.18+_ncCpuLoad*0.92; // sector arc width 0.18 (idle) → 1.10 (full CPU)
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2*0.72,sA2,sA2+sectorW);ctx.closePath();
+    ctx.fillStyle=ca(c.hi,0.08+_ncCpuLoad*0.1);ctx.fill();
+    ctx.restore();
+    // Inner ring — dashed, warning color; RAM drives speed
+    ctx.save();ctx.rotate(t*(0.30+_ncRamLoad*0.22));
+    ctx.beginPath();ctx.arc(0,0,R2*0.45,0,Math.PI*2);
+    ctx.strokeStyle=c.warn;ctx.lineWidth=1;ctx.globalAlpha=0.6;
+    ctx.setLineDash([5,5]);ctx.stroke();ctx.setLineDash([]);
+    for(var k2=0;k2<3;k2++){
+      var ak2=k2*Math.PI*2/3;
+      ctx.beginPath();ctx.moveTo(Math.cos(ak2)*(R2*0.45+4),Math.sin(ak2)*(R2*0.45+4));
+      ctx.lineTo(Math.cos(ak2)*(R2*0.45+14),Math.sin(ak2)*(R2*0.45+14));
+      ctx.strokeStyle=c.warn;ctx.lineWidth=2;ctx.globalAlpha=0.85;ctx.stroke();
     }
-    ctx.translate(-cx, -cy);
-    ctx.beginPath(); ctx.arc(cx, cy, 5 + Math.sin(t*5)*3, 0, Math.PI*2);
-    ctx.fillStyle = c.pin; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.restore();
+    // Crosshair
+    ctx.strokeStyle=c.hi;ctx.lineWidth=1;ctx.globalAlpha=0.6;
+    [0,Math.PI/2].forEach(function(ang3){
+      ctx.save();ctx.rotate(ang3);
+      ctx.beginPath();ctx.moveTo(-R2*0.15,0);ctx.lineTo(-R2*0.06,0);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(R2*0.06,0);ctx.lineTo(R2*0.15,0);ctx.stroke();
+      ctx.restore();
+    });
+    // Center pulse dot
+    var p3=0.5+Math.sin(t*4)*0.5;
+    ctx.beginPath();ctx.arc(0,0,3+p3*3,0,Math.PI*2);
+    ctx.fillStyle=c.hi;ctx.globalAlpha=0.85;ctx.fill();ctx.globalAlpha=1;
+    ctx.translate(-cx2,-cy3);
+    // Corner HUD brackets
+    [[6,6,1,1],[W-6,6,-1,1],[6,H-6,1,-1],[W-6,H-6,-1,-1]].forEach(function(br){
+      ctx.save();ctx.translate(br[0],br[1]);ctx.strokeStyle=c.pin;ctx.lineWidth=1.5;ctx.globalAlpha=0.55;
+      ctx.beginPath();ctx.moveTo(br[2]*10,br[3]*2);ctx.lineTo(br[2]*2,br[3]*2);ctx.lineTo(br[2]*2,br[3]*10);ctx.stroke();
+      ctx.restore();
+    });
+    // Cardinal readouts — real CPU/RAM data
+    var cpuPct=Math.round(_ncCpuLoad*100),ramPct=Math.round(_ncRamLoad*100);
+    var rdata=[['N','CPU',cpuPct+'%'],[' E','TICK',(_spFrame%9999)+''],['S','RAM',ramPct+'%'],['W','SYN',(_spSyn?_spSyn.length:0)+'']];
+    ctx.font='8px monospace';ctx.globalAlpha=0.65;
+    [[cx2,cy3-R2-16],[cx2+R2+8,cy3],[cx2,cy3+R2+20],[cx2-R2-8,cy3]].forEach(function(pos,pi){
+      ctx.fillStyle=c.hi;ctx.textAlign='center';ctx.fillText(rdata[pi][1],pos[0],pos[1]-5);
+      ctx.fillStyle=c.mid;ctx.fillText(rdata[pi][2],pos[0],pos[1]+6);
+    });
+    ctx.globalAlpha=1;ctx.textAlign='left';
   }
 
   // Neural Core telemetry readout (bottom-left corner, all modes)
@@ -1109,9 +2277,9 @@ function spDraw(cv){
   ctx.font = '11px monospace';
   ctx.fillStyle = c.mid;
   var _ncTelm = [
-    'PROC: '+(Math.random()*100|0)+'%',
-    'THR: '+(_spSyn?_spSyn.length:0),
-    'HEAP: '+(12+Math.sin(t*0.3)*4).toFixed(1)+'MB',
+    'CPU: '+Math.round(_ncCpuLoad*100)+'%',
+    'RAM: '+Math.round(_ncRamLoad*100)+'%',
+    'SYN: '+(_spSyn?_spSyn.length:0),
     'TICK: '+(_spFrame%9999)
   ];
   var _ncSymbols = '⊕⊗⊘◈◉⬡⬢△▽☰';
@@ -1156,6 +2324,62 @@ function initSphere(){
 }
 
 // ── INIT ────────────────────────────────────────────────────────────────────
+function initWeatherHover() {
+  const mxWg = document.getElementById('mx-weather-group');
+  if (mxWg) {
+    mxWg.addEventListener('mouseover', () => {
+      const tooltip = document.getElementById('map-tooltip');
+      if(!tooltip) return;
+      tooltip.style.display = 'block';
+      
+      const c = _pal;
+      let titleHtml = `<strong>🌤️ CLIMA: MÉXICO (CDMX)</strong>`;
+      let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">Cargando datos...</div>`;
+      
+      if (_weatherData) {
+        bodyHtml = `
+          <div style="margin-top: 4px; color: ${c.hi}; font-size: 13px; font-weight: bold;">${_weatherData.temp}°C - ${_weatherData.desc}</div>
+          <div style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px;">
+            <div><span style="color: ${c.mut};">MIN/MAX:</span> ${_weatherData.low}°C / ${_weatherData.high}°C</div>
+            <div><span style="color: ${c.mut};">HUMEDAD:</span> ${_weatherData.humidity}%</div>
+            <div><span style="color: ${c.mut};">VIENTO:</span> ${_weatherData.wind}</div>
+            <div><span style="color: ${c.mut};">ÍNDICE UV:</span> ${_weatherData.uv}</div>
+          </div>
+        `;
+      }
+      tooltip.innerHTML = `${titleHtml}${bodyHtml}`;
+      
+      const svg = document.getElementById('wmap');
+      const wrap = document.getElementById('wmap-wrap');
+      const sRect = svg.getBoundingClientRect();
+      const wRect = wrap.getBoundingClientRect();
+      
+      const px = (sRect.left - wRect.left) + (428 / 2000) * sRect.width;
+      const py = (sRect.top - wRect.top) + (393 / 1001) * sRect.height;
+      
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      
+      let leftPos = px - tw / 2;
+      let topPos = py - th - 12;
+      
+      if(leftPos < 4) leftPos = 4;
+      if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
+      
+      tooltip.style.left = leftPos + 'px';
+      tooltip.style.top = topPos + 'px';
+      
+      const arrowLeft = px - leftPos;
+      tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+    });
+
+    mxWg.addEventListener('mouseout', () => {
+      const tooltip = document.getElementById('map-tooltip');
+      if(tooltip) tooltip.style.display = 'none';
+    });
+  }
+}
+
 setPalette('green');
 document.querySelectorAll('.pnl').forEach(function(p){
   var tb = p.firstElementChild;
@@ -1175,12 +2399,21 @@ document.querySelectorAll('.pnl').forEach(function(p){
   }
 });
 setTheme(_currentTheme);updateTime();
+initWeatherHover();
 setInterval(updateTime,1000);setInterval(fetchStats,3000);setInterval(fetchNetwork,15000);
-setInterval(fetchWeather,300000);setInterval(fetchCrypto,30000);
-setInterval(fetchEvents,180000);setInterval(fetchNexusLog,2000);
-fetchStats();fetchNetwork();fetchWeather();fetchCrypto();
-setTimeout(fetchEvents,800);setTimeout(fetchNexusLog,1500);
-setTimeout(initMatrix,300);setTimeout(startThreatLog,400);
+setInterval(fetchWeather,300000);setInterval(fetchCrypto,30000);setInterval(fetchNexusLog,10000);
+setInterval(fetchEvents,180000);
+setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);setInterval(fetchISSLive,30000);
+setInterval(fetchGlobalStats,120000);
+setInterval(updateTerminator,60000);
+fetchHomeLocation().then(()=>{ initPanelRadar(); });fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
+_applyNxPanel();initCritAlert();
+(function(){const hn=document.getElementById('hostname');if(hn&&_settings&&_settings.username)hn.textContent=_settings.username+'@NEXUS';})();
+setTimeout(fetchEvents,800);
+setTimeout(fetchFlights,2000);setTimeout(fetchSpace,3000);setTimeout(fetchISSLive,1500);
+setTimeout(fetchGlobalStats,1000);
+setTimeout(updateTerminator,500);
+setTimeout(initMatrix,300);
 // Sphere: init after layout with multiple attempts
 setTimeout(initSphere,1000);
 setTimeout(initSphere,2500);
@@ -1194,6 +2427,436 @@ if(window.ResizeObserver){
   }).observe(document.getElementById('p-sphere'));
 }
 window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mrt=setTimeout(function(){initMatrix();drawNetGraph();initSphere();},200);});
+
+// ── SETTINGS ────────────────────────────────────────────────────────────────
+var SETTINGS_KEY = 'nexus_settings';
+var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true };
+var _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings));
+}
+
+function openSettings() {
+  const m = document.getElementById('nx-settings-modal');
+  if(!m) return;
+  document.getElementById('cfg-username').value = _settings.username||'SERGIO';
+  document.getElementById('cfg-city').value = _settings.city;
+  document.getElementById('cfg-seismic').value = _settings.seismicMin;
+  document.getElementById('cfg-seismic-val').textContent = 'M' + _settings.seismicMin;
+  document.getElementById('cfg-flights').checked = _settings.showFlights;
+  document.getElementById('cfg-fires').checked = _settings.showFires;
+  document.getElementById('cfg-news').checked = _settings.showNews;
+  const _hl=localStorage.getItem('nexus-home-lat'),_hln=localStorage.getItem('nexus-home-lon');
+  const _cfgLat=document.getElementById('cfg-lat');const _cfgLon=document.getElementById('cfg-lon');
+  if(_cfgLat)_cfgLat.value=_hl||'';if(_cfgLon)_cfgLon.value=_hln||'';
+  fetch('/config').then(function(r){return r.json();}).then(function(c){
+    var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
+    var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
+    var p=document.getElementById('cfg-os-pass');if(p)p.value='';
+  }).catch(function(){});
+  m.style.display = 'flex';
+}
+
+function closeSettings() {
+  const m = document.getElementById('nx-settings-modal');
+  if(m) m.style.display = 'none';
+}
+
+function applySettings() {
+  const uname=(document.getElementById('cfg-username').value.trim().toUpperCase()||'SERGIO');
+  _settings.username=uname;
+  const hn=document.getElementById('hostname');if(hn)hn.textContent=uname+'@NEXUS';
+  greetSet=false; // force greeting refresh on next updateTime()
+  _settings.city = document.getElementById('cfg-city').value.trim();
+  _settings.seismicMin = parseFloat(document.getElementById('cfg-seismic').value);
+  _settings.showFlights = document.getElementById('cfg-flights').checked;
+  _settings.showFires = document.getElementById('cfg-fires').checked;
+  _settings.showNews = document.getElementById('cfg-news').checked;
+  const _nlat=parseFloat(document.getElementById('cfg-lat')?.value||'');
+  const _nlon=parseFloat(document.getElementById('cfg-lon')?.value||'');
+  if(!isNaN(_nlat)&&!isNaN(_nlon)){localStorage.setItem('nexus-home-lat',_nlat);localStorage.setItem('nexus-home-lon',_nlon);_homeCoords={lat:_nlat,lon:_nlon,city:'Custom',country:''};}
+  else{localStorage.removeItem('nexus-home-lat');localStorage.removeItem('nexus-home-lon');_homeCoords=null;fetchHomeLocation();}
+  saveSettings();
+  var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
+  var osPass=document.getElementById('cfg-os-pass')?.value||'';
+  if(osUser||osPass){
+    fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({openskyUser:osUser,openskyPass:osPass})}).catch(function(){});
+    var _osp=document.getElementById('cfg-os-pass');if(_osp)_osp.value='';
+  }
+  closeSettings();
+  renderEventPins();
+  fetchFlights();
+  fetchWeather();
+}
+
+// ── PANEL RADAR (permanent mini radar in #p-nxlog) ───────────────────────────
+var _nxrRaf=null,_nxrContacts=[];
+function _nxrGeoB(la1,lo1,la2,lo2){const f1=la1*Math.PI/180,f2=la2*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;return Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl));}
+function _nxrGeoD(la1,lo1,la2,lo2){const Rr=6371,f1=la1*Math.PI/180,f2=la2*Math.PI/180,df=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;return Rr*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+
+// ── PANEL TOGGLE (Radar ↔ Log) ──────────────────────────────────────────────
+var _nxPanelMode=localStorage.getItem('nexus_nxpanel')||'radar';
+function _applyNxPanel(){
+  const isR=_nxPanelMode==='radar';
+  const rd=document.getElementById('nxp-radar'),lg=document.getElementById('nxp-log');
+  const tog=document.getElementById('nxp-toggle'),lbl=document.getElementById('l-nxlog');
+  if(rd)rd.style.display=isR?'flex':'none';
+  if(lg)lg.style.display=isR?'none':'flex';
+  if(tog)tog.textContent=isR?'[ LOG ]':'[ RADAR ]';
+  if(lbl)lbl.textContent=isR?'NEXUS RADAR':'NEXUS LOG';
+}
+function toggleNxPanel(){
+  _nxPanelMode=_nxPanelMode==='radar'?'log':'radar';
+  localStorage.setItem('nexus_nxpanel',_nxPanelMode);
+  _applyNxPanel();
+}
+
+// ── CRITICAL ALERT ───────────────────────────────────────────────────────────
+var CRIT_KEY='nexus_crit_alert';
+var CRIT_TTL=72*3600*1000;
+function checkCriticalEvents(events){
+  const crits=events.filter(e=>(e.type==='quake'&&e.mag>=6.0)||e.type==='volcano'||e.type==='storm')
+    .sort((a,b)=>(b.mag||5)-(a.mag||5));
+  if(!crits.length)return;
+  const top=crits[0];
+  const stored=JSON.parse(localStorage.getItem(CRIT_KEY)||'{}');
+  const key=`${top.type}-${(top.lat||0).toFixed(1)}-${(top.lon||0).toFixed(1)}-${top.mag||0}`;
+  if(stored.key===key&&stored.dismissed&&Date.now()-stored.ts<CRIT_TTL)return;
+  showCritAlert(top,key);
+}
+function showCritAlert(ev,key){
+  const wrap=document.getElementById('crit-alert-wrap');if(!wrap)return;
+  const c=_pal,col=ev.mag>=7?'#E24B4A':c.warn;
+  const icon=ev.type==='quake'?'⬡':ev.type==='volcano'?'▲':'◎';
+  const title=ev.type==='quake'?'SEISMIC ALERT':ev.type==='volcano'?'VOLCANIC ALERT':'STORM ALERT';
+  const barW=Math.min(100,((ev.mag||5)-5)/4*100).toFixed(0);
+  wrap.style.display='block';
+  wrap.innerHTML=`<div class="crit-alert-card" style="border:1px solid ${col};background:${col}18;">
+    <button onclick="dismissCritAlert('${key}')" style="position:absolute;top:3px;right:6px;background:none;border:none;color:${col};cursor:pointer;font-family:monospace;font-size:12px;opacity:.8" title="Dismiss (hides for 72h)">✕</button>
+    <div style="font-size:10px;letter-spacing:2px;color:${col};margin-bottom:3px">${icon} ${title}</div>
+    <div style="font-size:16px;font-weight:bold;color:${col};line-height:1">${ev.type==='quake'?'M'+(ev.mag?.toFixed(1)||'?'):ev.label||'ALERT'}</div>
+    <div style="font-size:11px;color:${c.lbl};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.place||ev.label||'—'}</div>
+    <div style="font-size:10px;color:${c.mut};margin-top:1px">${ev.info||''}</div>
+    <div style="height:2px;background:${c.lo};border-radius:1px;margin-top:5px"><div style="height:100%;width:${barW}%;background:${col};border-radius:1px;transition:width .8s"></div></div>
+  </div>`;
+}
+function dismissCritAlert(key){
+  localStorage.setItem(CRIT_KEY,JSON.stringify({key,dismissed:true,ts:Date.now()}));
+  const w=document.getElementById('crit-alert-wrap');if(w)w.style.display='none';
+}
+function initCritAlert(){
+  const s=JSON.parse(localStorage.getItem(CRIT_KEY)||'{}');
+  if(s.ts&&Date.now()-s.ts>=CRIT_TTL)localStorage.removeItem(CRIT_KEY);
+}
+
+function initPanelRadar(){
+  if(_nxrRaf){cancelAnimationFrame(_nxrRaf);_nxrRaf=null;}
+  const cv=document.getElementById('nxr-canvas');
+  if(!cv)return;
+  const par=cv.parentElement;
+  cv.width=par.offsetWidth-20;cv.height=Math.max(cv.offsetHeight||140,100);
+  const ctx=cv.getContext('2d');
+  const W=cv.width,H=cv.height;
+  const CX=W/2,CY=H/2,R=Math.min(W,H)*0.44;
+  const MAX_KM=20037;
+  const hLat=(_homeCoords||{lat:19.43}).lat,hLon=(_homeCoords||{lon:-99.13}).lon;
+  let angle=0,blips=[],lastEvtCount=-1;
+  const SPD=0.018;
+  const tColors={quake:'#5DCAA5',fire:'#EF9F27',news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:'#38BDF8',iss:'#F59E0B'};
+
+  function nxrXY(ev){
+    try{if(ev.lat==null||ev.lon==null)return null;const brg=_nxrGeoB(hLat,hLon,ev.lat,ev.lon);const d=_nxrGeoD(hLat,hLon,ev.lat,ev.lon);const r=Math.min(d/MAX_KM,1)*R*0.93;return[CX+Math.sin(brg)*r,CY-Math.cos(brg)*r];}catch(e){return null;}
+  }
+  function nxrBrg(ev){try{return _nxrGeoB(hLat,hLon,ev.lat,ev.lon);}catch(e){return null;}}
+  function bearingLabel(brg){const deg=((brg*180/Math.PI)+360)%360;const dirs=['N','NE','E','SE','S','SW','W','NW'];return dirs[Math.round(deg/45)%8];}
+
+  function updateNxrContacts(newContact){
+    _nxrContacts.unshift(newContact);
+    if(_nxrContacts.length>6)_nxrContacts.pop();
+    const el=document.getElementById('nxr-contacts');
+    if(!el)return;
+    const c=currentPalette();
+    el.innerHTML=_nxrContacts.map(ct=>{
+      const col=tColors[ct.type]||c.mid;
+      const dist=ct.distKm?Math.round(ct.distKm)+'km':'?km';
+      const mag=ct.mag?' M'+ct.mag.toFixed(1):'';
+      const dir=ct.brg!==undefined?' '+bearingLabel(ct.brg):'';
+      return`<div style="color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">[${ct.ts}] ${ct.type.toUpperCase()}${mag}${dir} ${dist} — ${(ct.label||ct.title||'?').substring(0,28)}</div>`;
+    }).join('');
+  }
+
+  function nxrUpdate(){
+    const evts=(typeof _evts!=='undefined'?_evts:[])||[];
+    if(evts.length!==lastEvtCount){lastEvtCount=evts.length;evts.forEach(ev=>{const xy=nxrXY(ev);if(!xy)return;if(!blips.find(b=>b.ev===ev)){const d=_nxrGeoD(hLat,hLon,ev.lat||0,ev.lon||0);blips.push({ev,x:xy[0],y:xy[1],alpha:.65,age:60,col:tColors[ev.type]||'#1D9E75',size:ev.type==='quake'?Math.max(2,Math.min(6,(ev.mag||4)-1)):3,distKm:d});}});}
+    const a=angle%(Math.PI*2),prev=(a-SPD*5+Math.PI*2)%(Math.PI*2);
+    blips.forEach(bl=>{const brg=nxrBrg(bl.ev);if(brg===null)return;const b=(brg+Math.PI*2)%(Math.PI*2);const hit=(prev<=a)?(b>=prev&&b<=a):(b>=prev||b<=a);if(hit&&bl.alpha<0.9){bl.alpha=1;bl.age=0;const ts=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});updateNxrContacts({type:bl.ev.type,ts,label:bl.ev.label||bl.ev.title,mag:bl.ev.mag,brg,distKm:bl.distKm});}});
+  }
+
+  function nxrDraw(){
+    const c=currentPalette();
+    ctx.fillStyle=c.base;ctx.fillRect(0,0,W,H);
+    // Grid dot
+    ctx.fillStyle=c.lo;ctx.globalAlpha=.25;for(let gx=0;gx<W;gx+=12)for(let gy=0;gy<H;gy+=12)ctx.fillRect(gx,gy,1,1);ctx.globalAlpha=1;
+    // Rings at 5k/10k/15k/20k km
+    [5000,10000,15000,20000].forEach((km,i)=>{const ri=R*(km/MAX_KM)*0.93;ctx.strokeStyle=c.lo;ctx.lineWidth=.7;ctx.globalAlpha=0.4-i*.07;ctx.beginPath();ctx.arc(CX,CY,ri,0,Math.PI*2);ctx.stroke();});
+    ctx.globalAlpha=1;
+    // Cross
+    ctx.strokeStyle=c.lo;ctx.lineWidth=.5;ctx.globalAlpha=.3;
+    ctx.beginPath();ctx.moveTo(CX-R,CY);ctx.lineTo(CX+R,CY);ctx.moveTo(CX,CY-R);ctx.lineTo(CX,CY+R);ctx.stroke();ctx.globalAlpha=1;
+    // Sweep cone
+    ctx.save();ctx.beginPath();ctx.moveTo(CX,CY);ctx.arc(CX,CY,R,angle-1.4,angle,false);ctx.closePath();ctx.fillStyle='rgba(29,158,117,0.06)';ctx.fill();ctx.restore();
+    // Sweep line
+    ctx.strokeStyle=c.hi;ctx.lineWidth=1.5;ctx.globalAlpha=.85;
+    ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(CX+Math.sin(angle)*R,CY-Math.cos(angle)*R);ctx.stroke();ctx.globalAlpha=1;
+    // Blips
+    blips.forEach(bl=>{ctx.save();ctx.globalAlpha=bl.alpha;const pr=bl.size*(1+(1-bl.alpha)*4);ctx.strokeStyle=bl.col;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(bl.x,bl.y,pr,0,Math.PI*2);ctx.stroke();ctx.fillStyle=bl.col;ctx.beginPath();ctx.arc(bl.x,bl.y,bl.size,0,Math.PI*2);ctx.fill();ctx.restore();bl.age++;bl.alpha=Math.max(0.15,1-bl.age/500);});
+    // Home dot
+    ctx.fillStyle=c.hi;ctx.beginPath();ctx.arc(CX,CY,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=c.neg;ctx.beginPath();ctx.arc(CX,CY,1.5,0,Math.PI*2);ctx.fill();
+    // Status
+    const el=document.getElementById('nxr-status');
+    if(el){const evts=(typeof _evts!=='undefined'?_evts:[])||[];el.textContent=`${evts.length} CONTACTS`;}
+  }
+
+  function nxrLoop(){
+    _nxrRaf=requestAnimationFrame(nxrLoop);
+    nxrUpdate();
+    angle=(angle+SPD)%(Math.PI*2);
+    nxrDraw();
+  }
+  _nxrRaf=requestAnimationFrame(nxrLoop);
+}
+
+var _homeCoords=null;
+async function fetchHomeLocation(){
+  const sLat=localStorage.getItem('nexus-home-lat'),sLon=localStorage.getItem('nexus-home-lon');
+  if(sLat&&sLon&&!isNaN(parseFloat(sLat))&&!isNaN(parseFloat(sLon))){
+    _homeCoords={lat:parseFloat(sLat),lon:parseFloat(sLon),city:'Custom',country:''};
+    return;
+  }
+  try{
+    const d=await(await fetch('http://localhost:19234/location')).json();
+    if(d&&d.lat&&d.lon){_homeCoords=d;nxLog('Home: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');}
+    else _homeCoords={lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'};
+  }catch(e){_homeCoords={lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'};}
+}
+
+function initSnake(canvas){
+  const ctx=canvas.getContext('2d');
+  const CELL=22;
+  const CW=canvas.width,CH=canvas.height;
+  const GW=Math.floor(CW/CELL),GH=Math.floor(CH/CELL);
+  let snake=[{x:Math.floor(GW/2),y:Math.floor(GH/2)}];
+  let dir={x:1,y:0},nextDir={x:1,y:0};
+  let debris=[],score=0,dead=false,raf=null,last=0,paused=false;
+  let speed=130;
+  const SPEED_MIN=55,SPEED_STEP=5;
+  const HI_KEY='nexus-snake-hi';
+  let hiScore=parseInt(localStorage.getItem(HI_KEY)||'0');
+
+  function spawnDebris(){
+    let p,tries=0;
+    do{p={x:Math.floor(Math.random()*GW),y:Math.floor(Math.random()*GH)};tries++;}
+    while(tries<100&&(snake.some(s=>s.x===p.x&&s.y===p.y)||debris.some(d=>d.x===p.x&&d.y===p.y)));
+    const types=[{col:'#EF9F27',sym:'×'},{col:'#E24B4A',sym:'+'},{col:'#38BDF8',sym:'◆'}];
+    debris.push({...p,...types[Math.floor(Math.random()*types.length)]});
+    if(debris.length>4)debris.shift();
+  }
+  spawnDebris();spawnDebris();
+
+  function reset(){
+    snake=[{x:Math.floor(GW/2),y:Math.floor(GH/2)}];
+    dir={x:1,y:0};nextDir={x:1,y:0};
+    debris=[];score=0;dead=false;paused=false;speed=130;
+    spawnDebris();spawnDebris();
+    if(!raf)raf=requestAnimationFrame(loop);
+  }
+
+  function draw(){
+    const c=_pal;
+    ctx.fillStyle=c.base||'#030a05';ctx.fillRect(0,0,CW,CH);
+    ctx.fillStyle=c.lo||'#085041';
+    for(let gx=0;gx<GW;gx++)for(let gy=0;gy<GH;gy++){
+      ctx.fillRect(gx*CELL+CELL/2-1,gy*CELL+CELL/2-1,2,2);
+    }
+    debris.forEach(d=>{
+      ctx.font='bold 14px monospace';ctx.fillStyle=d.col;ctx.textAlign='center';
+      ctx.fillText(d.sym,d.x*CELL+CELL/2,d.y*CELL+CELL/2+5);
+    });
+    // Draw body segments (tail to head, so head renders on top)
+    snake.slice(1).forEach(seg=>{
+      ctx.fillStyle=c.mid||'#1D9E75';
+      ctx.fillRect(seg.x*CELL+3,seg.y*CELL+3,CELL-6,CELL-6);
+    });
+    // Draw head with rotation
+    if(snake.length>0){
+      const h=snake[0];
+      const angle=Math.atan2(dir.x,-dir.y); // clockwise from up
+      const cx=h.x*CELL+CELL/2,cy=h.y*CELL+CELL/2;
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(angle);
+      // Head body
+      ctx.fillStyle=c.wB||c.hi;
+      ctx.fillRect(-CELL/2+2,-CELL/2+2,CELL-4,CELL-4);
+      // Solar panel wings (perpendicular to direction = on the sides in rotated space)
+      ctx.fillStyle=c.hi||'#5DCAA5';
+      ctx.fillRect(-7,-CELL/2-4,14,4); // top wing (left in screen when going right)
+      ctx.fillRect(-7, CELL/2,  14,4); // bottom wing
+      // Cockpit dot
+      ctx.fillStyle=c.base||'#030a05';
+      ctx.fillRect(-2,-4,4,4);
+      ctx.restore();
+    }
+    // HUD
+    ctx.font='11px monospace';ctx.textAlign='left';
+    ctx.fillStyle=c.lbl||'#1D9E75';
+    const spd=Math.round((130-speed)/SPEED_STEP);
+    ctx.fillText(`DEBRIS:${score}  HI:${hiScore}  LEN:${snake.length}  SPD:${spd}  WASD/ARROWS  P=PAUSE  ESC=MAP`,10,16);
+    if(paused&&!dead){
+      ctx.fillStyle='rgba(0,0,0,0.45)';ctx.fillRect(0,0,CW,CH);
+      ctx.font='bold 28px monospace';ctx.textAlign='center';ctx.fillStyle=c.warn||'#EF9F27';
+      ctx.fillText('PAUSED',CW/2,CH/2-10);
+      ctx.font='13px monospace';ctx.fillStyle=c.lbl;
+      ctx.fillText('P = RESUME  |  ESC = MAP',CW/2,CH/2+20);
+      ctx.textAlign='left';
+    }
+    if(dead){
+      ctx.fillStyle='rgba(0,0,0,0.55)';ctx.fillRect(0,0,CW,CH);
+      ctx.font='bold 30px monospace';ctx.textAlign='center';ctx.fillStyle=c.neg||'#E24B4A';
+      ctx.fillText('SIGNAL LOST',CW/2,CH/2-28);
+      ctx.font='15px monospace';ctx.fillStyle=c.lbl||'#1D9E75';
+      ctx.fillText(`DEBRIS: ${score}  |  HI: ${hiScore}`,CW/2,CH/2+8);
+      ctx.font='13px monospace';ctx.fillStyle=c.hi;
+      ctx.fillText('SPACE = PLAY AGAIN  |  ESC = MAP',CW/2,CH/2+34);
+      ctx.textAlign='left';
+    }
+  }
+
+  function loop(ts){
+    raf=requestAnimationFrame(loop);
+    draw();
+    if(dead||paused||ts-last<speed)return;
+    last=ts;
+    dir=nextDir;
+    const head={x:(snake[0].x+dir.x+GW)%GW,y:(snake[0].y+dir.y+GH)%GH};
+    if(snake.slice(1).some(s=>s.x===head.x&&s.y===head.y)){
+      if(score>hiScore){hiScore=score;localStorage.setItem(HI_KEY,score);}
+      dead=true;return;
+    }
+    snake.unshift(head);
+    const eaten=debris.findIndex(d=>d.x===head.x&&d.y===head.y);
+    if(eaten>=0){
+      score++;
+      speed=Math.max(SPEED_MIN,130-score*SPEED_STEP);
+      debris.splice(eaten,1);spawnDebris();
+    }else{snake.pop();}
+  }
+
+  function onKey(e){
+    const km={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},
+              KeyW:{x:0,y:-1},KeyS:{x:0,y:1},KeyA:{x:-1,y:0},KeyD:{x:1,y:0}};
+    if(km[e.code]){
+      const nd=km[e.code];
+      if(!(nd.x===-dir.x&&dir.x!==0)&&!(nd.y===-dir.y&&dir.y!==0)){nextDir=nd;}
+      e.preventDefault();e.stopPropagation();
+    }
+    if(e.code==='Space'){e.preventDefault();if(dead)reset();}
+    if(e.code==='KeyP'){e.preventDefault();e.stopPropagation();if(!dead)paused=!paused;}
+    if(e.code==='Escape'){if(!dead&&!paused){paused=true;}else{showView('map');}}
+  }
+
+  document.addEventListener('keydown',onKey,true);
+  raf=requestAnimationFrame(loop);
+  return function cleanup(){
+    cancelAnimationFrame(raf);raf=null;
+    document.removeEventListener('keydown',onKey,true);
+  };
+}
 </script>
+
+<!-- SETTINGS MODAL -->
+<style>
+#nx-settings-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.72); align-items:center; justify-content:center; }
+#nx-settings-panel { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:24px 28px; min-width:320px; max-width:420px; width:90%; font-family:monospace; color:#e6edf3; box-shadow:0 16px 48px rgba(0,0,0,.6); }
+#nx-settings-panel h2 { margin:0 0 20px; font-size:14px; letter-spacing:3px; color:#58a6ff; text-transform:uppercase; }
+.cfg-row { margin-bottom:16px; }
+.cfg-row label { display:block; font-size:11px; letter-spacing:1px; color:#8b949e; margin-bottom:6px; text-transform:uppercase; }
+.cfg-row input[type=text] { width:100%; box-sizing:border-box; background:#161b22; border:1px solid #30363d; border-radius:4px; color:#e6edf3; padding:7px 10px; font-family:monospace; font-size:13px; outline:none; }
+.cfg-row input[type=text]:focus { border-color:#58a6ff; }
+.cfg-row input[type=range] { width:100%; accent-color:#58a6ff; }
+.cfg-row .range-row { display:flex; align-items:center; gap:10px; }
+.cfg-toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:12px; letter-spacing:1px; color:#c9d1d9; }
+.cfg-toggle-row input[type=checkbox] { width:16px; height:16px; accent-color:#58a6ff; cursor:pointer; }
+.cfg-actions { display:flex; gap:10px; margin-top:22px; }
+.cfg-btn { flex:1; padding:8px; border:none; border-radius:4px; font-family:monospace; font-size:12px; letter-spacing:1px; cursor:pointer; text-transform:uppercase; }
+.cfg-btn-apply { background:#238636; color:#fff; }
+.cfg-btn-apply:hover { background:#2ea043; }
+.cfg-btn-cancel { background:#21262d; color:#8b949e; border:1px solid #30363d; }
+.cfg-btn-cancel:hover { background:#30363d; color:#e6edf3; }
+/* WIN98 overrides */
+body.theme-win98 #nx-settings-panel { background:#c0c0c0; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; color:black; box-shadow:1px 1px 0 black; }
+body.theme-win98 #nx-settings-panel h2 { color:#000080; }
+body.theme-win98 .cfg-row input[type=text] { background:white; border:2px inset #808080; color:black; border-radius:0; }
+body.theme-win98 .cfg-row label, body.theme-win98 .cfg-toggle-row { color:black; }
+body.theme-win98 .cfg-btn-apply { background:#000080; }
+body.theme-win98 .cfg-btn-cancel { background:#c0c0c0; color:black; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; }
+/* MACOS overrides */
+body.theme-macos #nx-settings-panel { background:white; border:1px solid black; border-radius:0; color:black; box-shadow:2px 2px 0 black; }
+body.theme-macos #nx-settings-panel h2 { color:black; }
+body.theme-macos .cfg-row input[type=text] { background:white; border:1px solid black; color:black; border-radius:0; }
+body.theme-macos .cfg-row label, body.theme-macos .cfg-toggle-row { color:#333; }
+body.theme-macos .cfg-btn-cancel { background:white; color:black; border:1px solid black; border-radius:0; }
+body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0; }
+</style>
+<div id="nx-settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div id="nx-settings-panel">
+    <h2>⚙ Settings</h2>
+    <div class="cfg-row">
+      <label>Operator Username</label>
+      <input type="text" id="cfg-username" placeholder="e.g. SERGIO" maxlength="20" style="text-transform:uppercase">
+    </div>
+    <div class="cfg-row">
+      <label>Weather City (blank = server default)</label>
+      <input type="text" id="cfg-city" placeholder="e.g. Tokyo, New_York, London">
+    </div>
+    <div class="cfg-row">
+      <label>OpenSky Client ID <span id="cfg-os-status" style="font-size:11px;opacity:.45;margin-left:6px;"></span></label>
+      <input type="text" id="cfg-os-user" placeholder="clientId from opensky-network.org" autocomplete="off">
+    </div>
+    <div class="cfg-row">
+      <label>OpenSky Client Secret</label>
+      <input type="password" id="cfg-os-pass" placeholder="Leave blank to keep existing" autocomplete="new-password">
+      <div style="font-size:10px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
+    </div>
+    <div class="cfg-row">
+      <label>Home Location — Radar Center (blank = auto from IP)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="cfg-lat" placeholder="Lat e.g. 19.43" style="width:50%;box-sizing:border-box;background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:7px 10px;font-family:monospace;font-size:13px;outline:none;">
+        <input type="text" id="cfg-lon" placeholder="Lon e.g. -99.13" style="width:50%;box-sizing:border-box;background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:7px 10px;font-family:monospace;font-size:13px;outline:none;">
+      </div>
+      <div style="font-size:10px;opacity:.45;margin-top:4px">Leave blank to detect automatically from IP address</div>
+    </div>
+    <div class="cfg-row">
+      <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
+      <div class="range-row">
+        <span style="font-size:11px;opacity:.6;">M3</span>
+        <input type="range" id="cfg-seismic" min="3" max="7" step="0.5" oninput="document.getElementById('cfg-seismic-val').textContent='M'+this.value">
+        <span style="font-size:11px;opacity:.6;">M7</span>
+      </div>
+    </div>
+    <div class="cfg-row">
+      <label>Map Layers</label>
+      <div class="cfg-toggle-row"><span>✈ Live Flights</span><input type="checkbox" id="cfg-flights"></div>
+      <div class="cfg-toggle-row"><span>🔥 Wildfires (FIRMS)</span><input type="checkbox" id="cfg-fires"></div>
+      <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
+    </div>
+    <div class="cfg-actions">
+      <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
+      <button class="cfg-btn cfg-btn-cancel" onclick="closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
