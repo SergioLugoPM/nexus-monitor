@@ -167,17 +167,41 @@ app.get('/iss',async(req,res)=>{
   res.json({lat:0,lon:0,alt:408});
 });
 
-const { exec: _exec } = require('child_process');
-const _ALLOWED = new Set(['dir','ls','pwd','ps','tasklist','ipconfig','netstat','ping','df','uptime','whoami','hostname','systeminfo','net','wmic','type','echo','date','time','ver','route','arp']);
-app.post('/exec',(req,res)=>{
+const { execFile: _execFile } = require('child_process');
+// Builtins that only exist inside cmd.exe (no standalone .exe on disk) must go through `cmd /c`.
+// Everything else runs via execFile with an argv array — no shell, no metacharacter injection possible.
+const _CMD_BUILTINS = new Set(['dir','echo','date','time','ver']);
+const _ALLOWED = new Set(['dir','tasklist','ipconfig','netstat','ping','uptime','whoami','hostname','systeminfo','net','wmic','echo','date','time','ver','route','arp','nslookup']);
+app.post('/exec', async (req,res)=>{
   const cmd=(req.body&&req.body.cmd||'').trim().substring(0,200);
   if(!cmd)return res.json({output:'',error:false});
-  const base=cmd.split(/\s+/)[0].toLowerCase().replace(/\.exe$/,'');
-  if(!_ALLOWED.has(base))return res.json({output:`nexus: '${base}' not permitted`,error:true});
-  _exec(cmd,{timeout:6000,maxBuffer:65536,shell:true},(err,stdout,stderr)=>{
+  // Reject shell metacharacters outright. This matters even with execFile (no shell:true)
+  // because builtins like `dir`/`echo` are routed through cmd.exe, which re-parses `&`,
+  // `|`, `;`, etc. from its own argv regardless of how Node quoted them — argv-array
+  // safety does NOT protect against cmd.exe's own command-line re-interpretation.
+  if(/[&|;`$<>^]/.test(cmd))return res.json({output:'nexus: caracteres no permitidos (& | ; ` $ < > ^)',error:true});
+  const tokens=cmd.split(/\s+/);
+  const base=tokens[0].toLowerCase().replace(/\.exe$/,'');
+  if(!_ALLOWED.has(base))return res.json({output:`nexus: '${base}' not permitted. Allowed: ${[..._ALLOWED].join(', ')}`,error:true});
+  // Special case: uptime is Linux-only — use si.time() instead of shell
+  if(base==='uptime'){
+    try{
+      const t=si.time();
+      const s=Math.round(t.uptime||0);
+      const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+      return res.json({output:`up ${d} days, ${h}h ${m}m  (boot: ${new Date(Date.now()-s*1000).toLocaleString()})`,error:false});
+    }catch(e){return res.json({output:'uptime: '+e.message,error:true});}
+  }
+  nxLog('exec: '+cmd,'info');
+  const args=tokens.slice(1);
+  // No shell:true anywhere — args are passed as an argv array, so `&`, `|`, `;`, backticks etc.
+  // are inert literal characters to the child process, not shell syntax. This closes the
+  // command-injection hole where e.g. "dir & del /f /q C:\\..." used to execute the second command.
+  const file=_CMD_BUILTINS.has(base) ? 'cmd.exe' : (base+'.exe');
+  const fileArgs=_CMD_BUILTINS.has(base) ? ['/d','/c',base,...args] : args;
+  _execFile(file,fileArgs,{timeout:6000,maxBuffer:65536,windowsHide:true},(err,stdout,stderr)=>{
     res.json({output:(stdout||'')+(stderr?'\n'+stderr:'')+(err&&!stdout?'\n'+err.message:''),error:!!err});
   });
-  nxLog('exec: '+cmd,'info');
 });
 
 let _locCache=null,_locTs=0;

@@ -175,6 +175,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 .view-pane.vp-active{display:flex;}
 #snake-wrap{flex:1;position:relative;background:#030a05;min-height:0;}
 #snake-canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+._gpad{background:rgba(3,10,5,.82);border:1px solid #1D9E75;color:#5DCAA5;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;touch-action:none;-webkit-user-select:none;user-select:none;font-size:18px;transition:background .08s;}
+._gpad:active,._gpad._pressed{background:rgba(29,158,117,.4);border-color:#5DCAA5;}
 </style>
 </head>
 <body>
@@ -279,7 +281,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   </div>
   <div id="gs-ev-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
     <div class="sub-lbl">RECENT EVENTS</div>
-    <div id="gs-events" style="margin-top:4px;overflow-y:auto;flex:1;min-height:0;font-size:11px;line-height:1.6"></div>
+    <div id="gs-events" style="margin-top:4px;font-size:11px;line-height:1.6"></div>
+    <div id="gs-mag-hist" style="margin-top:8px;border-top:.5px solid #1e3a2a;padding-top:6px;flex-shrink:0"></div>
   </div>
 </div>
     </div>
@@ -310,8 +313,6 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="terminal" onclick="showView('terminal')">T&nbsp;TERM</button>
       <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
       <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
-      <button class="vtab" onclick="startMapCalib()" style="margin-left:8px;opacity:.6" title="Calibrar proyección del mapa arrastrando un pin">⊕&nbsp;CALIB</button>
-      <span id="calib-info" style="display:none;font-size:9px;font-family:monospace;color:#ff0;margin-left:6px;align-self:center"></span>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -608,9 +609,9 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   const WELCOME=[
     '╔══════════════════════════════════════════════╗',
     '║         NEXUS MONITOR — TERMINAL v1.0        ║',
-    '║  Allowed: dir ls pwd ps tasklist ipconfig    ║',
-    '║           netstat ping uptime whoami etc.    ║',
-    '║  [ESC] return to map   [↑↓] history         ║',
+    '║  whoami  hostname  ver  ipconfig  tasklist   ║',
+    '║  netstat  ping  uptime  systeminfo  route    ║',
+    '║  [ESC] return to map   [↑↑] history         ║',
     '╚══════════════════════════════════════════════╝',
     ''
   ];
@@ -635,7 +636,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     const c=window._pal||{hi:'#5DCAA5',mid:'#1D9E75',lbl:'#38B891',neg:'#E24B4A',warn:'#EF9F27'};
     WELCOME.forEach(l=>termPrint(termColor(l,c.hi)));
     // Show system info on open
-    termExec('uptime');
+    termExec('whoami');
   }
 
   async function termExec(cmd){
@@ -718,11 +719,15 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 </script>
     </div>
     <div class="view-pane" id="view-snake" style="flex:1;min-height:0;">
-      <div id="snake-wrap"><canvas id="snake-canvas"></canvas></div>
+      <div id="snake-wrap">
+        <canvas id="snake-canvas"></canvas>
+        <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">SWIPE = STEER &nbsp;·&nbsp; TAP = PAUSE / RETRY</div>
+      </div>
     </div>
     <div class="view-pane" id="view-invaders" style="flex:1;min-height:0;position:relative;">
       <canvas id="inv-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block"></canvas>
 <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none"></div>
+<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">◄ HOLD &nbsp;·&nbsp; TAP CENTER = FIRE &nbsp;·&nbsp; HOLD ►</div>
 <script>
 (function(){
   const _prev=window.onShowView;
@@ -1415,19 +1420,28 @@ async function fetchSpace() {
   } catch(e) {}
 }
 
+function _tempColor(t,c){
+  if(t==null)return c.bar;
+  if(t>85)return '#E24B4A';
+  if(t>75)return '#F59E0B';
+  if(t>60)return c.warn;
+  return c.bar;
+}
 async function fetchStats(){
   try{
     const d=await(await fetch('http://localhost:19234/stats')).json();const c=_pal;
     document.getElementById('cpu-val').textContent=d.cpu.load;document.getElementById('bf-cpu').style.width=d.cpu.load+'%';
+    document.getElementById('bf-cpu').style.background=_tempColor(d.cpu?.temp,c);
     const cl=d.cpu.cores.length;for(let i=0;i<8;i++){const v=cl>0?d.cpu.cores[i%cl]:d.cpu.load;const idx=Math.min(Math.floor(v/22),c.cores.length-1);document.getElementById('c'+i).style.background=c.cores[idx];}
     document.getElementById('ram-v').textContent=d.mem.used;document.getElementById('ram-t').textContent='/ '+d.mem.total+' GB';document.getElementById('bf-ram').style.width=d.mem.percent+'%';
     document.getElementById('gpu-v').textContent=d.gpu.load+'%';document.getElementById('bf-gpu').style.width=d.gpu.load+'%';
-    const gt=d.gpu.temp;document.getElementById('gpu-t').textContent=gt+'°C';document.getElementById('gpu-t').style.color=gt>80?'#E24B4A':c.warn;
+    document.getElementById('bf-gpu').style.background=_tempColor(d.gpu?.temp,c);
+    const gt=d.gpu.temp;document.getElementById('gpu-t').textContent=gt+'°C';document.getElementById('gpu-t').style.color=_tempColor(gt,c);
     const dw=document.getElementById('disks-wrap');
     if(dw){dw.innerHTML='';if(d.disks&&d.disks.length){d.disks.forEach(disk=>{const div=document.createElement('div');div.className='pnl disk-pnl';div.style.borderColor=c.lo;const tbh = document.body.classList.contains('theme-win98') || document.body.classList.contains('theme-macos') ? ' title-bar' : ''; div.innerHTML='<div class="lbl disk-lbl'+tbh+'" style="color:'+c.lbl+';margin-bottom:3px;position:relative;"><span class="tb-text">Disk '+disk.mount+'</span><div class="win-btns"><div class="wb-min">_</div><div class="wb-max">&#x25A1;</div><div class="wb-cls">X</div></div></div><div class="rsp"><span class="disk-val" style="font-size:13px;color:'+c.hi+'">'+disk.used+' GB</span><span class="disk-tot mut" style="color:'+c.mut+';font-size:10px;">/ '+disk.total+' GB</span></div><div class="bt disk-bt" style="background:'+c.trk+'"><div class="bf disk-bf" style="width:'+disk.percent+'%;background:'+c.bar+'"></div></div>';dw.appendChild(div);});}}
     document.getElementById('net-u').textContent=d.net.upload+' MB/s';document.getElementById('net-d').textContent=d.net.download+' MB/s';updateNetGraph(d.net.upload,d.net.download);
     document.getElementById('hostname').textContent=d.os.hostname.toUpperCase();document.getElementById('procs').textContent=d.processes;
-    const ct=d.cpu?.temp,ctel=document.getElementById('cpu-tmp');if(ctel){if(ct!=null){ctel.textContent=ct+'°C';ctel.style.color=ct>85?'#E24B4A':ct>70?c.warn:c.mut;}else{ctel.style.display='none';}}
+    const ct=d.cpu?.temp,ctel=document.getElementById('cpu-tmp');if(ctel){if(ct!=null){ctel.textContent=ct+'°C';ctel.style.color=_tempColor(ct,c);}else{ctel.style.display='none';}}
     const s=d.uptime,ud=Math.floor(s/86400),uh=Math.floor((s%86400)/3600),um=Math.floor((s%3600)/60);document.getElementById('uptime').textContent=ud+'d '+uh+'h '+um+'m';
     _ncCpuLoad=Math.min(1,d.cpu.load/100);_ncRamLoad=Math.min(1,d.mem.percent/100);
     _ncCores=d.cpu.cores.map(v=>Math.min(1,v/100));
@@ -1482,11 +1496,9 @@ function drawNetGraph(){
 }
 
 // ── MAP EVENTS ─────────────────────────────────────────────
-var _mapCalib={dx:0,dy:0};
-(function(){try{var c=JSON.parse(localStorage.getItem('nexus_map_calib')||'{}');_mapCalib.dx=c.dx||0;_mapCalib.dy=c.dy||0;}catch(e){}}());
 function ll2xy(lon,lat){
-  const x=Math.round((lon+180)/360*2000)+_mapCalib.dx;
-  const y=Math.round((90-lat)/180*1001)+_mapCalib.dy;
+  const x=Math.round((lon+180)/360*2000)-16;
+  const y=Math.round((90-lat)/180*1001)+55;
   return[x,y];
 }
 let _evts=[];
@@ -1525,7 +1537,7 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
 }
 
 function renderEventPins(){
-  const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
+const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
   // Separate orbit group (drawn first, under pins)
   const orbitGroup = document.createElementNS(ns,'g');
   orbitGroup.setAttribute('id','sat-orbits');
@@ -1691,62 +1703,28 @@ function renderEventPins(){
 
     g.appendChild(pinGroup);
   });
-}
-function startMapCalib(){
-  const svg=document.getElementById('wmap');
-  const info=document.getElementById('calib-info');
-  const ns='http://www.w3.org/2000/svg';
-  // Pick best quake to calibrate on — prefer M7+, fallback to largest available
-  const quake=_evts.filter(e=>e.type==='quake'&&e.lat!=null&&e.lon!=null)
-    .sort((a,b)=>(b.mag||0)-(a.mag||0))[0];
-  if(!quake){if(info){info.style.display='inline';info.textContent='⚠ No hay sismos cargados — espera y vuelve a intentar';}return;}
-  const [ox,oy]=ll2xy(quake.lon,quake.lat);
-  // Remove any existing calib pin
-  const old=document.getElementById('_cpin');if(old)old.remove();
-  // Build draggable crosshair group
-  const g=document.createElementNS(ns,'g');g.id='_cpin';g.style.cursor='grab';
-  const mkC=(r,stroke,sw,fill)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('r',r);c.setAttribute('fill',fill||'none');c.setAttribute('stroke',stroke);c.setAttribute('stroke-width',sw);return c;};
-  const mkL=(x1,y1,x2,y2)=>{const l=document.createElementNS(ns,'line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke','#ff0');l.setAttribute('stroke-width','1.5');return l;};
-  const outer=mkC(20,'#ff0',2);const inner=mkC(4,'#ff0',1,'#ff0');
-  const pulse=mkC(20,'#ff0',1);pulse.setAttribute('opacity','0.4');
-  const mkA=(attr,vals,dur)=>{const a=document.createElementNS(ns,'animate');a.setAttribute('attributeName',attr);a.setAttribute('values',vals);a.setAttribute('dur',dur);a.setAttribute('repeatCount','indefinite');return a;};
-  pulse.appendChild(mkA('r','20;34;20','1.4s'));pulse.appendChild(mkA('opacity','0.4;0;0.4','1.4s'));
-  const lh=mkL(-32,0,32,0);const lv=mkL(0,-32,0,32);
-  const lbl=document.createElementNS(ns,'text');
-  lbl.setAttribute('font-size','18');lbl.setAttribute('font-family','monospace');
-  lbl.setAttribute('fill','#ff0');lbl.setAttribute('text-anchor','start');
-  lbl.textContent=`M${quake.mag?.toFixed(1)} ${(quake.place||'').substring(0,28)} — ARRASTRA AL LUGAR CORRECTO`;
-  [pulse,outer,inner,lh,lv,lbl].forEach(el=>g.appendChild(el));
-  // Position all elements at current pin location
-  const moveG=(x,y)=>{
-    [outer,inner,pulse].forEach(c=>{c.setAttribute('cx',x);c.setAttribute('cy',y);});
-    lh.setAttribute('x1',x-32);lh.setAttribute('x2',x+32);lh.setAttribute('y1',y);lh.setAttribute('y2',y);
-    lv.setAttribute('x1',x);lv.setAttribute('x2',x);lv.setAttribute('y1',y-32);lv.setAttribute('y2',y+32);
-    lbl.setAttribute('x',x+24);lbl.setAttribute('y',y-24);
-  };
-  moveG(ox,oy);
-  svg.appendChild(g);
-  // SVG coordinate helper
-  const toSVG=(e)=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;return pt.matrixTransform(svg.getScreenCTM().inverse());};
-  let dragging=false,nx=ox,ny=oy;
-  g.addEventListener('mousedown',(e)=>{dragging=true;g.style.cursor='grabbing';e.preventDefault();e.stopPropagation();});
-  const onMove=(e)=>{if(!dragging)return;const p=toSVG(e);nx=p.x;ny=p.y;moveG(nx,ny);};
-  const onUp=(e)=>{
-    if(!dragging)return;dragging=false;g.style.cursor='grab';
-    const dx=Math.round(nx-ox),dy=Math.round(ny-oy);
-    const newCalib={dx:(_mapCalib.dx||0)+dx,dy:(_mapCalib.dy||0)+dy};
-    if(info){info.style.display='inline';info.textContent=`✓ dx=${newCalib.dx} dy=${newCalib.dy} — aplicado`;}
-    localStorage.setItem('nexus_map_calib',JSON.stringify(newCalib));
-    _mapCalib.dx=newCalib.dx;_mapCalib.dy=newCalib.dy;
-    g.remove();
-    svg.removeEventListener('mousemove',onMove);
-    svg.removeEventListener('mouseup',onUp);
-    renderEventPins();
-    setTimeout(()=>{if(info)info.style.display='none';},4000);
-  };
-  svg.addEventListener('mousemove',onMove);
-  svg.addEventListener('mouseup',onUp);
-  if(info){info.style.display='inline';info.textContent=`Arrastra el pin amarillo M${quake.mag?.toFixed(1)} al lugar exacto y suelta`;}
+
+  // ── HOME PIN — Estado de México (hardcoded)
+  {
+    const [hx,hy]=ll2xy(-99.66,19.28);
+    const hg=document.createElementNS(ns,'g');
+    const hpulse=document.createElementNS(ns,'circle');
+    hpulse.setAttribute('cx',hx);hpulse.setAttribute('cy',hy);hpulse.setAttribute('r',12);
+    hpulse.setAttribute('fill','none');hpulse.setAttribute('stroke','#22D3EE');hpulse.setAttribute('stroke-width','1');hpulse.setAttribute('opacity','0.4');
+    const ha1=document.createElementNS(ns,'animate');ha1.setAttribute('attributeName','r');ha1.setAttribute('values','8;16;8');ha1.setAttribute('dur','2.5s');ha1.setAttribute('repeatCount','indefinite');hpulse.appendChild(ha1);
+    const ha2=document.createElementNS(ns,'animate');ha2.setAttribute('attributeName','opacity');ha2.setAttribute('values','0.5;0;0.5');ha2.setAttribute('dur','2.5s');ha2.setAttribute('repeatCount','indefinite');hpulse.appendChild(ha2);
+    const hdiamond=document.createElementNS(ns,'polygon');
+    hdiamond.setAttribute('points',`${hx},${hy-7} ${hx+5},${hy} ${hx},${hy+7} ${hx-5},${hy}`);
+    hdiamond.setAttribute('fill','#22D3EE');hdiamond.setAttribute('opacity','0.9');
+    const hl1=document.createElementNS(ns,'line');hl1.setAttribute('x1',hx-10);hl1.setAttribute('x2',hx+10);hl1.setAttribute('y1',hy);hl1.setAttribute('y2',hy);hl1.setAttribute('stroke','#22D3EE');hl1.setAttribute('stroke-width','0.8');hl1.setAttribute('opacity','0.45');
+    const hl2=document.createElementNS(ns,'line');hl2.setAttribute('x1',hx);hl2.setAttribute('x2',hx);hl2.setAttribute('y1',hy-10);hl2.setAttribute('y2',hy+10);hl2.setAttribute('stroke','#22D3EE');hl2.setAttribute('stroke-width','0.8');hl2.setAttribute('opacity','0.45');
+    const hlbl=document.createElementNS(ns,'text');
+    hlbl.setAttribute('x',hx+8);hlbl.setAttribute('y',hy-4);
+    hlbl.setAttribute('font-size','9');hlbl.setAttribute('font-family','monospace');hlbl.setAttribute('fill','#22D3EE');hlbl.setAttribute('opacity','0.85');
+    hlbl.textContent='HOME · RADAR CTR';
+    [hpulse,hl1,hl2,hdiamond,hlbl].forEach(el=>hg.appendChild(el));
+    g.appendChild(hg);
+  }
 }
 
 async function fetchEvents(){
@@ -1894,7 +1872,7 @@ function renderGSPulseAndEvents(events) {
       </div>`
     ).join('');
   }
-  // RECENT EVENTS — last 8 significant events (M4.5+, volcanoes, storms, news)
+  // RECENT EVENTS — last 12 significant events (M4.5+, volcanoes, storms, news)
   const evEl = document.getElementById('gs-events');
   if (evEl) {
     const typeIcon = {quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',satellite:'◈',iss:'◈'};
@@ -1902,19 +1880,19 @@ function renderGSPulseAndEvents(events) {
     const significant = events
       .filter(e => {
         if(e.type==='quake') return (e.mag||0)>=4.5;
-        if(e.type==='fire') return false; // too many
+        if(e.type==='fire') return false;
         return ['volcano','storm','news'].includes(e.type);
       })
-      .slice(0,8);
-    if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; return; }
-    evEl.innerHTML = significant.map(e=>{
+      .slice(0,12);
+    if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; }
+    else evEl.innerHTML = significant.map(e=>{
       const ic = typeIcon[e.type]||'◉';
       const col = typeColor[e.type]||c.mid;
       const isCrit=(e.type==='quake'&&(e.mag||0)>=6.0)||e.type==='volcano'||e.type==='storm';
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
-      let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,28)}`
-              : e.type==='news'  ? (e.title||e.info||'').substring(0,36)
-              : (e.info||e.label||'').substring(0,36);
+      let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,44)}`
+              : e.type==='news'  ? (e.title||e.info||'').substring(0,44)
+              : (e.info||e.label||'').substring(0,44);
       if(isCrit) return`<div class="crit-ev-row" style="display:flex;gap:5px;margin-bottom:2px;overflow:hidden;border-left-color:${critCol}">
         <span style="color:${critCol};flex-shrink:0;font-weight:bold">${ic}</span>
         <span style="color:${critCol};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="${txt}">${txt}</span>
@@ -1924,6 +1902,31 @@ function renderGSPulseAndEvents(events) {
         <span style="color:${c.lbl};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${txt}">${txt}</span>
       </div>`;
     }).join('');
+  }
+  // MAGNITUDE HISTOGRAM
+  const histEl = document.getElementById('gs-mag-hist');
+  if (histEl) {
+    const quakes = events.filter(e=>e.type==='quake'&&(e.mag||0)>=4.5);
+    const bins = [
+      {label:'M4–5', min:4.5, max:5,   col:'#4ade80'},
+      {label:'M5–6', min:5,   max:6,   col:c.mid},
+      {label:'M6–7', min:6,   max:7,   col:c.warn},
+      {label:'M7+',  min:7,   max:99,  col:'#E24B4A'},
+    ];
+    const counts = bins.map(b=>({...b, n: quakes.filter(q=>(q.mag||0)>=b.min&&(q.mag||0)<b.max).length}));
+    const maxN = Math.max(1, ...counts.map(b=>b.n));
+    histEl.innerHTML = `<div class="sub-lbl" style="margin-bottom:4px">SEISMIC 24H</div>`+
+      counts.map(b=>{
+        const pct = Math.round(b.n/maxN*100);
+        return`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;font-family:monospace">
+          <span style="color:${b.col};width:28px;flex-shrink:0">${b.label}</span>
+          <div style="flex:1;background:#0d1117;border-radius:2px;height:6px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${b.col};border-radius:2px;transition:width .4s"></div>
+          </div>
+          <span style="color:${b.col};width:16px;text-align:right;flex-shrink:0">${b.n}</span>
+        </div>`;
+      }).join('');
+    histEl.style.borderTopColor = c.lo;
   }
 }
 
@@ -2447,9 +2450,6 @@ function openSettings() {
   document.getElementById('cfg-flights').checked = _settings.showFlights;
   document.getElementById('cfg-fires').checked = _settings.showFires;
   document.getElementById('cfg-news').checked = _settings.showNews;
-  const _hl=localStorage.getItem('nexus-home-lat'),_hln=localStorage.getItem('nexus-home-lon');
-  const _cfgLat=document.getElementById('cfg-lat');const _cfgLon=document.getElementById('cfg-lon');
-  if(_cfgLat)_cfgLat.value=_hl||'';if(_cfgLon)_cfgLon.value=_hln||'';
   fetch('/config').then(function(r){return r.json();}).then(function(c){
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
@@ -2473,10 +2473,6 @@ function applySettings() {
   _settings.showFlights = document.getElementById('cfg-flights').checked;
   _settings.showFires = document.getElementById('cfg-fires').checked;
   _settings.showNews = document.getElementById('cfg-news').checked;
-  const _nlat=parseFloat(document.getElementById('cfg-lat')?.value||'');
-  const _nlon=parseFloat(document.getElementById('cfg-lon')?.value||'');
-  if(!isNaN(_nlat)&&!isNaN(_nlon)){localStorage.setItem('nexus-home-lat',_nlat);localStorage.setItem('nexus-home-lon',_nlon);_homeCoords={lat:_nlat,lon:_nlon,city:'Custom',country:''};}
-  else{localStorage.removeItem('nexus-home-lat');localStorage.removeItem('nexus-home-lon');_homeCoords=null;fetchHomeLocation();}
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
@@ -2628,18 +2624,12 @@ function initPanelRadar(){
   _nxrRaf=requestAnimationFrame(nxrLoop);
 }
 
-var _homeCoords=null;
+var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
 async function fetchHomeLocation(){
-  const sLat=localStorage.getItem('nexus-home-lat'),sLon=localStorage.getItem('nexus-home-lon');
-  if(sLat&&sLon&&!isNaN(parseFloat(sLat))&&!isNaN(parseFloat(sLon))){
-    _homeCoords={lat:parseFloat(sLat),lon:parseFloat(sLon),city:'Custom',country:''};
-    return;
-  }
   try{
     const d=await(await fetch('http://localhost:19234/location')).json();
-    if(d&&d.lat&&d.lon){_homeCoords=d;nxLog('Home: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');}
-    else _homeCoords={lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'};
-  }catch(e){_homeCoords={lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'};}
+    if(d&&d.lat&&d.lon){nxLog('Location: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');}
+  }catch(e){}
 }
 
 function initSnake(canvas){
@@ -2831,14 +2821,6 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <div style="font-size:10px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
     </div>
     <div class="cfg-row">
-      <label>Home Location — Radar Center (blank = auto from IP)</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="cfg-lat" placeholder="Lat e.g. 19.43" style="width:50%;box-sizing:border-box;background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:7px 10px;font-family:monospace;font-size:13px;outline:none;">
-        <input type="text" id="cfg-lon" placeholder="Lon e.g. -99.13" style="width:50%;box-sizing:border-box;background:#161b22;border:1px solid #30363d;border-radius:4px;color:#e6edf3;padding:7px 10px;font-family:monospace;font-size:13px;outline:none;">
-      </div>
-      <div style="font-size:10px;opacity:.45;margin-top:4px">Leave blank to detect automatically from IP address</div>
-    </div>
-    <div class="cfg-row">
       <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
       <div class="range-row">
         <span style="font-size:11px;opacity:.6;">M3</span>
@@ -2858,5 +2840,42 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
     </div>
   </div>
 </div>
+<script>
+// Swipe/zone touch controls for WE (no physical keyboard forwarding in background mode)
+(function(){
+  function _simKey(code,type){
+    document.dispatchEvent(new KeyboardEvent(type||'keydown',{code:code,key:code,bubbles:true,cancelable:true}));
+  }
+
+  // ── SNAKE: swipe = steer, tap = pause/retry ──────────────────────────────
+  var _sd=null;
+  document.addEventListener('pointerdown',function(e){
+    var cv=document.getElementById('snake-canvas');
+    if(cv&&(e.target===cv||cv.contains(e.target))){_sd={x:e.clientX,y:e.clientY};}
+  },true);
+  document.addEventListener('pointerup',function(e){
+    if(!_sd)return;
+    var dx=e.clientX-_sd.x,dy=e.clientY-_sd.y;
+    _sd=null;
+    if(Math.sqrt(dx*dx+dy*dy)<18){_simKey('KeyP');return;} // tap = pause/retry
+    if(Math.abs(dx)>Math.abs(dy)){_simKey(dx>0?'ArrowRight':'ArrowLeft');}
+    else{_simKey(dy>0?'ArrowDown':'ArrowUp');}
+  },true);
+
+  // ── INVADERS: left zone (hold) | center tap = fire | right zone (hold) ───
+  var _ic=null;
+  document.addEventListener('pointerdown',function(e){
+    var cv=document.getElementById('inv-canvas');
+    if(!cv||!(e.target===cv||cv.contains(e.target)))return;
+    var rx=(e.clientX-cv.getBoundingClientRect().left)/cv.offsetWidth;
+    if(rx<0.33){_ic='ArrowLeft';_simKey('ArrowLeft','keydown');}
+    else if(rx>0.67){_ic='ArrowRight';_simKey('ArrowRight','keydown');}
+    else{_simKey('Space','keydown');}
+  },true);
+  function _invUp(){if(_ic){_simKey(_ic,'keyup');_ic=null;}}
+  document.addEventListener('pointerup',_invUp,true);
+  document.addEventListener('pointercancel',_invUp,true);
+})();
+</script>
 </body>
 </html>
