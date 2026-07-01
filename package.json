@@ -2,10 +2,11 @@
   "name": "nexus-monitor",
   "version": "1.0.0",
   "description": "System dashboard backend",
-  "main": "server.js",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "electron": "electron ."
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -15,6 +16,7 @@
     "world-map-country-shapes": "^1.0.0"
   },
   "devDependencies": {
+    "electron": "^43.0.0",
     "pkg": "^5.8.1"
   },
   "bin": "server.js",
