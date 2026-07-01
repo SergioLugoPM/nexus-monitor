@@ -171,6 +171,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 .vtab{background:transparent;border:.5px solid;border-radius:3px;padding:2px 9px;font-family:monospace;font-size:9px;letter-spacing:.08em;cursor:pointer;transition:background .12s,color .12s;outline:none;}
 .vtab.vp-active{font-weight:bold;}
 #view-tabs{display:flex;gap:4px;padding:2px 8px 4px;flex-shrink:0;align-items:center;}
+.exp-row:hover,.exp-drive:hover{background:rgba(128,128,128,.15);}
 .view-pane{display:none;flex:1;min-height:0;flex-direction:column;width:100%;}
 .view-pane.vp-active{display:flex;}
 #snake-wrap{flex:1;position:relative;background:#030a05;min-height:0;}
@@ -313,6 +314,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="terminal" onclick="showView('terminal')">T&nbsp;TERM</button>
       <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
       <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
+      <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" style="display:none">F&nbsp;EXPLORER</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1046,6 +1048,115 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 })();
 </script>
     </div>
+    <div class="view-pane" id="view-explorer" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div id="exp-toolbar" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:.5px solid;flex-shrink:0;font-size:11px">
+        <button id="exp-up" onclick="explorerUp()" style="background:transparent;border:.5px solid;border-radius:3px;padding:2px 8px;cursor:pointer;font-family:monospace;font-size:10px">▲ UP</button>
+        <span id="exp-path" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85"></span>
+        <span id="exp-count" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+      </div>
+      <div style="display:flex;flex:1;min-height:0">
+        <div id="exp-drives" style="width:100px;flex-shrink:0;overflow-y:auto;border-right:.5px solid;padding:6px;font-size:11px"></div>
+        <div id="exp-files" style="flex:1;overflow-y:auto;padding:4px;font-size:11px"></div>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _expPath=null;
+
+  function _fmtSize(n){
+    if(n===0)return '';
+    if(n<1024)return n+' B';
+    if(n<1048576)return (n/1024).toFixed(1)+' KB';
+    if(n<1073741824)return (n/1048576).toFixed(1)+' MB';
+    return (n/1073741824).toFixed(2)+' GB';
+  }
+  const _EXT_ICON={
+    jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',webp:'🖼',bmp:'🖼',svg:'🖼',
+    mp4:'🎬',mkv:'🎬',mov:'🎬',avi:'🎬',webm:'🎬',
+    mp3:'🎵',wav:'🎵',flac:'🎵',ogg:'🎵',
+    zip:'🗜',rar:'🗜','7z':'🗜',
+    exe:'⚙',msi:'⚙',
+    pdf:'📕',doc:'📄',docx:'📄',txt:'📄',md:'📄',
+    js:'📜',ts:'📜',py:'📜',json:'📜',html:'📜',css:'📜',
+  };
+
+  function explorerRenderUnavailable(){
+    const el=document.getElementById('exp-files');
+    if(el)el.innerHTML='<div style="padding:16px;opacity:.5">Explorador de archivos solo disponible en la app Electron (no en el modo wallpaper).</div>';
+  }
+
+  async function explorerLoadDrives(){
+    const el=document.getElementById('exp-drives');
+    if(!el||!window.nexusFS)return;
+    const drives=await window.nexusFS.listDrives();
+    const c=window._pal||{};
+    el.innerHTML=drives.map(d=>`<div class="exp-drive" data-drive="${d}" style="padding:4px 6px;cursor:pointer;border-radius:3px;opacity:.75" onclick="explorerNavigate('${d.replace(/\\/g,'\\\\')}')">💾 ${d}</div>`).join('');
+  }
+
+  window.explorerNavigate=async function(p){
+    if(!window.nexusFS)return;
+    const res=await window.nexusFS.listDir(p);
+    const pathEl=document.getElementById('exp-path');
+    const filesEl=document.getElementById('exp-files');
+    const countEl=document.getElementById('exp-count');
+    if(!res.ok){
+      if(pathEl)pathEl.textContent=p+' — error';
+      if(filesEl)filesEl.innerHTML=`<div style="padding:12px;opacity:.6">${res.error}</div>`;
+      return;
+    }
+    _expPath=res.path;
+    if(pathEl)pathEl.textContent=res.path;
+    document.getElementById('exp-up').style.opacity=res.parent?1:.3;
+    if(countEl)countEl.textContent=res.items.length+' items';
+    if(!filesEl)return;
+    if(!res.items.length){filesEl.innerHTML='<div style="padding:12px;opacity:.5">(vacío)</div>';return;}
+    filesEl.innerHTML=res.items.map(it=>{
+      const icon=it.isDir?'📁':(_EXT_ICON[it.ext]||'📄');
+      const size=it.isDir?'':_fmtSize(it.size);
+      const nameEsc=it.name.replace(/'/g,"\\'");
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:3px;cursor:pointer" ondblclick="explorerOpen('${nameEsc}',${it.isDir})">
+        <span style="flex-shrink:0">${icon}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+        <span style="opacity:.45;font-size:10px;flex-shrink:0">${size}</span>
+      </div>`;
+    }).join('');
+  };
+
+  window.explorerOpen=function(name,isDir){
+    if(!_expPath||!window.nexusFS)return;
+    const full=_expPath.replace(/\\$/,'')+'\\'+name;
+    if(isDir){ explorerNavigate(full); }
+    else { window.nexusFS.openPath(full); }
+  };
+
+  window.explorerUp=function(){
+    if(!_expPath||!window.nexusFS)return;
+    window.nexusFS.listDir(_expPath).then(res=>{ if(res.ok&&res.parent) explorerNavigate(res.parent); });
+  };
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='explorer'){
+      if(!window.nexusFS){ explorerRenderUnavailable(); return; }
+      explorerLoadDrives();
+      if(_expPath){ explorerNavigate(_expPath); }
+      else { window.nexusFS.getHomeDir().then(h=>explorerNavigate(h)); }
+    }
+  };
+
+  // The EXPLORER tab only makes sense inside the Electron shell (WE/browser
+  // builds have no window.nexusFS) — hide it entirely otherwise.
+  document.addEventListener('DOMContentLoaded',()=>{
+    const tab=document.getElementById('vtab-explorer');
+    if(tab&&window.nexusFS)tab.style.display='';
+  });
+  if(document.readyState!=='loading'){
+    const tab=document.getElementById('vtab-explorer');
+    if(tab&&window.nexusFS)tab.style.display='';
+  }
+})();
+</script>
   </div>
 
   <div class="pnl" id="p-sing" style="flex-shrink:0;">
@@ -1275,6 +1386,10 @@ function applyPalette(c){
     t.style.borderColor=c.lo;t.style.color=t.classList.contains('vp-active')?c.hi:c.mut;
     t.style.background=t.classList.contains('vp-active')?c.deep:'transparent';
   });
+  const expToolbar=document.getElementById('exp-toolbar');if(expToolbar)expToolbar.style.borderColor=c.lo;
+  const expDrives=document.getElementById('exp-drives');if(expDrives)expDrives.style.borderColor=c.lo;
+  const expUp=document.getElementById('exp-up');if(expUp){expUp.style.borderColor=c.lo;expUp.style.color=c.mut;}
+  const expPath=document.getElementById('exp-path');if(expPath)expPath.style.color=c.hi;
   const vstWrap=document.getElementById('view-tabs');
   if(vstWrap)vstWrap.style.borderBottom='1px solid '+c.lo;
 

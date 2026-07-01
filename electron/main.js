@@ -1,5 +1,6 @@
 const { app, BrowserWindow, globalShortcut } = require('electron');
 const path = require('path');
+const { registerFsHandlers } = require('./fsapi');
 
 // Boots the existing Express backend in-process (same server.js used by the
 // Wallpaper Engine build on master — untouched, just required instead of run
@@ -33,6 +34,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  registerFsHandlers();
   createWindow();
 
   // Kiosk mode traps the user on a fullscreen window with no OS chrome —
