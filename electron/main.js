@@ -1,7 +1,9 @@
-const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const { registerFsHandlers } = require('./fsapi');
 const { registerAppsHandlers } = require('./appsapi');
+
+const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 
 // Boots the existing Express backend in-process (same server.js used by the
 // Wallpaper Engine build on master — untouched, just required instead of run
@@ -12,14 +14,17 @@ require('../server.js');
 const PORT = process.env.NEXUS_PORT || 19234;
 
 let mainWindow = null;
+let tray = null;
 
 function createWindow() {
+  // Deliberately NOT fullscreen/kiosk yet at construction time — see the
+  // comment above setSkipTaskbar below for why the ordering matters here.
   mainWindow = new BrowserWindow({
-    fullscreen: true,
-    kiosk: true,
+    show: false,
     frame: false,
     autoHideMenuBar: true,
     backgroundColor: '#0a0e14',
+    icon: ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -31,13 +36,55 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadURL(`http://localhost:${PORT}/dashboard.html`);
 
+  // No taskbar button/Alt+Tab entry — this is meant to feel like a shell
+  // layer, not another app window. The tray icon is what makes that safe:
+  // without it, a kiosk window with no taskbar presence would be a dead end
+  // if it ever lost focus behind something else.
+  //
+  // Ordering matters a lot here: kiosk:true + skipTaskbar:true together (as
+  // constructor options, or toggling skipTaskbar on an already-kiosk window)
+  // hits a Windows/Electron interaction where the window ends up minimized
+  // off-screen at (-32000,-32000) — visible per Win32 but never actually on
+  // screen, no error anywhere. The sequence that reliably avoids it: show
+  // as a normal window first, apply skipTaskbar while still normal, THEN
+  // switch to kiosk/fullscreen last.
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.setSkipTaskbar(true);
+    mainWindow.setKiosk(true);
+    mainWindow.setFullScreen(true);
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
+}
+
+function showAndFocus() {
+  if (!mainWindow) { createWindow(); return; }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function createTray() {
+  const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Nexus Monitor');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Mostrar / enfocar', click: showAndFocus },
+    { label: 'Salir de kiosko (ventana)', click: () => { if (mainWindow) { mainWindow.setKiosk(false); mainWindow.setFullScreen(false); showAndFocus(); } } },
+    { type: 'separator' },
+    { label: 'Cerrar Nexus Monitor', click: () => app.quit() },
+  ]));
+  // Left-click (Windows convention) just shows/focuses — the menu above
+  // covers everything else, so a click doesn't need to toggle/hide.
+  tray.on('click', showAndFocus);
 }
 
 app.whenReady().then(() => {
   registerFsHandlers();
   registerAppsHandlers();
   createWindow();
+  createTray();
 
   // Kiosk mode traps the user on a fullscreen window with no OS chrome —
   // without an explicit escape hatch, a bug in the page can lock them out
