@@ -2992,5 +2992,109 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
   document.addEventListener('pointercancel',_invUp,true);
 })();
 </script>
+
+<!-- APP LAUNCHER — Ctrl+Space overlay, Electron-only (mirrors Spotlight/Win Search) -->
+<div id="launcher-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:flex-start;justify-content:center;padding-top:14vh;">
+  <div id="launcher-box" style="width:520px;max-width:90vw;max-height:60vh;border-radius:8px;border:1px solid;overflow:hidden;display:flex;flex-direction:column;font-family:monospace;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <input id="launcher-input" type="text" placeholder="Buscar aplicación…" autocomplete="off" spellcheck="false"
+      style="border:none;outline:none;padding:14px 16px;font-size:16px;font-family:monospace;background:transparent;border-bottom:1px solid;">
+    <div id="launcher-results" style="overflow-y:auto;flex:1;min-height:0;"></div>
+    <div id="launcher-hint" style="padding:6px 16px;font-size:10px;opacity:.5;border-top:.5px solid;">↑↓ navegar · Enter abrir · Esc cerrar</div>
+  </div>
+</div>
+<script>
+(function(){
+  if(!window.nexusApps) return; // WE/browser build — launcher stays hidden and inert
+
+  let _apps=[], _filtered=[], _selIdx=0, _open=false;
+
+  function _paletteColors(){
+    const c=window._pal||{};
+    return { deep:c.deep||'#0a1410', lo:c.lo||'#1D9E75', hi:c.hi||'#5DCAA5', mut:c.mut||'#8b949e', mid:c.mid||'#1D9E75' };
+  }
+
+  function paint(){
+    const c=_paletteColors();
+    const box=document.getElementById('launcher-box');
+    if(box){box.style.background=c.deep;box.style.borderColor=c.lo;}
+    const inp=document.getElementById('launcher-input');
+    if(inp){inp.style.color=c.hi;inp.style.borderBottomColor=c.lo;}
+    const hint=document.getElementById('launcher-hint');
+    if(hint){hint.style.color=c.mut;hint.style.borderTopColor=c.lo;}
+  }
+
+  function render(){
+    const c=_paletteColors();
+    const el=document.getElementById('launcher-results');
+    if(!el)return;
+    if(!_filtered.length){el.innerHTML=`<div style="padding:14px;opacity:.5;font-size:12px;color:${c.mut}">sin resultados</div>`;return;}
+    el.innerHTML=_filtered.slice(0,50).map((a,i)=>`
+      <div class="launcher-row" data-idx="${i}" style="padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:10px;${i===_selIdx?`background:${c.lo}33;color:${c.hi};`:`color:${c.mut};`}">
+        <span style="opacity:.7">▸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</span>
+      </div>`).join('');
+    el.querySelectorAll('.launcher-row').forEach(row=>{
+      row.addEventListener('mouseenter',()=>{ _selIdx=parseInt(row.dataset.idx); render(); });
+      row.addEventListener('click',()=>{ _selIdx=parseInt(row.dataset.idx); launchSelected(); });
+    });
+  }
+
+  function filter(q){
+    const term=q.trim().toLowerCase();
+    _filtered = term ? _apps.filter(a=>a.name.toLowerCase().includes(term)) : _apps;
+    _selIdx=0;
+    render();
+  }
+
+  function launchSelected(){
+    const a=_filtered[_selIdx];
+    if(!a)return;
+    window.nexusApps.launch(a.target);
+    closeLauncher();
+  }
+
+  async function openLauncher(){
+    _open=true;
+    const ov=document.getElementById('launcher-overlay');
+    if(ov)ov.style.display='flex';
+    paint();
+    const inp=document.getElementById('launcher-input');
+    if(inp){inp.value='';inp.focus();}
+    const el=document.getElementById('launcher-results');
+    if(el)el.innerHTML=`<div style="padding:14px;opacity:.5;font-size:12px">cargando aplicaciones…</div>`;
+    _apps = await window.nexusApps.list();
+    filter('');
+  }
+
+  function closeLauncher(){
+    _open=false;
+    const ov=document.getElementById('launcher-overlay');
+    if(ov)ov.style.display='none';
+  }
+
+  window.nexusApps.onToggle(()=>{ _open ? closeLauncher() : openLauncher(); });
+
+  document.getElementById('launcher-input').addEventListener('input',e=>filter(e.target.value));
+  document.getElementById('launcher-input').addEventListener('keydown',e=>{
+    // stopPropagation is what keeps this Escape from also reaching the
+    // document-level exitKiosk listener below — closing the launcher must
+    // NOT also drop kiosk mode as a side effect.
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeLauncher(); }
+    else if(e.key==='ArrowDown'){ e.preventDefault(); _selIdx=Math.min(_selIdx+1,_filtered.length-1); render(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); _selIdx=Math.max(_selIdx-1,0); render(); }
+    else if(e.key==='Enter'){ e.preventDefault(); launchSelected(); }
+  });
+  document.getElementById('launcher-overlay').addEventListener('click',e=>{
+    if(e.target.id==='launcher-overlay') closeLauncher();
+  });
+
+  // Escape exits kiosk/fullscreen — but only when it reaches here, i.e. the
+  // launcher input didn't already stopPropagation() to handle it itself.
+  if(window.nexusShell&&window.nexusShell.exitKiosk){
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape') window.nexusShell.exitKiosk();
+    });
+  }
+})();
+</script>
 </body>
 </html>

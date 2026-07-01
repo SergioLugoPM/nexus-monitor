@@ -21,6 +21,17 @@ contextBridge.exposeInMainWorld('nexusFS', {
   showInExplorer: (targetPath) => ipcRenderer.invoke('fs:showInExplorer', targetPath),
 });
 
+contextBridge.exposeInMainWorld('nexusApps', {
+  list: () => ipcRenderer.invoke('apps:list'),
+  launch: (targetPath) => ipcRenderer.invoke('apps:launch', targetPath),
+  // Registers cb to fire on Ctrl+Space (main process owns the global
+  // shortcut since it must work even when the launcher isn't focused).
+  onToggle: (cb) => ipcRenderer.on('launcher:toggle', cb),
+});
+
 // Lets the renderer detect it's running inside the Electron shell (vs. the
 // WE/browser build) without probing for window.nexusFS everywhere.
-contextBridge.exposeInMainWorld('nexusShell', { isElectron: true });
+contextBridge.exposeInMainWorld('nexusShell', {
+  isElectron: true,
+  exitKiosk: () => ipcRenderer.send('shell:exitKiosk'),
+});
