@@ -2995,10 +2995,10 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
 
 <!-- APP LAUNCHER — Ctrl+Space overlay, Electron-only (mirrors Spotlight/Win Search) -->
 <div id="launcher-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:flex-start;justify-content:center;padding-top:14vh;">
-  <div id="launcher-box" style="width:520px;max-width:90vw;max-height:60vh;border-radius:8px;border:1px solid;overflow:hidden;display:flex;flex-direction:column;font-family:monospace;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+  <div id="launcher-box" style="width:520px;max-width:90vw;border-radius:8px;border:1px solid;overflow:hidden;display:flex;flex-direction:column;font-family:monospace;box-shadow:0 20px 60px rgba(0,0,0,.5);">
     <input id="launcher-input" type="text" placeholder="Buscar aplicación…" autocomplete="off" spellcheck="false"
       style="border:none;outline:none;padding:14px 16px;font-size:16px;font-family:monospace;background:transparent;border-bottom:1px solid;">
-    <div id="launcher-results" style="overflow-y:auto;flex:1;min-height:0;"></div>
+    <div id="launcher-results" style="overflow-y:auto;max-height:44vh;"></div>
     <div id="launcher-hint" style="padding:6px 16px;font-size:10px;opacity:.5;border-top:.5px solid;">↑↓ navegar · Enter abrir · Esc cerrar</div>
   </div>
 </div>
@@ -3027,7 +3027,12 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
     const c=_paletteColors();
     const el=document.getElementById('launcher-results');
     if(!el)return;
-    if(!_filtered.length){el.innerHTML=`<div style="padding:14px;opacity:.5;font-size:12px;color:${c.mut}">sin resultados</div>`;return;}
+    if(!_filtered.length){
+      const inp=document.getElementById('launcher-input');
+      const hasQuery=inp&&inp.value.trim().length>0;
+      el.innerHTML=hasQuery?`<div style="padding:14px;opacity:.5;font-size:12px;color:${c.mut}">sin resultados</div>`:'';
+      return;
+    }
     el.innerHTML=_filtered.slice(0,50).map((a,i)=>`
       <div class="launcher-row" data-idx="${i}" style="padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:10px;${i===_selIdx?`background:${c.lo}33;color:${c.hi};`:`color:${c.mut};`}">
         <span style="opacity:.7">▸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</span>
@@ -3040,7 +3045,10 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
 
   function filter(q){
     const term=q.trim().toLowerCase();
-    _filtered = term ? _apps.filter(a=>a.name.toLowerCase().includes(term)) : _apps;
+    // Empty query shows nothing — the launcher opens on just the search box,
+    // not a full app list, so it stays a quick "type to find" tool rather
+    // than a browsable directory.
+    _filtered = term ? _apps.filter(a=>a.name.toLowerCase().includes(term)) : [];
     _selIdx=0;
     render();
   }
@@ -3059,10 +3067,11 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
     paint();
     const inp=document.getElementById('launcher-input');
     if(inp){inp.value='';inp.focus();}
-    const el=document.getElementById('launcher-results');
-    if(el)el.innerHTML=`<div style="padding:14px;opacity:.5;font-size:12px">cargando aplicaciones…</div>`;
+    filter(''); // empty results — box opens with just the search input
+    // Apps load silently in the background (cached 15 min after first
+    // scan), so typing works the instant the list resolves instead of
+    // forcing a visible "loading" state on every open.
     _apps = await window.nexusApps.list();
-    filter('');
   }
 
   function closeLauncher(){
