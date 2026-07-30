@@ -2,6 +2,7 @@ const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage } =
 const path = require('path');
 const { registerFsHandlers } = require('./fsapi');
 const { registerAppsHandlers } = require('./appsapi');
+const { registerSysmonHandlers } = require('./sysmon');
 
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 
@@ -83,6 +84,7 @@ function createTray() {
 app.whenReady().then(() => {
   registerFsHandlers();
   registerAppsHandlers();
+  registerSysmonHandlers();
   createWindow();
   createTray();
 

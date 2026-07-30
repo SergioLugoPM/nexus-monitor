@@ -315,6 +315,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
       <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" style="display:none">F&nbsp;EXPLORER</button>
+      <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" style="display:none">P&nbsp;PROC</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1155,6 +1156,103 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     const tab=document.getElementById('vtab-explorer');
     if(tab&&window.nexusFS)tab.style.display='';
   }
+})();
+</script>
+    <div class="view-pane" id="view-proc" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div style="display:flex;flex:1;min-height:0;gap:1px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">OPEN WINDOWS</span>
+            <span id="proc-win-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-windows" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+        <div style="flex:1.5;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">PROCESSES — TOP CPU</span>
+            <span id="proc-cpu-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _procTimer=null;
+
+  function procRenderUnavailable(){
+    const w=document.getElementById('proc-windows'),p=document.getElementById('proc-list');
+    const msg='<div style="padding:16px;opacity:.5">Solo disponible en la app Electron (no en el modo wallpaper).</div>';
+    if(w)w.innerHTML=msg;
+    if(p)p.innerHTML='';
+  }
+
+  async function procRefreshWindows(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-windows');
+    const cnt=document.getElementById('proc-win-count');
+    const wins=await window.nexusSys.listWindows();
+    if(cnt)cnt.textContent=wins.length;
+    if(!el)return;
+    if(!wins.length){el.innerHTML='<div style="padding:10px;opacity:.5">(ninguna)</div>';return;}
+    el.innerHTML=wins.map(w=>{
+      const title=(w.title||'').replace(/'/g,"\\'");
+      const fg=w.foreground;
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:3px;cursor:pointer;${fg?'font-weight:600':''}" ondblclick="procFocusWindow(${w.pid})" title="${title}">
+        <span style="flex-shrink:0;opacity:${fg?'1':'.4'}">${fg?'●':'○'}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${w.processName}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function procRefreshList(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-list');
+    const cnt=document.getElementById('proc-cpu-count');
+    const procs=await window.nexusSys.listProcesses();
+    if(cnt)cnt.textContent=procs.length;
+    if(!el)return;
+    if(!procs.length){el.innerHTML='<div style="padding:10px;opacity:.5">(ninguno)</div>';return;}
+    el.innerHTML=procs.map(p=>{
+      const cpuCol=p.cpu>50?'#E24B4A':p.cpu>20?'#EF9F27':'inherit';
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:3px">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${p.pid}</span>
+        <span style="width:44px;text-align:right;flex-shrink:0;color:${cpuCol}">${p.cpu.toFixed(1)}%</span>
+        <span style="width:56px;text-align:right;flex-shrink:0;opacity:.55;font-size:10px">${p.memMb} MB</span>
+        <span style="flex-shrink:0;cursor:pointer;opacity:.5;padding:0 4px" onclick="procKill(${p.pid},'${(p.name||'').replace(/'/g,"\\'")}')" title="End process">✕</span>
+      </div>`;
+    }).join('');
+  }
+
+  window.procFocusWindow=function(pid){
+    if(window.nexusSys)window.nexusSys.focusWindow(pid);
+  };
+
+  window.procKill=function(pid,name){
+    if(!window.nexusSys)return;
+    // User-initiated only — a deliberate click plus a blocking confirm, not
+    // something anything automated can trigger. See ROADMAP.md.
+    if(!confirm('¿Terminar el proceso "'+name+'" (PID '+pid+')?'))return;
+    window.nexusSys.killProcess(pid).then(()=>{ procRefreshList(); procRefreshWindows(); });
+  };
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(_procTimer){clearInterval(_procTimer);_procTimer=null;}
+    if(name==='proc'){
+      if(!window.nexusSys){ procRenderUnavailable(); return; }
+      procRefreshWindows();procRefreshList();
+      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();},2500);
+    }
+  };
+
+  // The PROC tab only makes sense inside the Electron shell.
+  function _showProcTab(){ const tab=document.getElementById('vtab-proc'); if(tab&&window.nexusSys)tab.style.display=''; }
+  document.addEventListener('DOMContentLoaded',_showProcTab);
+  if(document.readyState!=='loading')_showProcTab();
 })();
 </script>
   </div>
