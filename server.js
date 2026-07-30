@@ -122,15 +122,17 @@ app.get('/logs',(req,res)=>res.json({logs:LOG_BUF.slice(-100)}));
 app.get('/config',(req,res)=>res.json({
   openskyUser: _cfg.openskyUser||'',
   hasOpenSkyPass: !!_cfg.openskyPass,
+  hasAnthropicKey: !!_cfg.anthropicApiKey,
 }));
 app.post('/config',(req,res)=>{
-  const {openskyUser,openskyPass}=req.body||{};
+  const {openskyUser,openskyPass,anthropicApiKey}=req.body||{};
   if(openskyUser!==undefined) _cfg.openskyUser=openskyUser.trim();
   if(openskyPass!==undefined && openskyPass!=='') _cfg.openskyPass=openskyPass;
+  if(anthropicApiKey!==undefined && anthropicApiKey!=='') _cfg.anthropicApiKey=anthropicApiKey.trim();
   saveCfg();
   // Reset flight rate-limit so new credentials are tried immediately
   _flightsRateLimitUntil=0;
-  nxLog('Config updated — OpenSky user: '+(_cfg.openskyUser||'(none)'),'ok');
+  nxLog('Config updated — OpenSky user: '+(_cfg.openskyUser||'(none)')+', Anthropic key: '+(_cfg.anthropicApiKey?'set':'(none)'),'ok');
   res.json({ok:true});
 });
 
@@ -1150,6 +1152,63 @@ app.get('/globalstats', async (req, res) => {
     _globalCache = result; _globalTs = now;
     res.json(result);
   } catch(e) { nxLog('ERROR /globalstats: '+e.message,'error'); res.status(500).json({error:e.message}); }
+});
+
+// ── AGENT (Nivel 0 — solo lectura, sin ejecución) ────────────────────────────
+// Responde preguntas usando un snapshot del estado actual del dashboard.
+// No tiene acceso a ninguna herramienta ni puede llamar de vuelta a la app —
+// es texto entra, texto sale. Ver ROADMAP.md para la escalera de niveles de
+// confianza; esto es deliberadamente el escalón más bajo.
+app.post('/agent/ask', async (req, res) => {
+  const question = ((req.body||{}).question||'').trim().slice(0, 500);
+  if (!question) return res.json({ error: 'empty_question' });
+  const apiKey = _cfg.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
+  if (!apiKey) return res.json({ error: 'no_api_key' });
+
+  const events = (_eventsCache?.events || []).slice(0, 40).map(e => ({
+    type: e.type, label: e.label, mag: e.mag, place: e.place, title: e.title
+  }));
+  const extra = (req.body||{}).extra; // renderer-supplied: top processes/windows when running in the Electron shell
+  const snapshot = {
+    now: new Date().toISOString(),
+    stats: _statsCache ? { cpuPct: _statsCache.cpu?.load, ramUsedGb: _statsCache.mem?.used, ramTotalGb: _statsCache.mem?.total, gpuPct: _statsCache.gpu?.load, uptimeSec: _statsCache.uptime } : null,
+    weather: _weatherCache,
+    crypto: _cryptoCache,
+    seismicEnergyJ: _eventsCache?.seismicEnergyJ,
+    events,
+    ...(extra && typeof extra === 'object' ? extra : {}),
+  };
+
+  const system = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
+    + 'Respondes SOLO con base en los datos en <context>. No tienes capacidad de ejecutar comandos, '
+    + 'abrir archivos ni tomar ninguna acción — si piden que hagas algo más que responder, aclara que '
+    + 'en este nivel solo puedes consultar información. Responde en español, conciso, sin relleno.';
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 600,
+        system,
+        messages: [{ role: 'user', content: '<context>' + JSON.stringify(snapshot) + '</context>\n\nPregunta: ' + question }],
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      nxLog('ERROR /agent/ask: HTTP ' + r.status + ' ' + errText.slice(0,200), 'error');
+      return res.json({ error: 'api_error', detail: 'HTTP ' + r.status + (r.status===401?' (API key inválida)':'') });
+    }
+    const d = await r.json();
+    const answer = (d.content||[]).map(c=>c.text||'').join('').trim();
+    nxLog('Agent: ' + question.slice(0,60), 'info');
+    res.json({ answer });
+  } catch(e) {
+    nxLog('ERROR /agent/ask: ' + e.message, 'error');
+    res.json({ error: 'request_failed', detail: e.message });
+  }
 });
 
 app.listen(PORT,()=>{

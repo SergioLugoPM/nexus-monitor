@@ -316,6 +316,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" style="display:none">F&nbsp;EXPLORER</button>
       <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" style="display:none">P&nbsp;PROC</button>
+      <button class="vtab" data-view="agent" onclick="showView('agent')">A&nbsp;AGENT</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1253,6 +1254,96 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   function _showProcTab(){ const tab=document.getElementById('vtab-proc'); if(tab&&window.nexusSys)tab.style.display=''; }
   document.addEventListener('DOMContentLoaded',_showProcTab);
   if(document.readyState!=='loading')_showProcTab();
+})();
+</script>
+    <div class="view-pane" id="view-agent" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;font-size:12px;line-height:1.6"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
+        <span style="opacity:.5">&gt;</span>
+        <input id="agent-input" type="text" placeholder="Pregunta algo sobre el estado actual…" autocomplete="off" spellcheck="false"
+          style="flex:1;border:none;outline:none;background:transparent;font-family:monospace;font-size:12px;padding:4px 0">
+        <span id="agent-status" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _agentInit=false;
+  const _history=[]; // {role:'user'|'assistant'|'system', text}
+
+  function agentPrint(role,text){
+    _history.push({role,text});
+    const el=document.getElementById('agent-msgs');
+    if(!el)return;
+    const c=window._pal||{};
+    const col=role==='user'?(c.hi||'#5DCAA5'):role==='system'?(c.warn||'#EF9F27'):(c.lbl||'#38B891');
+    const prefix=role==='user'?'&gt; ':role==='system'?'· ':'◈ ';
+    const div=document.createElement('div');
+    div.style.cssText='margin-bottom:8px;color:'+col+';white-space:pre-wrap;word-break:break-word';
+    div.innerHTML=prefix+text.replace(/</g,'&lt;');
+    el.appendChild(div);
+    el.scrollTop=el.scrollHeight;
+  }
+
+  function agentInit(){
+    if(_agentInit)return;
+    _agentInit=true;
+    agentPrint('system','NEXUS AGENT — nivel 0 (solo consulta). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+'. No puede ejecutar nada.');
+  }
+
+  async function agentGatherExtra(){
+    if(!window.nexusSys)return undefined;
+    try{
+      const [procs,wins]=await Promise.all([window.nexusSys.listProcesses(),window.nexusSys.listWindows()]);
+      return {
+        topProcesses:(procs||[]).slice(0,15).map(p=>({name:p.name,cpu:p.cpu,memMb:p.memMb})),
+        openWindows:(wins||[]).slice(0,20).map(w=>({title:w.title,app:w.processName,foreground:w.foreground})),
+      };
+    }catch(e){return undefined;}
+  }
+
+  async function agentAsk(question){
+    const statusEl=document.getElementById('agent-status');
+    if(statusEl)statusEl.textContent='pensando…';
+    agentPrint('user',question);
+    try{
+      const extra=await agentGatherExtra();
+      const r=await fetch('http://localhost:19234/agent/ask',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({question,extra}),
+      });
+      const d=await r.json();
+      if(d.error==='no_api_key'){
+        agentPrint('system','No hay API key de Anthropic configurada. Ábrela en Settings (⚙) → Agent.');
+      }else if(d.error){
+        agentPrint('system','Error: '+(d.detail||d.error));
+      }else{
+        agentPrint('assistant',d.answer||'(sin respuesta)');
+      }
+    }catch(e){
+      agentPrint('system','Error de conexión: '+e.message);
+    }finally{
+      if(statusEl)statusEl.textContent='';
+    }
+  }
+
+  document.getElementById('agent-input').addEventListener('keydown',function(e){
+    e.stopPropagation();
+    if(e.key==='Enter'){
+      const v=this.value.trim();
+      if(!v)return;
+      this.value='';
+      agentAsk(v);
+    }
+  });
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='agent'){
+      agentInit();
+      setTimeout(()=>{const inp=document.getElementById('agent-input');if(inp)inp.focus();},30);
+    }
+  };
 })();
 </script>
   </div>
@@ -2667,6 +2758,8 @@ function openSettings() {
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
     var p=document.getElementById('cfg-os-pass');if(p)p.value='';
+    var ast=document.getElementById('cfg-agent-status');if(ast)ast.textContent=c.hasAnthropicKey?'✓ key saved':'no key';
+    var ap=document.getElementById('cfg-agent-key');if(ap)ap.value='';
   }).catch(function(){});
   m.style.display = 'flex';
 }
@@ -2689,9 +2782,11 @@ function applySettings() {
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
-  if(osUser||osPass){
-    fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({openskyUser:osUser,openskyPass:osPass})}).catch(function(){});
+  var agentKey=(document.getElementById('cfg-agent-key')?.value||'').trim();
+  if(osUser||osPass||agentKey){
+    fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({openskyUser:osUser,openskyPass:osPass,anthropicApiKey:agentKey})}).catch(function(){});
     var _osp=document.getElementById('cfg-os-pass');if(_osp)_osp.value='';
+    var _ak=document.getElementById('cfg-agent-key');if(_ak)_ak.value='';
   }
   closeSettings();
   renderEventPins();
@@ -3057,6 +3152,11 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <label>OpenSky Client Secret</label>
       <input type="password" id="cfg-os-pass" placeholder="Leave blank to keep existing" autocomplete="new-password">
       <div style="font-size:10px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
+    </div>
+    <div class="cfg-row">
+      <label>Agent — Anthropic API Key <span id="cfg-agent-status" style="font-size:11px;opacity:.45;margin-left:6px;"></span></label>
+      <input type="password" id="cfg-agent-key" placeholder="Leave blank to keep existing" autocomplete="new-password">
+      <div style="font-size:10px;opacity:.4;margin-top:4px">Nivel 0 — solo consulta, sin ejecución. Get a key at console.anthropic.com</div>
     </div>
     <div class="cfg-row">
       <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
