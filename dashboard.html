@@ -2557,7 +2557,7 @@ function initPanelRadar(){
   const CX=W/2,CY=H/2,R=Math.min(W,H)*0.44;
   const MAX_KM=20037;
   const hLat=(_homeCoords||{lat:19.43}).lat,hLon=(_homeCoords||{lon:-99.13}).lon;
-  let angle=0,blips=[],lastEvtCount=-1;
+  let angle=0,blips=[],lastEvtsRef=null;
   const SPD=0.018;
   const tColors={quake:'#5DCAA5',fire:'#EF9F27',news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:'#38BDF8',iss:'#F59E0B'};
 
@@ -2584,7 +2584,32 @@ function initPanelRadar(){
 
   function nxrUpdate(){
     const evts=(typeof _evts!=='undefined'?_evts:[])||[];
-    if(evts.length!==lastEvtCount){lastEvtCount=evts.length;evts.forEach(ev=>{const xy=nxrXY(ev);if(!xy)return;if(!blips.find(b=>b.ev===ev)){const d=_nxrGeoD(hLat,hLon,ev.lat||0,ev.lon||0);blips.push({ev,x:xy[0],y:xy[1],alpha:.65,age:60,col:tColors[ev.type]||'#1D9E75',size:ev.type==='quake'?Math.max(2,Math.min(6,(ev.mag||4)-1)):3,distKm:d});}});}
+    // fetchEvents() replaces _evts with a brand-new array of brand-new
+    // objects every poll (~2 min), so identity checks against the OLD array
+    // reference are the only reliable "did the feed actually refresh"
+    // signal — comparing evts.length is not: the satellite/quake/news count
+    // can easily land on the same total between polls while every object
+    // inside changed, which silently skipped the rebuild below and let
+    // blips from every past poll pile up in the array forever.
+    if(evts!==lastEvtsRef){
+      lastEvtsRef=evts;
+      const seen=new Set();
+      evts.forEach(ev=>{
+        const xy=nxrXY(ev);if(!xy)return;
+        // Stable key across refetches (object identity can't survive a
+        // refetch, but type+label+rounded coords can) — lets a blip persist
+        // and keep fading naturally instead of being treated as brand new
+        // every single poll.
+        const key=ev.type+'|'+(ev.label||ev.title||'')+'|'+Math.round(ev.lat)+','+Math.round(ev.lon);
+        seen.add(key);
+        const existing=blips.find(b=>b.key===key);
+        if(existing){existing.ev=ev;existing.x=xy[0];existing.y=xy[1];}
+        else{const d=_nxrGeoD(hLat,hLon,ev.lat||0,ev.lon||0);blips.push({key,ev,x:xy[0],y:xy[1],alpha:.65,age:60,col:tColors[ev.type]||'#1D9E75',size:ev.type==='quake'?Math.max(2,Math.min(6,(ev.mag||4)-1)):3,distKm:d});}
+      });
+      // Events that dropped out of the feed (quake list rolled over, etc.)
+      // stop being tracked — otherwise this set only ever grows.
+      blips=blips.filter(bl=>seen.has(bl.key));
+    }
     const a=angle%(Math.PI*2),prev=(a-SPD*5+Math.PI*2)%(Math.PI*2);
     blips.forEach(bl=>{const brg=nxrBrg(bl.ev);if(brg===null)return;const b=(brg+Math.PI*2)%(Math.PI*2);const hit=(prev<=a)?(b>=prev&&b<=a):(b>=prev||b<=a);if(hit&&bl.alpha<0.9){bl.alpha=1;bl.age=0;const ts=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});updateNxrContacts({type:bl.ev.type,ts,label:bl.ev.label||bl.ev.title,mag:bl.ev.mag,brg,distKm:bl.distKm});}});
   }
@@ -2606,7 +2631,7 @@ function initPanelRadar(){
     ctx.strokeStyle=c.hi;ctx.lineWidth=1.5;ctx.globalAlpha=.85;
     ctx.beginPath();ctx.moveTo(CX,CY);ctx.lineTo(CX+Math.sin(angle)*R,CY-Math.cos(angle)*R);ctx.stroke();ctx.globalAlpha=1;
     // Blips
-    blips.forEach(bl=>{ctx.save();ctx.globalAlpha=bl.alpha;const pr=bl.size*(1+(1-bl.alpha)*4);ctx.strokeStyle=bl.col;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(bl.x,bl.y,pr,0,Math.PI*2);ctx.stroke();ctx.fillStyle=bl.col;ctx.beginPath();ctx.arc(bl.x,bl.y,bl.size,0,Math.PI*2);ctx.fill();ctx.restore();bl.age++;bl.alpha=Math.max(0.15,1-bl.age/500);});
+    blips.forEach(bl=>{ctx.save();ctx.globalAlpha=bl.alpha;const pr=bl.size*(1+(1-bl.alpha)*4);ctx.strokeStyle=bl.col;ctx.lineWidth=.8;ctx.beginPath();ctx.arc(bl.x,bl.y,pr,0,Math.PI*2);ctx.stroke();ctx.fillStyle=bl.col;ctx.beginPath();ctx.arc(bl.x,bl.y,bl.size,0,Math.PI*2);ctx.fill();ctx.restore();bl.age++;bl.alpha=Math.max(0.15,bl.alpha*0.985);});
     // Home dot
     ctx.fillStyle=c.hi;ctx.beginPath();ctx.arc(CX,CY,4,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=c.neg;ctx.beginPath();ctx.arc(CX,CY,1.5,0,Math.PI*2);ctx.fill();
