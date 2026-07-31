@@ -247,16 +247,44 @@ function isRealDisk(d) {
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
+// graphics/fsSize/osInfo/cpuTemperature/processes go through WMI on Windows —
+// systeminformation shells out to PowerShell (Get-CimInstance) for each of
+// them, and none of them change meaningfully within a few seconds anyway
+// (disk size, GPU identity, OS version, thermal trend, process count).
+// Refreshing them on the same 3s cadence as CPU/RAM was spawning a fresh
+// burst of powershell.exe processes every single poll — observed up to ~20
+// concurrent during normal use. They're refreshed on their own slow 20s
+// cache instead; only currentLoad/mem (fast, no PowerShell) stay on the
+// tight cycle the UI actually needs for a live-feeling CPU/RAM readout.
+const SLOW_STATS_TTL = 20000;
+let _slowStatsCache = null, _slowStatsTs = 0, _slowStatsInFlight = null;
+function getSlowStats() {
+  const now = Date.now();
+  if (_slowStatsCache && now - _slowStatsTs < SLOW_STATS_TTL) return Promise.resolve(_slowStatsCache);
+  if (!_slowStatsInFlight) {
+    _slowStatsInFlight = Promise.all([
+      withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
+      withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
+      withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
+      withTimeout(si.processes(),    6000, {all:0},                     'processes'),
+      withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
+    ]).then(([gpuData, disk, osInfo, processes, tempData]) => {
+      _slowStatsCache = { gpuData, disk, osInfo, processes, tempData };
+      _slowStatsTs = Date.now();
+      _slowStatsInFlight = null;
+      return _slowStatsCache;
+    });
+  }
+  return _slowStatsInFlight;
+}
+
 async function fetchStats() {
-  const [cpu, mem, gpuData, disk, osInfo, processes, tempData] = await Promise.all([
+  const [cpu, mem, slow] = await Promise.all([
     withTimeout(si.currentLoad(),  5000, {currentLoad:0, cpus:[]},   'currentLoad'),
     withTimeout(si.mem(),          5000, {used:0, total:0},           'mem'),
-    withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
-    withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
-    withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
-    withTimeout(si.processes(),    6000, {all:0},                     'processes'),
-    withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
+    getSlowStats(),
   ]);
+  const { gpuData, disk, osInfo, processes, tempData } = slow;
   // Red: usa netstat -e nativo (no WMI, instantáneo)
   const net = getNetworkMbps();
   const gpu = gpuData.controllers[0] || {};

@@ -68,29 +68,61 @@ function runPS(script, timeout) {
   });
 }
 
+// Short-TTL cache + in-flight dedupe for both lists. Without this, the PROC
+// tab's own 2.5s poll and the agent's per-question context gathering
+// (agentGatherExtra) could each trigger a fresh call at nearly the same
+// moment — and listWindows() in particular recompiles a C# class via
+// Add-Type on every single invocation (genuinely CPU-expensive), so a burst
+// of near-simultaneous callers used to spawn a pile of concurrent
+// powershell.exe processes (observed: up to ~20 at once) instead of sharing
+// one result. A 2s cache is short enough that the panel still feels live.
+const CACHE_TTL = 2000;
+let _winCache = null, _winCacheTs = 0, _winInFlight = null;
+let _procCache = null, _procCacheTs = 0, _procInFlight = null;
+
 async function listWindows() {
-  const out = await runPS(WIN_ENUM_SCRIPT, 8000);
-  if (!out) return [];
-  try {
-    let parsed = JSON.parse(out);
-    if (!Array.isArray(parsed)) parsed = [parsed]; // ConvertTo-Json omits the array wrapper for a single result
-    return parsed.filter(w => w && w.title);
-  } catch (e) { return []; }
+  const now = Date.now();
+  if (_winCache && now - _winCacheTs < CACHE_TTL) return _winCache;
+  if (!_winInFlight) {
+    _winInFlight = (async () => {
+      const out = await runPS(WIN_ENUM_SCRIPT, 8000);
+      let result = [];
+      if (out) {
+        try {
+          let parsed = JSON.parse(out);
+          if (!Array.isArray(parsed)) parsed = [parsed]; // ConvertTo-Json omits the array wrapper for a single result
+          result = parsed.filter(w => w && w.title);
+        } catch (e) {}
+      }
+      _winCache = result; _winCacheTs = Date.now(); _winInFlight = null;
+      return result;
+    })();
+  }
+  return _winInFlight;
 }
 
 async function listProcesses() {
-  const data = await si.processes();
-  return (data.list || [])
-    .filter(p => (p.cpu || 0) > 0 || (p.mem || 0) > 0.1)
-    .sort((a, b) => (b.cpu || 0) - (a.cpu || 0))
-    .slice(0, 80)
-    .map(p => ({
-      pid: p.pid,
-      name: p.name,
-      cpu: parseFloat((p.cpu || 0).toFixed(1)),
-      mem: parseFloat((p.mem || 0).toFixed(1)),
-      memMb: Math.round((p.memRss || 0) / 1024),
-    }));
+  const now = Date.now();
+  if (_procCache && now - _procCacheTs < CACHE_TTL) return _procCache;
+  if (!_procInFlight) {
+    _procInFlight = (async () => {
+      const data = await si.processes();
+      const result = (data.list || [])
+        .filter(p => (p.cpu || 0) > 0 || (p.mem || 0) > 0.1)
+        .sort((a, b) => (b.cpu || 0) - (a.cpu || 0))
+        .slice(0, 80)
+        .map(p => ({
+          pid: p.pid,
+          name: p.name,
+          cpu: parseFloat((p.cpu || 0).toFixed(1)),
+          mem: parseFloat((p.mem || 0).toFixed(1)),
+          memMb: Math.round((p.memRss || 0) / 1024),
+        }));
+      _procCache = result; _procCacheTs = Date.now(); _procInFlight = null;
+      return result;
+    })();
+  }
+  return _procInFlight;
 }
 
 function registerSysmonHandlers() {
