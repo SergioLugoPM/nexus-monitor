@@ -69,9 +69,9 @@ function showAndFocus() {
 function createTray() {
   const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
-  tray.setToolTip('Nexus Monitor — Ctrl+Alt+N para enfocar');
+  tray.setToolTip('Nexus Monitor — Ctrl+Shift+N para enfocar');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Mostrar / enfocar  (Ctrl+Alt+N)', click: showAndFocus },
+    { label: 'Mostrar / enfocar  (Ctrl+Shift+N)', click: showAndFocus },
     { label: 'Salir de kiosko (ventana)', click: () => { if (mainWindow) { mainWindow.setKiosk(false); mainWindow.setFullScreen(false); showAndFocus(); } } },
     { type: 'separator' },
     { label: 'Cerrar Nexus Monitor', click: () => app.quit() },
@@ -113,7 +113,14 @@ app.whenReady().then(() => {
   // Windows, no matter what currently has focus. Global hotkeys are exempt
   // from Windows' normal foreground-focus-stealing prevention, so
   // showAndFocus() reliably works here even when e.g. the Start Menu is open.
-  globalShortcut.register('Control+Alt+N', showAndFocus);
+  //
+  // Deliberately NOT using Alt in this combo: on Windows, AltGr (used on
+  // Spanish/Latin-American and many other layouts to type accented/special
+  // characters) is reported to apps as Ctrl+Alt pressed together. A global
+  // hotkey — registered system-wide via RegisterHotKey, not just within
+  // Nexus's own window — would hijack that combo from every app in Windows,
+  // breaking accented-character input everywhere, not just here.
+  globalShortcut.register('Control+Shift+N', showAndFocus);
 
   // Esc drops out of kiosk/fullscreen — but only via a renderer-initiated IPC
   // call (dashboard.html), never a globalShortcut. A global Escape hotkey
