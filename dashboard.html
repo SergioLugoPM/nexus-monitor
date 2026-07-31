@@ -310,13 +310,13 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <span id="eq-count" style="font-size:10px;letter-spacing:1px;"></span>
     </div>
     <div id="view-tabs">
-      <button class="vtab vp-active" data-view="map" onclick="showView('map')">G&nbsp;MAP</button>
-      <button class="vtab" data-view="terminal" onclick="showView('terminal')">T&nbsp;TERM</button>
-      <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
-      <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
-      <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" style="display:none">F&nbsp;EXPLORER</button>
-      <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" style="display:none">P&nbsp;PROC</button>
-      <button class="vtab" data-view="agent" onclick="showView('agent')">A&nbsp;AGENT</button>
+      <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
+      <button class="vtab" data-view="terminal" onclick="showView('terminal')" title="Alt+T">⌥T&nbsp;TERM</button>
+      <button class="vtab" data-view="snake" onclick="showView('snake')" title="Alt+S">⌥S&nbsp;SNAKE</button>
+      <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
+      <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
+      <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" title="Alt+P" style="display:none">⌥P&nbsp;PROC</button>
+      <button class="vtab" data-view="agent" onclick="showView('agent')" title="Alt+A">⌥A&nbsp;AGENT</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1260,8 +1260,9 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;font-size:12px;line-height:1.6"></div>
       <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
         <span style="opacity:.5">&gt;</span>
+        <button id="agent-mic" onclick="agentToggleMic()" title="Voz (Ctrl+Shift+V)" style="background:transparent;border:none;cursor:pointer;font-size:13px;flex-shrink:0;padding:2px 4px;opacity:.6">🎙</button>
         <input id="agent-input" type="text" placeholder="Pregunta algo sobre el estado actual…" autocomplete="off" spellcheck="false"
-          style="flex:1;border:none;outline:none;background:transparent;font-family:monospace;font-size:12px;padding:4px 0">
+          style="flex:1;border:none;outline:none;background:transparent;color:#5DCAA5;caret-color:#5DCAA5;font-family:monospace;font-size:12px;padding:4px 0">
         <span id="agent-status" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
       </div>
     </div>
@@ -1288,7 +1289,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   function agentInit(){
     if(_agentInit)return;
     _agentInit=true;
-    agentPrint('system','NEXUS AGENT — nivel 0 (solo consulta). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+'. No puede ejecutar nada.');
+    const voiceNote=_agentSpeechSupported?', y voz — 🎙 o Ctrl+Shift+V':'';
+    agentPrint('system','NEXUS AGENT — nivel 0 (solo consulta). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'. No puede ejecutar nada.');
   }
 
   async function agentGatherExtra(){
@@ -1302,10 +1304,55 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     }catch(e){return undefined;}
   }
 
+  // ── VOICE ──────────────────────────────────────────────────────────────
+  const _SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const _agentSpeechSupported=!!_SR&&!!window.speechSynthesis;
+  let _agentRecognition=null,_agentListening=false;
+
+  function agentSpeak(text){
+    if(!window.speechSynthesis||!text)return;
+    try{
+      window.speechSynthesis.cancel(); // don't stack replies
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='es-ES';u.rate=1.02;u.pitch=0.85; // slightly lower pitch — reads more "Jarvis", less "phone assistant"
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  window.agentToggleMic=function(){
+    if(!_agentSpeechSupported){
+      agentPrint('system','Reconocimiento de voz no disponible en este navegador/build.');
+      return;
+    }
+    if(_agentListening){ if(_agentRecognition)_agentRecognition.stop(); return; }
+    const rec=new _SR();
+    rec.lang='es-ES';rec.interimResults=true;rec.maxAlternatives=1;
+    const inp=document.getElementById('agent-input');
+    const mic=document.getElementById('agent-mic');
+    rec.onstart=function(){ _agentListening=true; if(mic){mic.style.opacity='1';mic.style.color='#E24B4A';} };
+    rec.onresult=function(e){
+      let txt='';
+      for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;
+      if(inp)inp.value=txt;
+      if(e.results[e.results.length-1].isFinal){
+        rec.stop();
+        if(txt.trim())agentAsk(txt.trim());
+        if(inp)inp.value='';
+      }
+    };
+    rec.onerror=function(e){
+      agentPrint('system','Error de voz: '+e.error);
+    };
+    rec.onend=function(){ _agentListening=false; if(mic){mic.style.opacity='.6';mic.style.color='';} _agentRecognition=null; };
+    _agentRecognition=rec;
+    rec.start();
+  };
+
   async function agentAsk(question){
     const statusEl=document.getElementById('agent-status');
     if(statusEl)statusEl.textContent='pensando…';
     agentPrint('user',question);
+    _ncAgentBusy=true;
     try{
       const extra=await agentGatherExtra();
       const r=await fetch('http://localhost:19234/agent/ask',{
@@ -1319,10 +1366,12 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         agentPrint('system','Error: '+(d.detail||d.error));
       }else{
         agentPrint('assistant',d.answer||'(sin respuesta)');
+        agentSpeak(d.answer);
       }
     }catch(e){
       agentPrint('system','Error de conexión: '+e.message);
     }finally{
+      _ncAgentBusy=false;
       if(statusEl)statusEl.textContent='';
     }
   }
@@ -1476,10 +1525,26 @@ function showView(name){
   if(typeof onShowView==='function') onShowView(name);
 }
 
+// Requires Alt so these NEVER collide with a bare letter used as a game
+// control (Snake's WASD, Invaders' A/D) — previously G/T/S/I fired on plain
+// keypress, so e.g. Invaders (which doesn't capture 'S' or 'T' for anything)
+// let those letters bubble up and yank the view away mid-game.
 document.addEventListener('keydown',function(e){
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
-  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'radar'};
-  if(vm[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){showView(vm[e.code]);e.preventDefault();}
+  if(!e.altKey||e.ctrlKey||e.metaKey)return;
+  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyF:'explorer',KeyP:'proc',KeyA:'agent'};
+  if(vm[e.code]){showView(vm[e.code]);e.preventDefault();}
+});
+
+// Ctrl+Shift+V — jump to the agent and start listening, from anywhere in
+// the app (Jarvis-style "always one shortcut away", not tab-gated).
+document.addEventListener('keydown',function(e){
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  if(e.ctrlKey&&e.shiftKey&&e.code==='KeyV'){
+    e.preventDefault();
+    showView('agent');
+    setTimeout(()=>{ if(typeof agentToggleMic==='function')agentToggleMic(); },60);
+  }
 });
 
 function h2r(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
@@ -1579,6 +1644,7 @@ function applyPalette(c){
   const expDrives=document.getElementById('exp-drives');if(expDrives)expDrives.style.borderColor=c.lo;
   const expUp=document.getElementById('exp-up');if(expUp){expUp.style.borderColor=c.lo;expUp.style.color=c.mut;}
   const expPath=document.getElementById('exp-path');if(expPath)expPath.style.color=c.hi;
+  const agentInput=document.getElementById('agent-input');if(agentInput){agentInput.style.color=c.hi;agentInput.style.caretColor=c.hi;}
   const vstWrap=document.getElementById('view-tabs');
   if(vstWrap)vstWrap.style.borderBottom='1px solid '+c.lo;
 
@@ -2324,6 +2390,7 @@ function updateTerminator() {
 var _spAnimId=null,_spNodes=[],_spSyn=[],_spAngX=0,_spAngY=0,_spFrame=0,_spFlipOn=false;
 var _nlActs=null,_nlW=0,_nlH=0;
 let _ncCpuLoad=0.5,_ncRamLoad=0.5,_ncCores=[];
+let _ncAgentBusy=false; // true while a request is in flight to /agent/ask — spins the core up like Jarvis "thinking"
 
 function spRotX(x,y,z,a){return{x:x,y:y*Math.cos(a)-z*Math.sin(a),z:y*Math.sin(a)+z*Math.cos(a)};}
 function spRotY(x,y,z,a){return{x:x*Math.cos(a)+z*Math.sin(a),y:y,z:-x*Math.sin(a)+z*Math.cos(a)};}
@@ -2389,7 +2456,10 @@ function spDraw(cv){
   if(_coreMode === 0) {
     // ── JARVIS HOLOGRAPHIC SPHERE ────────────────────────────
     var R3=Math.min(W,H)*0.38, fov3=R3*4.2;
-    var ax=t*(0.06+_ncCpuLoad*0.14), ay=t*(0.10+_ncCpuLoad*0.09); // CPU drives spin speed
+    // Agent "thinking" spins the core well past its normal CPU-driven ceiling —
+    // a visibly different state, not just "CPU is a bit higher than usual".
+    var agentBoost=_ncAgentBusy?1:0;
+    var ax=t*(0.06+_ncCpuLoad*0.14+agentBoost*0.35), ay=t*(0.10+_ncCpuLoad*0.09+agentBoost*0.28);
     var cx3=W/2, cy3=H/2;
 
     // Helper: rotate + project a 3D point
@@ -2405,6 +2475,18 @@ function spDraw(cv){
     ctx.fillStyle=sGlow;ctx.beginPath();ctx.arc(cx3,cy3,R3*1.1,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(cx3,cy3,R3,0,Math.PI*2);
     ctx.strokeStyle=c.hi;ctx.globalAlpha=0.12;ctx.lineWidth=1;ctx.stroke();
+
+    // 1b. "Thinking" ring — a fast, expanding pulse in an accent color
+    // distinct from the sphere's own hue, so it reads as a state change and
+    // not just "CPU is somewhat busy".
+    if(_ncAgentBusy){
+      var thinkPulse=(t*3)%1;
+      ctx.beginPath();ctx.arc(cx3,cy3,R3*(1.02+thinkPulse*0.5),0,Math.PI*2);
+      ctx.strokeStyle='#38BDF8';ctx.globalAlpha=(1-thinkPulse)*0.55;ctx.lineWidth=2;ctx.stroke();
+      ctx.beginPath();ctx.arc(cx3,cy3,R3*1.02,0,Math.PI*2);
+      ctx.strokeStyle='#38BDF8';ctx.globalAlpha=0.5+Math.sin(t*8)*0.3;ctx.lineWidth=1.2;ctx.stroke();
+      ctx.globalAlpha=1;
+    }
 
     // 2. Latitude rings (structural skeleton)
     [-60,-30,0,30,60].forEach(function(latDeg){

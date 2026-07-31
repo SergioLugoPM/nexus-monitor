@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, Tray, Menu, nativeImage, session } = require('electron');
 const path = require('path');
 const { registerFsHandlers } = require('./fsapi');
 const { registerAppsHandlers } = require('./appsapi');
@@ -69,9 +69,9 @@ function showAndFocus() {
 function createTray() {
   const trayIcon = nativeImage.createFromPath(ICON_PATH).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
-  tray.setToolTip('Nexus Monitor');
+  tray.setToolTip('Nexus Monitor — Ctrl+Alt+N para enfocar');
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Mostrar / enfocar', click: showAndFocus },
+    { label: 'Mostrar / enfocar  (Ctrl+Alt+N)', click: showAndFocus },
     { label: 'Salir de kiosko (ventana)', click: () => { if (mainWindow) { mainWindow.setKiosk(false); mainWindow.setFullScreen(false); showAndFocus(); } } },
     { type: 'separator' },
     { label: 'Cerrar Nexus Monitor', click: () => app.quit() },
@@ -82,6 +82,14 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  // Electron denies every media/permission request by default — the mic
+  // (for the agent's voice input) would silently fail with no dialog and no
+  // error otherwise. Only 'media' (mic/camera) is allowed; everything else
+  // (geolocation, notifications, etc.) stays denied.
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(permission === 'media');
+  });
+
   registerFsHandlers();
   registerAppsHandlers();
   registerSysmonHandlers();
@@ -97,6 +105,15 @@ app.whenReady().then(() => {
   globalShortcut.register('Control+Space', () => {
     if (mainWindow) mainWindow.webContents.send('launcher:toggle');
   });
+
+  // Pressing the Windows key and clicking the taskbar (or Alt+Tabbing to
+  // another app, since skipTaskbar also drops Nexus out of that list) takes
+  // focus away from Nexus with no keyboard way back — only a mouse click on
+  // the tiny tray icon. This is that keyboard way back, from anywhere in
+  // Windows, no matter what currently has focus. Global hotkeys are exempt
+  // from Windows' normal foreground-focus-stealing prevention, so
+  // showAndFocus() reliably works here even when e.g. the Start Menu is open.
+  globalShortcut.register('Control+Alt+N', showAndFocus);
 
   // Esc drops out of kiosk/fullscreen — but only via a renderer-initiated IPC
   // call (dashboard.html), never a globalShortcut. A global Escape hotkey
