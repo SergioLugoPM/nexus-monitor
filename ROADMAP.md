@@ -45,6 +45,35 @@ por dispositivo, puertos abiertos, servicios expuestos (cámaras IP, IoT,
 NAS). Esto es reconocimiento de red pasivo sobre tu propia infraestructura —
 mismo principio que el resto del dashboard (visibilidad, no intrusión).
 
+#### 3b. Radar por WiFi (CSI sensing) — decidido, pendiente de implementar
+
+Investigado y decidido: integrar **[wifi-densepose](https://github.com/yangsuzhou/wifi-densepose)**
+para presencia/movimiento a través de paredes usando señales WiFi, sin
+cámara. Comparado contra `ESPectre` (GPLv3, atado a Home Assistant) y
+`esp-csi` de Espressif (solo el toolkit crudo, habría que construir la
+detección desde cero) — wifi-densepose ganó por licencia MIT y por exponer
+una API REST + WebSocket en JSON, el mismo patrón que ya usa `server.js`
+para vuelos/sismos/satélites.
+
+**Modo elegido: sin hardware nuevo.** Con WiFi normal (RSSI, sin hardware
+CSI dedicado) da presencia/movimiento "grueso" — detecta que hay alguien y
+se mueve, no pose completa. Suficiente para prototipar el panel sin comprar
+nada. La ruta con hardware (malla de 3-6 ESP32-S3, ~$8-54) que da pose
+completa (17 keypoints), respiración y ritmo cardíaco queda para más
+adelante si el modo RSSI resulta útil.
+
+**Cuando se retome, el plan técnico es:**
+1. Levantar wifi-densepose por separado (Docker: `docker pull
+   ruvnet/wifi-densepose:latest`, expone REST en :3000 y WebSocket en :3001)
+2. En `server.js`, agregar un endpoint tipo `/wifiradar` que haga proxy/cache
+   de `GET http://localhost:3000/api/v1/sensing/latest` — mismo patrón de
+   cache con TTL que ya usan `/events`, `/flights`, etc.
+3. En `dashboard.html`, nuevo panel o modo del radar existente (`NEXUS
+   RADAR`) que dibuje las detecciones de presencia — reutiliza el canvas de
+   radar que ya existe en vez de construir uno nuevo
+4. Encaja en Pilar 3 (red LAN) porque literalmente usa la infraestructura
+   WiFi de la casa como sensor, sin hardware de vigilancia dedicado
+
 ## Agente de IA — control total, con capa de permisos
 
 El objetivo final es un agente tipo Jarvis: puede ejecutar comandos, mover y
@@ -124,6 +153,8 @@ traduzca en pérdida de datos real.
 **Pilar 3 (red LAN) — sin empezar:**
 - Mapa de dispositivos en la red doméstica, tráfico, puertos, servicios
   expuestos (cámaras IP, IoT, NAS)
+- Radar por WiFi (wifi-densepose, modo sin hardware) — investigado y
+  decidido, plan técnico documentado arriba (§3b), pendiente de implementar
 
 **Agente IA — falta todo lo posterior a Nivel 0:**
 - Nivel 1 (acciones seguras: abrir apps/archivos desde el chat)
