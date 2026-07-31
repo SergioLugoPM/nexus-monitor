@@ -95,22 +95,59 @@ traduzca en pérdida de datos real.
 ## Estado actual (lo ya construido en `electron-shell`)
 
 - ✅ Shell independiente de Wallpaper Engine (Electron, kiosko, bandeja del
-  sistema)
+  sistema, atajo global Ctrl+Shift+N para recuperar foco)
 - ✅ Explorador de archivos (lectura/navegación, abrir con app default)
 - ✅ Lanzador de apps estilo Spotlight (`Ctrl+Space`)
 - ✅ `/exec` seguro (whitelist + sin inyección de shell)
 - ✅ Radar de eventos sin fugas de memoria/acumulación
+- ✅ **Pilar 1 (parcial)**: panel de procesos + ventanas (tab PROC) — top CPU,
+  memoria, foco de ventana, terminar proceso con confirmación
+- ✅ **Agente IA — Nivel 0** (consulta): responde sobre el estado del
+  dashboard vía Claude, con voz (entrada y salida), reacciona visualmente en
+  el Neural Core mientras piensa. Cero capacidad de ejecutar nada
+- ✅ Atajos de teclado sin colisión con juegos ni con composición de acentos
+  (Alt+letra para vistas, F2 para voz, Ctrl+Shift+N para refoco)
+- ✅ Estabilidad: cache de 2s en sysmon (procesos/ventanas) y de 20s en stats
+  lentos (GPU/disco/temp) — eliminó ráfagas de hasta 20 procesos powershell.exe
+  concurrentes
+
+## Qué falta
+
+**Pilar 1 (sistema local) — falta:**
+- Conexiones de red activas por proceso (qué app habla con qué IP/puerto)
+- Actividad de archivos reciente (qué se abrió/modificó/creó)
+
+**Pilar 2 (OSINT global) — sin tocar desde el roadmap original:**
+- Más fuentes por categoría, correlación de eventos, búsqueda histórica
+  (hoy todo es "últimas 24h en vivo", sin memoria)
+
+**Pilar 3 (red LAN) — sin empezar:**
+- Mapa de dispositivos en la red doméstica, tráfico, puertos, servicios
+  expuestos (cámaras IP, IoT, NAS)
+
+**Agente IA — falta todo lo posterior a Nivel 0:**
+- Nivel 1 (acciones seguras: abrir apps/archivos desde el chat)
+- Nivel 2 (comandos con confirmación explícita)
+- Nivel 3 (control total autónomo dentro de límites configurados)
+- Los "requisitos técnicos antes de Nivel 2+" del roadmap (log de auditoría,
+  lista de rutas prohibidas, modo deshacer) — ninguno existe todavía
+
+**Sin decidir:** si `master`/WE se sigue manteniendo en paralelo o se
+congela como referencia — el shell es el uso principal desde hace varias
+sesiones y master no ha recibido nada nuevo desde el merge del bug del
+radar.
 
 ## Próximos pasos sugeridos (en orden)
 
-1. **Panel de procesos + ventanas** (Pilar 1, la pieza que falta más
-   básica) — nuevo tab junto a EXPLORER, usando `systeminformation.processes()`
-   y enumeración de ventanas vía Win32
-2. **Nivel 0 del agente** (solo consulta) — conectar un LLM al estado actual
-   del dashboard (eventos, stats, contactos del radar) sin ninguna capacidad
-   de ejecutar nada; valida la integración antes de dar cualquier permiso
-3. A partir de ahí, decidir con datos reales de uso si vale la pena subir de
-   nivel
+1. **Decidir el destino de `master`/WE** antes de seguir acumulando drift
+   entre ramas
+2. **Conexiones de red por proceso** — cierra el Pilar 1, reutiliza el mismo
+   patrón de `sysmon.js` (Win32 o `netstat`/`Get-NetTCPConnection` vía
+   PowerShell con cache, aprendiendo del problema de ráfagas que ya se
+   resolvió aquí)
+3. **Agente Nivel 1** — el salto natural desde Nivel 0: dejar que el agente
+   dispare `nexusApps.launch()` / `nexusFS.openPath()`, mismo alcance que ya
+   tienen esos módulos vía clic humano, ahora vía lenguaje natural
 
 ---
 *Documento vivo — actualizar conforme se decida qué construir en cada
