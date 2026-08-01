@@ -1948,9 +1948,38 @@ function drawNetGraph(){
 }
 
 // ── MAP EVENTS ─────────────────────────────────────────────
+// The underlying map (world-map-country-shapes, from simplemaps.com) is
+// drawn in the Robinson projection, not equirectangular — a simple linear
+// lon/lat→px formula (the old version of this function) is fundamentally
+// the wrong shape for it. It can be nudged with a constant offset to line
+// up ONE calibration point, but everywhere else drifts, worse the further
+// you get from that point — exactly the "pines imprecisos en otros lados"
+// symptom this was replaced for. This is the standard Robinson
+// interpolation table (Snyder 1994 / the same one D3's geoRobinson uses),
+// scaled to fit the map's actual 2000×1001 viewBox.
+const ROBINSON_TABLE=[
+  [1.0000,0.0000],[0.9986,0.0620],[0.9954,0.1240],[0.9900,0.1860],
+  [0.9822,0.2480],[0.9730,0.3100],[0.9600,0.3720],[0.9427,0.4340],
+  [0.9216,0.4958],[0.8962,0.5571],[0.8679,0.6176],[0.8350,0.6769],
+  [0.7986,0.7346],[0.7597,0.7903],[0.7186,0.8435],[0.6732,0.8936],
+  [0.6213,0.9394],[0.5722,0.9761],[0.5322,1.0000]
+];
 function ll2xy(lon,lat){
-  const x=Math.round((lon+180)/360*2000)-16;
-  const y=Math.round((90-lat)/180*1001)+55;
+  const clampedLat=Math.max(-90,Math.min(90,lat));
+  const absLat=Math.abs(clampedLat);
+  const idx=absLat/5;
+  const i0=Math.min(17,Math.floor(idx));
+  const frac=idx-i0;
+  const xFac=ROBINSON_TABLE[i0][0]+(ROBINSON_TABLE[i0+1][0]-ROBINSON_TABLE[i0][0])*frac;
+  const yFacMag=ROBINSON_TABLE[i0][1]+(ROBINSON_TABLE[i0+1][1]-ROBINSON_TABLE[i0][1])*frac;
+  const yFac=clampedLat>=0?yFacMag:-yFacMag;
+  // At the equator xFac=1 and lon=180° spans the map's half-width; at the
+  // poles yFac=1 spans the half-height. Scaling by those maxima fits the
+  // projection exactly into the 2000×1001 viewBox.
+  const scaleX=1000/Math.PI;
+  const scaleY=500.5;
+  const x=Math.round(1000+xFac*(lon*Math.PI/180)*scaleX);
+  const y=Math.round(500.5-yFac*scaleY);
   return[x,y];
 }
 let _evts=[];

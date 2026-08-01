@@ -57,6 +57,18 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  if (process.env.NEXUS_DEBUG_SCREENSHOT) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await mainWindow.webContents.capturePage();
+          require('fs').writeFileSync(process.env.NEXUS_DEBUG_SCREENSHOT, img.toPNG());
+        } catch (e) { console.log('DEBUG CAPTURE ERROR:', e.message); }
+        app.quit();
+      }, 3000);
+    });
+  }
 }
 
 function showAndFocus() {
