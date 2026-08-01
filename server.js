@@ -122,15 +122,17 @@ app.get('/logs',(req,res)=>res.json({logs:LOG_BUF.slice(-100)}));
 app.get('/config',(req,res)=>res.json({
   openskyUser: _cfg.openskyUser||'',
   hasOpenSkyPass: !!_cfg.openskyPass,
+  hasAnthropicKey: !!_cfg.anthropicApiKey,
 }));
 app.post('/config',(req,res)=>{
-  const {openskyUser,openskyPass}=req.body||{};
+  const {openskyUser,openskyPass,anthropicApiKey}=req.body||{};
   if(openskyUser!==undefined) _cfg.openskyUser=openskyUser.trim();
   if(openskyPass!==undefined && openskyPass!=='') _cfg.openskyPass=openskyPass;
+  if(anthropicApiKey!==undefined && anthropicApiKey!=='') _cfg.anthropicApiKey=anthropicApiKey.trim();
   saveCfg();
   // Reset flight rate-limit so new credentials are tried immediately
   _flightsRateLimitUntil=0;
-  nxLog('Config updated — OpenSky user: '+(_cfg.openskyUser||'(none)'),'ok');
+  nxLog('Config updated — OpenSky user: '+(_cfg.openskyUser||'(none)')+', Anthropic key: '+(_cfg.anthropicApiKey?'set':'(none)'),'ok');
   res.json({ok:true});
 });
 
@@ -245,16 +247,44 @@ function isRealDisk(d) {
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
+// graphics/fsSize/osInfo/cpuTemperature/processes go through WMI on Windows —
+// systeminformation shells out to PowerShell (Get-CimInstance) for each of
+// them, and none of them change meaningfully within a few seconds anyway
+// (disk size, GPU identity, OS version, thermal trend, process count).
+// Refreshing them on the same 3s cadence as CPU/RAM was spawning a fresh
+// burst of powershell.exe processes every single poll — observed up to ~20
+// concurrent during normal use. They're refreshed on their own slow 20s
+// cache instead; only currentLoad/mem (fast, no PowerShell) stay on the
+// tight cycle the UI actually needs for a live-feeling CPU/RAM readout.
+const SLOW_STATS_TTL = 20000;
+let _slowStatsCache = null, _slowStatsTs = 0, _slowStatsInFlight = null;
+function getSlowStats() {
+  const now = Date.now();
+  if (_slowStatsCache && now - _slowStatsTs < SLOW_STATS_TTL) return Promise.resolve(_slowStatsCache);
+  if (!_slowStatsInFlight) {
+    _slowStatsInFlight = Promise.all([
+      withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
+      withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
+      withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
+      withTimeout(si.processes(),    6000, {all:0},                     'processes'),
+      withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
+    ]).then(([gpuData, disk, osInfo, processes, tempData]) => {
+      _slowStatsCache = { gpuData, disk, osInfo, processes, tempData };
+      _slowStatsTs = Date.now();
+      _slowStatsInFlight = null;
+      return _slowStatsCache;
+    });
+  }
+  return _slowStatsInFlight;
+}
+
 async function fetchStats() {
-  const [cpu, mem, gpuData, disk, osInfo, processes, tempData] = await Promise.all([
+  const [cpu, mem, slow] = await Promise.all([
     withTimeout(si.currentLoad(),  5000, {currentLoad:0, cpus:[]},   'currentLoad'),
     withTimeout(si.mem(),          5000, {used:0, total:0},           'mem'),
-    withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
-    withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
-    withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
-    withTimeout(si.processes(),    6000, {all:0},                     'processes'),
-    withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
+    getSlowStats(),
   ]);
+  const { gpuData, disk, osInfo, processes, tempData } = slow;
   // Red: usa netstat -e nativo (no WMI, instantáneo)
   const net = getNetworkMbps();
   const gpu = gpuData.controllers[0] || {};
@@ -1150,6 +1180,63 @@ app.get('/globalstats', async (req, res) => {
     _globalCache = result; _globalTs = now;
     res.json(result);
   } catch(e) { nxLog('ERROR /globalstats: '+e.message,'error'); res.status(500).json({error:e.message}); }
+});
+
+// ── AGENT (Nivel 0 — solo lectura, sin ejecución) ────────────────────────────
+// Responde preguntas usando un snapshot del estado actual del dashboard.
+// No tiene acceso a ninguna herramienta ni puede llamar de vuelta a la app —
+// es texto entra, texto sale. Ver ROADMAP.md para la escalera de niveles de
+// confianza; esto es deliberadamente el escalón más bajo.
+app.post('/agent/ask', async (req, res) => {
+  const question = ((req.body||{}).question||'').trim().slice(0, 500);
+  if (!question) return res.json({ error: 'empty_question' });
+  const apiKey = _cfg.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
+  if (!apiKey) return res.json({ error: 'no_api_key' });
+
+  const events = (_eventsCache?.events || []).slice(0, 40).map(e => ({
+    type: e.type, label: e.label, mag: e.mag, place: e.place, title: e.title
+  }));
+  const extra = (req.body||{}).extra; // renderer-supplied: top processes/windows when running in the Electron shell
+  const snapshot = {
+    now: new Date().toISOString(),
+    stats: _statsCache ? { cpuPct: _statsCache.cpu?.load, ramUsedGb: _statsCache.mem?.used, ramTotalGb: _statsCache.mem?.total, gpuPct: _statsCache.gpu?.load, uptimeSec: _statsCache.uptime } : null,
+    weather: _weatherCache,
+    crypto: _cryptoCache,
+    seismicEnergyJ: _eventsCache?.seismicEnergyJ,
+    events,
+    ...(extra && typeof extra === 'object' ? extra : {}),
+  };
+
+  const system = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
+    + 'Respondes SOLO con base en los datos en <context>. No tienes capacidad de ejecutar comandos, '
+    + 'abrir archivos ni tomar ninguna acción — si piden que hagas algo más que responder, aclara que '
+    + 'en este nivel solo puedes consultar información. Responde en español, conciso, sin relleno.';
+
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5',
+        max_tokens: 600,
+        system,
+        messages: [{ role: 'user', content: '<context>' + JSON.stringify(snapshot) + '</context>\n\nPregunta: ' + question }],
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) {
+      const errText = await r.text();
+      nxLog('ERROR /agent/ask: HTTP ' + r.status + ' ' + errText.slice(0,200), 'error');
+      return res.json({ error: 'api_error', detail: 'HTTP ' + r.status + (r.status===401?' (API key inválida)':'') });
+    }
+    const d = await r.json();
+    const answer = (d.content||[]).map(c=>c.text||'').join('').trim();
+    nxLog('Agent: ' + question.slice(0,60), 'info');
+    res.json({ answer });
+  } catch(e) {
+    nxLog('ERROR /agent/ask: ' + e.message, 'error');
+    res.json({ error: 'request_failed', detail: e.message });
+  }
 });
 
 app.listen(PORT,()=>{

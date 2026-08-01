@@ -171,6 +171,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 .vtab{background:transparent;border:.5px solid;border-radius:3px;padding:2px 9px;font-family:monospace;font-size:9px;letter-spacing:.08em;cursor:pointer;transition:background .12s,color .12s;outline:none;}
 .vtab.vp-active{font-weight:bold;}
 #view-tabs{display:flex;gap:4px;padding:2px 8px 4px;flex-shrink:0;align-items:center;}
+.exp-row:hover,.exp-drive:hover{background:rgba(128,128,128,.15);}
 .view-pane{display:none;flex:1;min-height:0;flex-direction:column;width:100%;}
 .view-pane.vp-active{display:flex;}
 #snake-wrap{flex:1;position:relative;background:#030a05;min-height:0;}
@@ -309,10 +310,13 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <span id="eq-count" style="font-size:10px;letter-spacing:1px;"></span>
     </div>
     <div id="view-tabs">
-      <button class="vtab vp-active" data-view="map" onclick="showView('map')">G&nbsp;MAP</button>
-      <button class="vtab" data-view="terminal" onclick="showView('terminal')">T&nbsp;TERM</button>
-      <button class="vtab" data-view="snake" onclick="showView('snake')">S&nbsp;SNAKE</button>
-      <button class="vtab" data-view="invaders" onclick="showView('invaders')">I&nbsp;INVADERS</button>
+      <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
+      <button class="vtab" data-view="terminal" onclick="showView('terminal')" title="Alt+T">⌥T&nbsp;TERM</button>
+      <button class="vtab" data-view="snake" onclick="showView('snake')" title="Alt+S">⌥S&nbsp;SNAKE</button>
+      <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
+      <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
+      <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" title="Alt+P" style="display:none">⌥P&nbsp;PROC</button>
+      <button class="vtab" data-view="agent" onclick="showView('agent')" title="Alt+A">⌥A&nbsp;AGENT</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1046,6 +1050,413 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 })();
 </script>
     </div>
+    <div class="view-pane" id="view-explorer" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div id="exp-toolbar" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:.5px solid;flex-shrink:0;font-size:11px">
+        <button id="exp-up" onclick="explorerUp()" style="background:transparent;border:.5px solid;border-radius:3px;padding:2px 8px;cursor:pointer;font-family:monospace;font-size:10px">▲ UP</button>
+        <span id="exp-path" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85"></span>
+        <span id="exp-count" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+      </div>
+      <div style="display:flex;flex:1;min-height:0">
+        <div id="exp-drives" style="width:100px;flex-shrink:0;overflow-y:auto;border-right:.5px solid;padding:6px;font-size:11px"></div>
+        <div id="exp-files" style="flex:1;overflow-y:auto;padding:4px;font-size:11px"></div>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _expPath=null;
+
+  function _fmtSize(n){
+    if(n===0)return '';
+    if(n<1024)return n+' B';
+    if(n<1048576)return (n/1024).toFixed(1)+' KB';
+    if(n<1073741824)return (n/1048576).toFixed(1)+' MB';
+    return (n/1073741824).toFixed(2)+' GB';
+  }
+  const _EXT_ICON={
+    jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',webp:'🖼',bmp:'🖼',svg:'🖼',
+    mp4:'🎬',mkv:'🎬',mov:'🎬',avi:'🎬',webm:'🎬',
+    mp3:'🎵',wav:'🎵',flac:'🎵',ogg:'🎵',
+    zip:'🗜',rar:'🗜','7z':'🗜',
+    exe:'⚙',msi:'⚙',
+    pdf:'📕',doc:'📄',docx:'📄',txt:'📄',md:'📄',
+    js:'📜',ts:'📜',py:'📜',json:'📜',html:'📜',css:'📜',
+  };
+
+  function explorerRenderUnavailable(){
+    const el=document.getElementById('exp-files');
+    if(el)el.innerHTML='<div style="padding:16px;opacity:.5">Explorador de archivos solo disponible en la app Electron (no en el modo wallpaper).</div>';
+  }
+
+  async function explorerLoadDrives(){
+    const el=document.getElementById('exp-drives');
+    if(!el||!window.nexusFS)return;
+    const drives=await window.nexusFS.listDrives();
+    const c=window._pal||{};
+    el.innerHTML=drives.map(d=>`<div class="exp-drive" data-drive="${d}" style="padding:4px 6px;cursor:pointer;border-radius:3px;opacity:.75" onclick="explorerNavigate('${d.replace(/\\/g,'\\\\')}')">💾 ${d}</div>`).join('');
+  }
+
+  window.explorerNavigate=async function(p){
+    if(!window.nexusFS)return;
+    const res=await window.nexusFS.listDir(p);
+    const pathEl=document.getElementById('exp-path');
+    const filesEl=document.getElementById('exp-files');
+    const countEl=document.getElementById('exp-count');
+    if(!res.ok){
+      if(pathEl)pathEl.textContent=p+' — error';
+      if(filesEl)filesEl.innerHTML=`<div style="padding:12px;opacity:.6">${res.error}</div>`;
+      return;
+    }
+    _expPath=res.path;
+    if(pathEl)pathEl.textContent=res.path;
+    document.getElementById('exp-up').style.opacity=res.parent?1:.3;
+    if(countEl)countEl.textContent=res.items.length+' items';
+    if(!filesEl)return;
+    if(!res.items.length){filesEl.innerHTML='<div style="padding:12px;opacity:.5">(vacío)</div>';return;}
+    filesEl.innerHTML=res.items.map(it=>{
+      const icon=it.isDir?'📁':(_EXT_ICON[it.ext]||'📄');
+      const size=it.isDir?'':_fmtSize(it.size);
+      const nameEsc=it.name.replace(/'/g,"\\'");
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:3px;cursor:pointer" ondblclick="explorerOpen('${nameEsc}',${it.isDir})">
+        <span style="flex-shrink:0">${icon}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
+        <span style="opacity:.45;font-size:10px;flex-shrink:0">${size}</span>
+      </div>`;
+    }).join('');
+  };
+
+  window.explorerOpen=function(name,isDir){
+    if(!_expPath||!window.nexusFS)return;
+    const full=_expPath.replace(/\\$/,'')+'\\'+name;
+    if(isDir){ explorerNavigate(full); }
+    else { window.nexusFS.openPath(full); }
+  };
+
+  window.explorerUp=function(){
+    if(!_expPath||!window.nexusFS)return;
+    window.nexusFS.listDir(_expPath).then(res=>{ if(res.ok&&res.parent) explorerNavigate(res.parent); });
+  };
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='explorer'){
+      if(!window.nexusFS){ explorerRenderUnavailable(); return; }
+      explorerLoadDrives();
+      if(_expPath){ explorerNavigate(_expPath); }
+      else { window.nexusFS.getHomeDir().then(h=>explorerNavigate(h)); }
+    }
+  };
+
+  // The EXPLORER tab only makes sense inside the Electron shell (WE/browser
+  // builds have no window.nexusFS) — hide it entirely otherwise.
+  document.addEventListener('DOMContentLoaded',()=>{
+    const tab=document.getElementById('vtab-explorer');
+    if(tab&&window.nexusFS)tab.style.display='';
+  });
+  if(document.readyState!=='loading'){
+    const tab=document.getElementById('vtab-explorer');
+    if(tab&&window.nexusFS)tab.style.display='';
+  }
+})();
+</script>
+    <div class="view-pane" id="view-proc" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div style="display:flex;flex:1;min-height:0;gap:1px">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">OPEN WINDOWS</span>
+            <span id="proc-win-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-windows" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">PROCESSES — TOP CPU</span>
+            <span id="proc-cpu-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">NETWORK — WHO'S TALKING</span>
+            <span id="proc-conn-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-connections" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _procTimer=null;
+
+  function procRenderUnavailable(){
+    const w=document.getElementById('proc-windows'),p=document.getElementById('proc-list'),c=document.getElementById('proc-connections');
+    const msg='<div style="padding:16px;opacity:.5">Solo disponible en la app Electron (no en el modo wallpaper).</div>';
+    if(w)w.innerHTML=msg;
+    if(p)p.innerHTML='';
+    if(c)c.innerHTML='';
+  }
+
+  async function procRefreshWindows(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-windows');
+    const cnt=document.getElementById('proc-win-count');
+    const wins=await window.nexusSys.listWindows();
+    if(cnt)cnt.textContent=wins.length;
+    if(!el)return;
+    if(!wins.length){el.innerHTML='<div style="padding:10px;opacity:.5">(ninguna)</div>';return;}
+    el.innerHTML=wins.map(w=>{
+      const title=(w.title||'').replace(/'/g,"\\'");
+      const fg=w.foreground;
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:3px;cursor:pointer;${fg?'font-weight:600':''}" ondblclick="procFocusWindow(${w.pid})" title="${title}">
+        <span style="flex-shrink:0;opacity:${fg?'1':'.4'}">${fg?'●':'○'}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${w.processName}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function procRefreshList(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-list');
+    const cnt=document.getElementById('proc-cpu-count');
+    const procs=await window.nexusSys.listProcesses();
+    if(cnt)cnt.textContent=procs.length;
+    if(!el)return;
+    if(!procs.length){el.innerHTML='<div style="padding:10px;opacity:.5">(ninguno)</div>';return;}
+    el.innerHTML=procs.map(p=>{
+      const cpuCol=p.cpu>50?'#E24B4A':p.cpu>20?'#EF9F27':'inherit';
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:3px">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${p.pid}</span>
+        <span style="width:44px;text-align:right;flex-shrink:0;color:${cpuCol}">${p.cpu.toFixed(1)}%</span>
+        <span style="width:56px;text-align:right;flex-shrink:0;opacity:.55;font-size:10px">${p.memMb} MB</span>
+        <span style="flex-shrink:0;cursor:pointer;opacity:.5;padding:0 4px" onclick="procKill(${p.pid},'${(p.name||'').replace(/'/g,"\\'")}')" title="End process">✕</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function procRefreshConnections(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-connections');
+    const cnt=document.getElementById('proc-conn-count');
+    const conns=await window.nexusSys.listConnections();
+    if(cnt)cnt.textContent=conns.length;
+    if(!el)return;
+    if(!conns.length){el.innerHTML='<div style="padding:10px;opacity:.5">(sin conexiones activas)</div>';return;}
+    el.innerHTML=conns.map(c=>{
+      const remote=c.remoteAddr+':'+c.remotePort;
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px" title="PID ${c.pid} · puerto local ${c.localPort}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.processName}</span>
+        <span style="opacity:.6;font-size:10px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:130px;white-space:nowrap">${remote}</span>
+      </div>`;
+    }).join('');
+  }
+
+  window.procFocusWindow=function(pid){
+    if(window.nexusSys)window.nexusSys.focusWindow(pid);
+  };
+
+  window.procKill=function(pid,name){
+    if(!window.nexusSys)return;
+    // User-initiated only — a deliberate click plus a blocking confirm, not
+    // something anything automated can trigger. See ROADMAP.md.
+    if(!confirm('¿Terminar el proceso "'+name+'" (PID '+pid+')?'))return;
+    window.nexusSys.killProcess(pid).then(()=>{ procRefreshList(); procRefreshWindows(); });
+  };
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(_procTimer){clearInterval(_procTimer);_procTimer=null;}
+    if(name==='proc'){
+      if(!window.nexusSys){ procRenderUnavailable(); return; }
+      procRefreshWindows();procRefreshList();procRefreshConnections();
+      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();procRefreshConnections();},2500);
+    }
+  };
+
+  // The PROC tab only makes sense inside the Electron shell.
+  function _showProcTab(){ const tab=document.getElementById('vtab-proc'); if(tab&&window.nexusSys)tab.style.display=''; }
+  document.addEventListener('DOMContentLoaded',_showProcTab);
+  if(document.readyState!=='loading')_showProcTab();
+})();
+</script>
+    <div class="view-pane" id="view-agent" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;font-size:12px;line-height:1.6"></div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
+        <span style="opacity:.5">&gt;</span>
+        <button id="agent-mic" onclick="agentToggleMic()" title="Voz (F2)" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;display:flex;align-items:center;color:inherit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+        </button>
+        <input id="agent-input" type="text" placeholder="Pregunta algo sobre el estado actual…" autocomplete="off" spellcheck="false"
+          style="flex:1;border:none;outline:none;background:transparent;color:#5DCAA5;caret-color:#5DCAA5;font-family:monospace;font-size:12px;padding:4px 0">
+        <span id="agent-status" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+        <button id="agent-voiceout" onclick="agentToggleVoiceOut()" title="Leer respuestas en voz alta (activado/desactivado)" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;display:flex;align-items:center;color:inherit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="3 9 3 15 9 15 15 21 15 3 9 9 3 9"/>
+            <path d="M17.5 8.5a5 5 0 0 1 0 7"/>
+            <path d="M20.5 5.5a9 9 0 0 1 0 13"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _agentInit=false;
+  const _history=[]; // {role:'user'|'assistant'|'system', text}
+
+  function agentPrint(role,text){
+    _history.push({role,text});
+    const el=document.getElementById('agent-msgs');
+    if(!el)return;
+    const c=window._pal||{};
+    const col=role==='user'?(c.hi||'#5DCAA5'):role==='system'?(c.warn||'#EF9F27'):(c.lbl||'#38B891');
+    const prefix=role==='user'?'&gt; ':role==='system'?'· ':'◈ ';
+    const div=document.createElement('div');
+    div.style.cssText='margin-bottom:8px;color:'+col+';white-space:pre-wrap;word-break:break-word';
+    div.innerHTML=prefix+text.replace(/</g,'&lt;');
+    el.appendChild(div);
+    el.scrollTop=el.scrollHeight;
+  }
+
+  function agentInit(){
+    if(_agentInit)return;
+    _agentInit=true;
+    const voBtn=document.getElementById('agent-voiceout');
+    if(voBtn)voBtn.style.opacity=_agentVoiceOut?'.6':'.25';
+    const voiceNote=_agentSpeechSupported?', y voz — botón mic o F2':'';
+    agentPrint('system','NEXUS AGENT — nivel 0 (solo consulta). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'. No puede ejecutar nada.');
+  }
+
+  async function agentGatherExtra(){
+    if(!window.nexusSys)return undefined;
+    try{
+      const [procs,wins]=await Promise.all([window.nexusSys.listProcesses(),window.nexusSys.listWindows()]);
+      return {
+        topProcesses:(procs||[]).slice(0,15).map(p=>({name:p.name,cpu:p.cpu,memMb:p.memMb})),
+        openWindows:(wins||[]).slice(0,20).map(w=>({title:w.title,app:w.processName,foreground:w.foreground})),
+      };
+    }catch(e){return undefined;}
+  }
+
+  // ── VOICE ──────────────────────────────────────────────────────────────
+  const _SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const _agentSpeechSupported=!!_SR&&!!window.speechSynthesis;
+  let _agentRecognition=null,_agentListening=false;
+
+  let _agentVoiceOut=localStorage.getItem('nexus_agent_voiceout')!=='off';
+  window.agentToggleVoiceOut=function(){
+    _agentVoiceOut=!_agentVoiceOut;
+    localStorage.setItem('nexus_agent_voiceout',_agentVoiceOut?'on':'off');
+    const btn=document.getElementById('agent-voiceout');
+    if(btn)btn.style.opacity=_agentVoiceOut?'.6':'.25';
+    if(!_agentVoiceOut&&window.speechSynthesis)window.speechSynthesis.cancel();
+  };
+
+  function agentSpeak(text){
+    if(!_agentVoiceOut||!window.speechSynthesis||!text)return;
+    // Windows SAPI synthesis is genuinely CPU-heavy per character — a long
+    // markdown-formatted answer (headers, "**bold**", bullet dashes, emoji)
+    // both reads badly aloud AND is more text than necessary to synthesize.
+    // Strip formatting and cap length so voice output stays cheap and quick.
+    const clean=text
+      .replace(/[*_#>`]/g,'')
+      .replace(/^[-•]\s*/gm,'')
+      .replace(/\p{Extended_Pictographic}/gu,'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .slice(0,350);
+    if(!clean)return;
+    try{
+      window.speechSynthesis.cancel(); // don't stack replies
+      const u=new SpeechSynthesisUtterance(clean);
+      u.lang='es-ES';u.rate=1.02;u.pitch=0.85; // slightly lower pitch — reads more "Jarvis", less "phone assistant"
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  window.agentToggleMic=function(){
+    if(!_agentSpeechSupported){
+      agentPrint('system','Reconocimiento de voz no disponible en este navegador/build.');
+      return;
+    }
+    if(_agentListening){ if(_agentRecognition)_agentRecognition.stop(); return; }
+    const rec=new _SR();
+    rec.lang='es-ES';rec.interimResults=true;rec.maxAlternatives=1;
+    const inp=document.getElementById('agent-input');
+    const mic=document.getElementById('agent-mic');
+    rec.onstart=function(){ _agentListening=true; if(mic){mic.style.opacity='1';mic.style.color='#E24B4A';} };
+    rec.onresult=function(e){
+      let txt='';
+      for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;
+      if(inp)inp.value=txt;
+      if(e.results[e.results.length-1].isFinal){
+        rec.stop();
+        if(txt.trim())agentAsk(txt.trim());
+        if(inp)inp.value='';
+      }
+    };
+    rec.onerror=function(e){
+      agentPrint('system','Error de voz: '+e.error);
+    };
+    rec.onend=function(){ _agentListening=false; if(mic){mic.style.opacity='.6';mic.style.color='';} _agentRecognition=null; };
+    _agentRecognition=rec;
+    rec.start();
+  };
+
+  async function agentAsk(question){
+    const statusEl=document.getElementById('agent-status');
+    if(statusEl)statusEl.textContent='pensando…';
+    agentPrint('user',question);
+    _ncAgentBusy=true;
+    try{
+      const extra=await agentGatherExtra();
+      const r=await fetch('http://localhost:19234/agent/ask',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({question,extra}),
+      });
+      const d=await r.json();
+      if(d.error==='no_api_key'){
+        agentPrint('system','No hay API key de Anthropic configurada. Ábrela en Settings (⚙) → Agent.');
+      }else if(d.error){
+        agentPrint('system','Error: '+(d.detail||d.error));
+      }else{
+        agentPrint('assistant',d.answer||'(sin respuesta)');
+        agentSpeak(d.answer);
+      }
+    }catch(e){
+      agentPrint('system','Error de conexión: '+e.message);
+    }finally{
+      _ncAgentBusy=false;
+      if(statusEl)statusEl.textContent='';
+    }
+  }
+
+  document.getElementById('agent-input').addEventListener('keydown',function(e){
+    e.stopPropagation();
+    if(e.key==='Enter'){
+      const v=this.value.trim();
+      if(!v)return;
+      this.value='';
+      agentAsk(v);
+    }
+  });
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(name==='agent'){
+      agentInit();
+      setTimeout(()=>{const inp=document.getElementById('agent-input');if(inp)inp.focus();},30);
+    }
+  };
+})();
+</script>
   </div>
 
   <div class="pnl" id="p-sing" style="flex-shrink:0;">
@@ -1176,10 +1587,34 @@ function showView(name){
   if(typeof onShowView==='function') onShowView(name);
 }
 
+// Requires Alt so these NEVER collide with a bare letter used as a game
+// control (Snake's WASD, Invaders' A/D) — previously G/T/S/I fired on plain
+// keypress, so e.g. Invaders (which doesn't capture 'S' or 'T' for anything)
+// let those letters bubble up and yank the view away mid-game.
 document.addEventListener('keydown',function(e){
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
-  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'radar'};
-  if(vm[e.code]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){showView(vm[e.code]);e.preventDefault();}
+  if(!e.altKey||e.ctrlKey||e.metaKey)return;
+  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyF:'explorer',KeyP:'proc',KeyA:'agent'};
+  if(vm[e.code]){showView(vm[e.code]);e.preventDefault();}
+});
+
+// F2 — jump to the agent and start listening, from anywhere in the app
+// (Jarvis-style "always one shortcut away", not tab-gated).
+//
+// This was originally Ctrl+Shift+V, but on Spanish/Latin-American keyboard
+// layouts that combo (or ones very close to it, depending on the physical
+// keyboard's dead-key mapping) is used to compose accented characters like
+// "ü" — Nexus was silently eating those keystrokes system-wide instead of
+// letting them reach whatever the user was actually typing. A dedicated
+// function key can never collide with text composition, so F2 is used
+// instead — it types nothing on its own in any layout.
+document.addEventListener('keydown',function(e){
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  if(e.code==='F2'){
+    e.preventDefault();
+    showView('agent');
+    setTimeout(()=>{ if(typeof agentToggleMic==='function')agentToggleMic(); },60);
+  }
 });
 
 function h2r(hex){return[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];}
@@ -1275,6 +1710,11 @@ function applyPalette(c){
     t.style.borderColor=c.lo;t.style.color=t.classList.contains('vp-active')?c.hi:c.mut;
     t.style.background=t.classList.contains('vp-active')?c.deep:'transparent';
   });
+  const expToolbar=document.getElementById('exp-toolbar');if(expToolbar)expToolbar.style.borderColor=c.lo;
+  const expDrives=document.getElementById('exp-drives');if(expDrives)expDrives.style.borderColor=c.lo;
+  const expUp=document.getElementById('exp-up');if(expUp){expUp.style.borderColor=c.lo;expUp.style.color=c.mut;}
+  const expPath=document.getElementById('exp-path');if(expPath)expPath.style.color=c.hi;
+  const agentInput=document.getElementById('agent-input');if(agentInput){agentInput.style.color=c.hi;agentInput.style.caretColor=c.hi;}
   const vstWrap=document.getElementById('view-tabs');
   if(vstWrap)vstWrap.style.borderBottom='1px solid '+c.lo;
 
@@ -2020,6 +2460,7 @@ function updateTerminator() {
 var _spAnimId=null,_spNodes=[],_spSyn=[],_spAngX=0,_spAngY=0,_spFrame=0,_spFlipOn=false;
 var _nlActs=null,_nlW=0,_nlH=0;
 let _ncCpuLoad=0.5,_ncRamLoad=0.5,_ncCores=[];
+let _ncAgentBusy=false; // true while a request is in flight to /agent/ask — spins the core up like Jarvis "thinking"
 
 function spRotX(x,y,z,a){return{x:x,y:y*Math.cos(a)-z*Math.sin(a),z:y*Math.sin(a)+z*Math.cos(a)};}
 function spRotY(x,y,z,a){return{x:x*Math.cos(a)+z*Math.sin(a),y:y,z:-x*Math.sin(a)+z*Math.cos(a)};}
@@ -2085,7 +2526,10 @@ function spDraw(cv){
   if(_coreMode === 0) {
     // ── JARVIS HOLOGRAPHIC SPHERE ────────────────────────────
     var R3=Math.min(W,H)*0.38, fov3=R3*4.2;
-    var ax=t*(0.06+_ncCpuLoad*0.14), ay=t*(0.10+_ncCpuLoad*0.09); // CPU drives spin speed
+    // Agent "thinking" spins the core well past its normal CPU-driven ceiling —
+    // a visibly different state, not just "CPU is a bit higher than usual".
+    var agentBoost=_ncAgentBusy?1:0;
+    var ax=t*(0.06+_ncCpuLoad*0.14+agentBoost*0.35), ay=t*(0.10+_ncCpuLoad*0.09+agentBoost*0.28);
     var cx3=W/2, cy3=H/2;
 
     // Helper: rotate + project a 3D point
@@ -2101,6 +2545,18 @@ function spDraw(cv){
     ctx.fillStyle=sGlow;ctx.beginPath();ctx.arc(cx3,cy3,R3*1.1,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(cx3,cy3,R3,0,Math.PI*2);
     ctx.strokeStyle=c.hi;ctx.globalAlpha=0.12;ctx.lineWidth=1;ctx.stroke();
+
+    // 1b. "Thinking" ring — a fast, expanding pulse in an accent color
+    // distinct from the sphere's own hue, so it reads as a state change and
+    // not just "CPU is somewhat busy".
+    if(_ncAgentBusy){
+      var thinkPulse=(t*3)%1;
+      ctx.beginPath();ctx.arc(cx3,cy3,R3*(1.02+thinkPulse*0.5),0,Math.PI*2);
+      ctx.strokeStyle='#38BDF8';ctx.globalAlpha=(1-thinkPulse)*0.55;ctx.lineWidth=2;ctx.stroke();
+      ctx.beginPath();ctx.arc(cx3,cy3,R3*1.02,0,Math.PI*2);
+      ctx.strokeStyle='#38BDF8';ctx.globalAlpha=0.5+Math.sin(t*8)*0.3;ctx.lineWidth=1.2;ctx.stroke();
+      ctx.globalAlpha=1;
+    }
 
     // 2. Latitude rings (structural skeleton)
     [-60,-30,0,30,60].forEach(function(latDeg){
@@ -2454,6 +2910,8 @@ function openSettings() {
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
     var p=document.getElementById('cfg-os-pass');if(p)p.value='';
+    var ast=document.getElementById('cfg-agent-status');if(ast)ast.textContent=c.hasAnthropicKey?'✓ key saved':'no key';
+    var ap=document.getElementById('cfg-agent-key');if(ap)ap.value='';
   }).catch(function(){});
   m.style.display = 'flex';
 }
@@ -2476,9 +2934,11 @@ function applySettings() {
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
-  if(osUser||osPass){
-    fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({openskyUser:osUser,openskyPass:osPass})}).catch(function(){});
+  var agentKey=(document.getElementById('cfg-agent-key')?.value||'').trim();
+  if(osUser||osPass||agentKey){
+    fetch('/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({openskyUser:osUser,openskyPass:osPass,anthropicApiKey:agentKey})}).catch(function(){});
     var _osp=document.getElementById('cfg-os-pass');if(_osp)_osp.value='';
+    var _ak=document.getElementById('cfg-agent-key');if(_ak)_ak.value='';
   }
   closeSettings();
   renderEventPins();
@@ -2846,6 +3306,11 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <div style="font-size:10px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
     </div>
     <div class="cfg-row">
+      <label>Agent — Anthropic API Key <span id="cfg-agent-status" style="font-size:11px;opacity:.45;margin-left:6px;"></span></label>
+      <input type="password" id="cfg-agent-key" placeholder="Leave blank to keep existing" autocomplete="new-password">
+      <div style="font-size:10px;opacity:.4;margin-top:4px">Nivel 0 — solo consulta, sin ejecución. Get a key at console.anthropic.com</div>
+    </div>
+    <div class="cfg-row">
       <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
       <div class="range-row">
         <span style="font-size:11px;opacity:.6;">M3</span>
@@ -2900,6 +3365,119 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
   function _invUp(){if(_ic){_simKey(_ic,'keyup');_ic=null;}}
   document.addEventListener('pointerup',_invUp,true);
   document.addEventListener('pointercancel',_invUp,true);
+})();
+</script>
+
+<!-- APP LAUNCHER — Ctrl+Space overlay, Electron-only (mirrors Spotlight/Win Search) -->
+<div id="launcher-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);align-items:flex-start;justify-content:center;padding-top:14vh;">
+  <div id="launcher-box" style="width:520px;max-width:90vw;border-radius:8px;border:1px solid;overflow:hidden;display:flex;flex-direction:column;font-family:monospace;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <input id="launcher-input" type="text" placeholder="Buscar aplicación…" autocomplete="off" spellcheck="false"
+      style="border:none;outline:none;padding:14px 16px;font-size:16px;font-family:monospace;background:transparent;border-bottom:1px solid;">
+    <div id="launcher-results" style="overflow-y:auto;max-height:44vh;"></div>
+    <div id="launcher-hint" style="padding:6px 16px;font-size:10px;opacity:.5;border-top:.5px solid;">↑↓ navegar · Enter abrir · Esc cerrar</div>
+  </div>
+</div>
+<script>
+(function(){
+  if(!window.nexusApps) return; // WE/browser build — launcher stays hidden and inert
+
+  let _apps=[], _filtered=[], _selIdx=0, _open=false;
+
+  function _paletteColors(){
+    const c=window._pal||{};
+    return { deep:c.deep||'#0a1410', lo:c.lo||'#1D9E75', hi:c.hi||'#5DCAA5', mut:c.mut||'#8b949e', mid:c.mid||'#1D9E75' };
+  }
+
+  function paint(){
+    const c=_paletteColors();
+    const box=document.getElementById('launcher-box');
+    if(box){box.style.background=c.deep;box.style.borderColor=c.lo;}
+    const inp=document.getElementById('launcher-input');
+    if(inp){inp.style.color=c.hi;inp.style.borderBottomColor=c.lo;}
+    const hint=document.getElementById('launcher-hint');
+    if(hint){hint.style.color=c.mut;hint.style.borderTopColor=c.lo;}
+  }
+
+  function render(){
+    const c=_paletteColors();
+    const el=document.getElementById('launcher-results');
+    if(!el)return;
+    if(!_filtered.length){
+      const inp=document.getElementById('launcher-input');
+      const hasQuery=inp&&inp.value.trim().length>0;
+      el.innerHTML=hasQuery?`<div style="padding:14px;opacity:.5;font-size:12px;color:${c.mut}">sin resultados</div>`:'';
+      return;
+    }
+    el.innerHTML=_filtered.slice(0,50).map((a,i)=>`
+      <div class="launcher-row" data-idx="${i}" style="padding:8px 16px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:10px;${i===_selIdx?`background:${c.lo}33;color:${c.hi};`:`color:${c.mut};`}">
+        <span style="opacity:.7">▸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.name}</span>
+      </div>`).join('');
+    el.querySelectorAll('.launcher-row').forEach(row=>{
+      row.addEventListener('mouseenter',()=>{ _selIdx=parseInt(row.dataset.idx); render(); });
+      row.addEventListener('click',()=>{ _selIdx=parseInt(row.dataset.idx); launchSelected(); });
+    });
+  }
+
+  function filter(q){
+    const term=q.trim().toLowerCase();
+    // Empty query shows nothing — the launcher opens on just the search box,
+    // not a full app list, so it stays a quick "type to find" tool rather
+    // than a browsable directory.
+    _filtered = term ? _apps.filter(a=>a.name.toLowerCase().includes(term)) : [];
+    _selIdx=0;
+    render();
+  }
+
+  function launchSelected(){
+    const a=_filtered[_selIdx];
+    if(!a)return;
+    window.nexusApps.launch(a.target);
+    closeLauncher();
+  }
+
+  async function openLauncher(){
+    _open=true;
+    const ov=document.getElementById('launcher-overlay');
+    if(ov)ov.style.display='flex';
+    paint();
+    const inp=document.getElementById('launcher-input');
+    if(inp){inp.value='';inp.focus();}
+    filter(''); // empty results — box opens with just the search input
+    // Apps load silently in the background (cached 15 min after first
+    // scan), so typing works the instant the list resolves instead of
+    // forcing a visible "loading" state on every open.
+    _apps = await window.nexusApps.list();
+  }
+
+  function closeLauncher(){
+    _open=false;
+    const ov=document.getElementById('launcher-overlay');
+    if(ov)ov.style.display='none';
+  }
+
+  window.nexusApps.onToggle(()=>{ _open ? closeLauncher() : openLauncher(); });
+
+  document.getElementById('launcher-input').addEventListener('input',e=>filter(e.target.value));
+  document.getElementById('launcher-input').addEventListener('keydown',e=>{
+    // stopPropagation is what keeps this Escape from also reaching the
+    // document-level exitKiosk listener below — closing the launcher must
+    // NOT also drop kiosk mode as a side effect.
+    if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closeLauncher(); }
+    else if(e.key==='ArrowDown'){ e.preventDefault(); _selIdx=Math.min(_selIdx+1,_filtered.length-1); render(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); _selIdx=Math.max(_selIdx-1,0); render(); }
+    else if(e.key==='Enter'){ e.preventDefault(); launchSelected(); }
+  });
+  document.getElementById('launcher-overlay').addEventListener('click',e=>{
+    if(e.target.id==='launcher-overlay') closeLauncher();
+  });
+
+  // Escape exits kiosk/fullscreen — but only when it reaches here, i.e. the
+  // launcher input didn't already stopPropagation() to handle it itself.
+  if(window.nexusShell&&window.nexusShell.exitKiosk){
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape') window.nexusShell.exitKiosk();
+    });
+  }
 })();
 </script>
 </body>
