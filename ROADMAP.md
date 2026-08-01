@@ -141,6 +141,11 @@ traduzca en pérdida de datos real.
 - ✅ Estabilidad: cache de 2s en sysmon (procesos/ventanas) y de 20s en stats
   lentos (GPU/disco/temp) — eliminó ráfagas de hasta 20 procesos powershell.exe
   concurrentes
+- ✅ Fix: discos que desaparecían del panel (contención WMI entre stats
+  lentos ejecutados en paralelo — ahora corren secuencial en background)
+- ✅ Fix: proyección del mapa — el paquete del mapa usa Robinson, no
+  equirectangular; `ll2xy()` reescrito con la tabla de interpolación
+  estándar, verificado con 8 puntos de referencia en todo el mapa
 
 ## Qué falta
 
@@ -164,22 +169,21 @@ traduzca en pérdida de datos real.
 - Los "requisitos técnicos antes de Nivel 2+" del roadmap (log de auditoría,
   lista de rutas prohibidas, modo deshacer) — ninguno existe todavía
 
-**Sin decidir:** si `master`/WE se sigue manteniendo en paralelo o se
-congela como referencia — el shell es el uso principal desde hace varias
-sesiones y master no ha recibido nada nuevo desde el merge del bug del
-radar.
+**Resuelto:** `master`/WE ya no se congela ni se mergea completo —
+cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
+puras) cruza a master; lo atado a teclado real/APIs de Electron (Agent,
+Explorer, Proc, atajos) se queda solo en `electron-shell`. El tab AGENT ya
+está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
-## Próximos pasos sugeridos (en orden)
+## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-1. **Decidir el destino de `master`/WE** antes de seguir acumulando drift
-   entre ramas
-2. **Conexiones de red por proceso** — cierra el Pilar 1, reutiliza el mismo
-   patrón de `sysmon.js` (Win32 o `netstat`/`Get-NetTCPConnection` vía
-   PowerShell con cache, aprendiendo del problema de ráfagas que ya se
-   resolvió aquí)
-3. **Agente Nivel 1** — el salto natural desde Nivel 0: dejar que el agente
-   dispare `nexusApps.launch()` / `nexusFS.openPath()`, mismo alcance que ya
-   tienen esos módulos vía clic humano, ahora vía lenguaje natural
+- **Actividad de archivos reciente** — cierra el Pilar 1 por completo
+- **Agente Nivel 1** — el salto natural desde Nivel 0: dejar que el agente
+  dispare `nexusApps.launch()` / `nexusFS.openPath()`, mismo alcance que ya
+  tienen esos módulos vía clic humano, ahora vía lenguaje natural
+- **Radar por WiFi** (§3b) — ya investigado y decidido, plan técnico listo
+- **Requisitos del Agente Nivel 2** — log de auditoría + lista de rutas
+  prohibidas, antes de dar cualquier capacidad de ejecutar comandos
 
 ---
 *Documento vivo — actualizar conforme se decida qué construir en cada
