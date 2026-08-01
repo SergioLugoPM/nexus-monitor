@@ -79,6 +79,26 @@ function runPS(script, timeout) {
 const CACHE_TTL = 2000;
 let _winCache = null, _winCacheTs = 0, _winInFlight = null;
 let _procCache = null, _procCacheTs = 0, _procInFlight = null;
+let _connCache = null, _connCacheTs = 0, _connInFlight = null;
+let _rawProcCache = null, _rawProcCacheTs = 0, _rawProcInFlight = null;
+
+// si.processes() is the one Node-native (no PowerShell) source we have for
+// PID → name — shared between listProcesses() (top-CPU view) and
+// listConnections() (PID resolution for netstat output), so a connections
+// poll never triggers its own separate process enumeration.
+async function getRawProcessList() {
+  const now = Date.now();
+  if (_rawProcCache && now - _rawProcCacheTs < CACHE_TTL) return _rawProcCache;
+  if (!_rawProcInFlight) {
+    _rawProcInFlight = si.processes().then(data => {
+      _rawProcCache = data.list || [];
+      _rawProcCacheTs = Date.now();
+      _rawProcInFlight = null;
+      return _rawProcCache;
+    });
+  }
+  return _rawProcInFlight;
+}
 
 async function listWindows() {
   const now = Date.now();
@@ -106,8 +126,8 @@ async function listProcesses() {
   if (_procCache && now - _procCacheTs < CACHE_TTL) return _procCache;
   if (!_procInFlight) {
     _procInFlight = (async () => {
-      const data = await si.processes();
-      const result = (data.list || [])
+      const list = await getRawProcessList();
+      const result = list
         .filter(p => (p.cpu || 0) > 0 || (p.mem || 0) > 0.1)
         .sort((a, b) => (b.cpu || 0) - (a.cpu || 0))
         .slice(0, 80)
@@ -125,9 +145,65 @@ async function listProcesses() {
   return _procInFlight;
 }
 
+// Established outbound TCP connections, joined to process names.
+//
+// This originally used the PowerShell cmdlet Get-NetTCPConnection, which
+// turned out to be broken on this machine (a WMI/CIM error — "Clase no
+// válida" — unrelated to anything in this code, but it meant the panel
+// silently returned zero connections forever). `netstat -ano` is a plain
+// Win32 console command with no WMI/CIM dependency — same tool server.js
+// already relies on elsewhere for network stats — so it doesn't share that
+// failure mode, and it's not even a PowerShell spawn, just a direct
+// execFile.
+function parseNetstat(stdout) {
+  const rows = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const m = line.trim().match(/^TCP\s+(\S+)\s+(\S+)\s+ESTABLISHED\s+(\d+)$/i);
+    if (!m) continue;
+    const [, local, remote, pidStr] = m;
+    const localIdx = local.lastIndexOf(':');
+    const remoteIdx = remote.lastIndexOf(':');
+    if (localIdx === -1 || remoteIdx === -1) continue;
+    const remoteAddr = remote.slice(0, remoteIdx);
+    const remotePort = parseInt(remote.slice(remoteIdx + 1), 10);
+    if (['127.0.0.1', '0.0.0.0', '::1', '::'].includes(remoteAddr)) continue;
+    rows.push({
+      pid: parseInt(pidStr, 10),
+      remoteAddr,
+      remotePort,
+      localPort: parseInt(local.slice(localIdx + 1), 10),
+    });
+  }
+  return rows;
+}
+
+async function listConnections() {
+  const now = Date.now();
+  if (_connCache && now - _connCacheTs < CACHE_TTL) return _connCache;
+  if (!_connInFlight) {
+    _connInFlight = (async () => {
+      const [netstatOut, procList] = await Promise.all([
+        new Promise(resolve => {
+          execFile('netstat.exe', ['-ano', '-p', 'TCP'], { timeout: 6000, windowsHide: true }, (err, stdout) => resolve(err ? '' : stdout));
+        }),
+        getRawProcessList(),
+      ]);
+      const nameByPid = new Map(procList.map(p => [p.pid, p.name]));
+      const result = parseNetstat(netstatOut)
+        .map(c => ({ ...c, processName: nameByPid.get(c.pid) || '?' }))
+        .sort((a, b) => a.processName.localeCompare(b.processName))
+        .slice(0, 100);
+      _connCache = result; _connCacheTs = Date.now(); _connInFlight = null;
+      return result;
+    })();
+  }
+  return _connInFlight;
+}
+
 function registerSysmonHandlers() {
   ipcMain.handle('sysmon:processes', () => listProcesses());
   ipcMain.handle('sysmon:windows', () => listWindows());
+  ipcMain.handle('sysmon:connections', () => listConnections());
 
   // Brings another app's window to the foreground — AppActivate is the
   // simplest reliable cross-process way to do this without holding a raw

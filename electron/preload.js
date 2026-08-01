@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('nexusApps', {
 contextBridge.exposeInMainWorld('nexusSys', {
   listProcesses: () => ipcRenderer.invoke('sysmon:processes'),
   listWindows: () => ipcRenderer.invoke('sysmon:windows'),
+  listConnections: () => ipcRenderer.invoke('sysmon:connections'),
   focusWindow: (pid) => ipcRenderer.invoke('sysmon:focusWindow', pid),
   killProcess: (pid) => ipcRenderer.invoke('sysmon:killProcess', pid),
 });

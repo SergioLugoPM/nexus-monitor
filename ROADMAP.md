@@ -129,8 +129,10 @@ traduzca en pérdida de datos real.
 - ✅ Lanzador de apps estilo Spotlight (`Ctrl+Space`)
 - ✅ `/exec` seguro (whitelist + sin inyección de shell)
 - ✅ Radar de eventos sin fugas de memoria/acumulación
-- ✅ **Pilar 1 (parcial)**: panel de procesos + ventanas (tab PROC) — top CPU,
-  memoria, foco de ventana, terminar proceso con confirmación
+- ✅ **Pilar 1 (casi completo)**: panel de procesos + ventanas + conexiones de
+  red (tab PROC) — top CPU, memoria, foco de ventana, terminar proceso con
+  confirmación, y qué proceso habla con qué IP:puerto (vía `netstat -ano`,
+  no WMI — `Get-NetTCPConnection` resultó estar roto en esta máquina)
 - ✅ **Agente IA — Nivel 0** (consulta): responde sobre el estado del
   dashboard vía Claude, con voz (entrada y salida), reacciona visualmente en
   el Neural Core mientras piensa. Cero capacidad de ejecutar nada
@@ -143,7 +145,6 @@ traduzca en pérdida de datos real.
 ## Qué falta
 
 **Pilar 1 (sistema local) — falta:**
-- Conexiones de red activas por proceso (qué app habla con qué IP/puerto)
 - Actividad de archivos reciente (qué se abrió/modificó/creó)
 
 **Pilar 2 (OSINT global) — sin tocar desde el roadmap original:**

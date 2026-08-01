@@ -1168,12 +1168,19 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
           </div>
           <div id="proc-windows" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
-        <div style="flex:1.5;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">PROCESSES — TOP CPU</span>
             <span id="proc-cpu-count" style="font-size:10px;opacity:.5"></span>
           </div>
           <div id="proc-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">NETWORK — WHO'S TALKING</span>
+            <span id="proc-conn-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="proc-connections" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
       </div>
     </div>
@@ -1183,10 +1190,11 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   let _procTimer=null;
 
   function procRenderUnavailable(){
-    const w=document.getElementById('proc-windows'),p=document.getElementById('proc-list');
+    const w=document.getElementById('proc-windows'),p=document.getElementById('proc-list'),c=document.getElementById('proc-connections');
     const msg='<div style="padding:16px;opacity:.5">Solo disponible en la app Electron (no en el modo wallpaper).</div>';
     if(w)w.innerHTML=msg;
     if(p)p.innerHTML='';
+    if(c)c.innerHTML='';
   }
 
   async function procRefreshWindows(){
@@ -1228,6 +1236,23 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     }).join('');
   }
 
+  async function procRefreshConnections(){
+    if(!window.nexusSys)return;
+    const el=document.getElementById('proc-connections');
+    const cnt=document.getElementById('proc-conn-count');
+    const conns=await window.nexusSys.listConnections();
+    if(cnt)cnt.textContent=conns.length;
+    if(!el)return;
+    if(!conns.length){el.innerHTML='<div style="padding:10px;opacity:.5">(sin conexiones activas)</div>';return;}
+    el.innerHTML=conns.map(c=>{
+      const remote=c.remoteAddr+':'+c.remotePort;
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px" title="PID ${c.pid} · puerto local ${c.localPort}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.processName}</span>
+        <span style="opacity:.6;font-size:10px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:130px;white-space:nowrap">${remote}</span>
+      </div>`;
+    }).join('');
+  }
+
   window.procFocusWindow=function(pid){
     if(window.nexusSys)window.nexusSys.focusWindow(pid);
   };
@@ -1245,8 +1270,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     if(_procTimer){clearInterval(_procTimer);_procTimer=null;}
     if(name==='proc'){
       if(!window.nexusSys){ procRenderUnavailable(); return; }
-      procRefreshWindows();procRefreshList();
-      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();},2500);
+      procRefreshWindows();procRefreshList();procRefreshConnections();
+      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();procRefreshConnections();},2500);
     }
   };
 
