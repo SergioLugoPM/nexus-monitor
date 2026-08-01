@@ -256,26 +256,51 @@ function isRealDisk(d) {
 // concurrent during normal use. They're refreshed on their own slow 20s
 // cache instead; only currentLoad/mem (fast, no PowerShell) stay on the
 // tight cycle the UI actually needs for a live-feeling CPU/RAM readout.
+// Running these 5 concurrently via Promise.all (the original version of this
+// fix) turned out to just trade one problem for another: they all hit the
+// same WMI/CIM subsystem at once, contend with each other, and several
+// started losing the race and timing out intermittently — cpuTemp nearly
+// always, fsSize/osInfo/graphics/processes often. Since the empty/default
+// fallback value then gets cached for the full 20s, that's what was making
+// disks disappear from the dashboard for stretches at a time. Sequential
+// execution gives each call the WMI subsystem to itself, and since this
+// whole thing is fire-and-forget background refresh (see below — it never
+// blocks a /stats response), there's no cost to taking a few extra seconds.
 const SLOW_STATS_TTL = 20000;
+const SLOW_STATS_FALLBACK = { gpuData: {controllers:[]}, disk: [], osInfo: {hostname:'unknown'}, processes: {all:0}, tempData: {main:null} };
 let _slowStatsCache = null, _slowStatsTs = 0, _slowStatsInFlight = null;
+
+async function refreshSlowStatsSequential() {
+  const gpuData   = await withTimeout(si.graphics(),       8000, {controllers:[]},     'graphics');
+  const disk      = await withTimeout(si.fsSize(),         8000, [],                   'fsSize');
+  const osInfo    = await withTimeout(si.osInfo(),         8000, {hostname:'unknown'}, 'osInfo');
+  const processes = await withTimeout(si.processes(),      8000, {all:0},              'processes');
+  const tempData  = await withTimeout(si.cpuTemperature(), 6000, {main:null},          'cpuTemp');
+  return { gpuData, disk, osInfo, processes, tempData };
+}
+
+// Stale-while-revalidate: /stats must never block on this. If a cache
+// exists (even an expired one), it's returned immediately; a background
+// refresh is kicked off without being awaited whenever the cache is stale.
+// Only the very first call, before anything has ever been cached, has to
+// wait for real data.
 function getSlowStats() {
   const now = Date.now();
-  if (_slowStatsCache && now - _slowStatsTs < SLOW_STATS_TTL) return Promise.resolve(_slowStatsCache);
-  if (!_slowStatsInFlight) {
-    _slowStatsInFlight = Promise.all([
-      withTimeout(si.graphics(),     6000, {controllers:[]},            'graphics'),
-      withTimeout(si.fsSize(),       5000, [],                          'fsSize'),
-      withTimeout(si.osInfo(),       5000, {hostname:'unknown'},        'osInfo'),
-      withTimeout(si.processes(),    6000, {all:0},                     'processes'),
-      withTimeout(si.cpuTemperature(), 4000, {main: null}, 'cpuTemp'),
-    ]).then(([gpuData, disk, osInfo, processes, tempData]) => {
-      _slowStatsCache = { gpuData, disk, osInfo, processes, tempData };
+  const isStale = !_slowStatsCache || now - _slowStatsTs >= SLOW_STATS_TTL;
+  if (isStale && !_slowStatsInFlight) {
+    _slowStatsInFlight = refreshSlowStatsSequential().then(result => {
+      _slowStatsCache = result;
       _slowStatsTs = Date.now();
       _slowStatsInFlight = null;
-      return _slowStatsCache;
+      return result;
+    }).catch(e => {
+      nxLog('ERROR refreshing slow stats: ' + e.message, 'error');
+      _slowStatsInFlight = null;
+      return _slowStatsCache || SLOW_STATS_FALLBACK;
     });
   }
-  return _slowStatsInFlight;
+  if (_slowStatsCache) return Promise.resolve(_slowStatsCache);
+  return _slowStatsInFlight; // cold start only — nothing cached yet
 }
 
 async function fetchStats() {
