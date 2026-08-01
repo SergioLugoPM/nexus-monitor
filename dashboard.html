@@ -316,7 +316,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
       <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" title="Alt+P" style="display:none">⌥P&nbsp;PROC</button>
-      <button class="vtab" data-view="agent" onclick="showView('agent')" title="Alt+A">⌥A&nbsp;AGENT</button>
+      <button class="vtab" data-view="agent" id="vtab-agent" onclick="showView('agent')" title="Alt+A" style="display:none">⌥A&nbsp;AGENT</button>
     </div>
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
@@ -1455,6 +1455,18 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       setTimeout(()=>{const inp=document.getElementById('agent-input');if(inp)inp.focus();},30);
     }
   };
+
+  // The AGENT tab needs real keyboard input to type a question — WE never
+  // forwards keyboard events to background wallpapers (same reason Snake/
+  // Invaders need swipe/tap-zone controls instead), so the chat is unusable
+  // there even though nothing would crash if the tab stayed visible. Gate
+  // on window.nexusShell (only set by the real Electron shell's preload,
+  // not WE and not plain-browser testing) rather than window.nexusSys —
+  // the agent's own text-based Q&A has no Electron-only dependency besides
+  // the keyboard/mic environment, so this checks the actual constraint.
+  function _showAgentTab(){ const tab=document.getElementById('vtab-agent'); if(tab&&window.nexusShell)tab.style.display=''; }
+  document.addEventListener('DOMContentLoaded',_showAgentTab);
+  if(document.readyState!=='loading')_showAgentTab();
 })();
 </script>
   </div>
