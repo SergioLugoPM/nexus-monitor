@@ -136,6 +136,17 @@ traduzca en pérdida de datos real.
 - ✅ **Agente IA — Nivel 0** (consulta): responde sobre el estado del
   dashboard vía Claude, con voz (entrada y salida), reacciona visualmente en
   el Neural Core mientras piensa. Cero capacidad de ejecutar nada
+- ✅ **Agente IA — Nivel 1** (acciones seguras): tool_use de Claude con dos
+  herramientas — `launch_app` (busca coincidencia parcial contra apps
+  instaladas y lanza vía `nexusApps.launch()`) y `open_path` (abre
+  archivo/carpeta con la app default vía `nexusFS.openPath()`). Round-trip
+  multi-turno server↔cliente (el servidor no ejecuta nada él mismo, solo
+  decide qué herramienta llamar; el cliente Electron ejecuta y devuelve el
+  resultado). Verificado en vivo: apertura real de 7-Zip File Manager
+  confirmada por proceso corriendo; falla honesta reportada al pedir
+  "calculadora"/"bloc de notas" porque son apps UWP sin acceso directo desde
+  el escaneo de accesos directos del launcher (limitación preexistente de
+  `appsapi.js`, no del agente)
 - ✅ Atajos de teclado sin colisión con juegos ni con composición de acentos
   (Alt+letra para vistas, F2 para voz, Ctrl+Shift+N para refoco)
 - ✅ Estabilidad: cache de 2s en sysmon (procesos/ventanas) y de 20s en stats
@@ -162,8 +173,7 @@ traduzca en pérdida de datos real.
 - Radar por WiFi (wifi-densepose, modo sin hardware) — investigado y
   decidido, plan técnico documentado arriba (§3b), pendiente de implementar
 
-**Agente IA — falta todo lo posterior a Nivel 0:**
-- Nivel 1 (acciones seguras: abrir apps/archivos desde el chat)
+**Agente IA — falta:**
 - Nivel 2 (comandos con confirmación explícita)
 - Nivel 3 (control total autónomo dentro de límites configurados)
 - Los "requisitos técnicos antes de Nivel 2+" del roadmap (log de auditoría,
@@ -178,9 +188,6 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
 - **Actividad de archivos reciente** — cierra el Pilar 1 por completo
-- **Agente Nivel 1** — el salto natural desde Nivel 0: dejar que el agente
-  dispare `nexusApps.launch()` / `nexusFS.openPath()`, mismo alcance que ya
-  tienen esos módulos vía clic humano, ahora vía lenguaje natural
 - **Radar por WiFi** (§3b) — ya investigado y decidido, plan técnico listo
 - **Requisitos del Agente Nivel 2** — log de auditoría + lista de rutas
   prohibidas, antes de dar cualquier capacidad de ejecutar comandos

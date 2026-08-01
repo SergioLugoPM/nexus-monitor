@@ -1207,35 +1207,79 @@ app.get('/globalstats', async (req, res) => {
   } catch(e) { nxLog('ERROR /globalstats: '+e.message,'error'); res.status(500).json({error:e.message}); }
 });
 
-// ── AGENT (Nivel 0 — solo lectura, sin ejecución) ────────────────────────────
-// Responde preguntas usando un snapshot del estado actual del dashboard.
-// No tiene acceso a ninguna herramienta ni puede llamar de vuelta a la app —
-// es texto entra, texto sale. Ver ROADMAP.md para la escalera de niveles de
-// confianza; esto es deliberadamente el escalón más bajo.
+// ── AGENT (Nivel 1 — consulta + acciones seguras) ────────────────────────────
+// Nivel 0 era texto entra, texto sale, cero ejecución. Nivel 1 añade dos
+// herramientas — abrir una app instalada, abrir un archivo/carpeta con la
+// app default — mismo alcance que YA tienen el launcher (Ctrl+Space) y el
+// explorador (doble clic): nada que un clic humano no pudiera hacer ya.
+// Ver ROADMAP.md para la escalera completa de niveles de confianza.
+//
+// server.js NUNCA ejecuta las herramientas — no tiene acceso a
+// window.nexusApps/nexusFS, eso vive en el renderer vía preload. Cuando
+// Claude pide una tool_use, este endpoint se la devuelve tal cual al
+// frontend; el frontend la ejecuta (o rechaza, si no está en el shell
+// Electron real) y vuelve a llamar aquí con el resultado para que la
+// conversación continúe.
+const AGENT_TOOLS = [
+  {
+    name: 'launch_app',
+    description: 'Abre una aplicación instalada en Windows por nombre aproximado (ej. "chrome", "calculadora", "spotify"). Busca coincidencia parcial contra las apps instaladas.',
+    input_schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Nombre o parte del nombre de la app a abrir' } },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'open_path',
+    description: 'Abre un archivo o carpeta con la aplicación default del sistema, dada una ruta absoluta de Windows (ej. "C:\\\\Users\\\\serch\\\\Documents").',
+    input_schema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'Ruta absoluta del archivo o carpeta' } },
+      required: ['path'],
+    },
+  },
+];
+
+const AGENT_SYSTEM = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
+  + 'Respondes usando los datos en <context> cuando la pregunta es sobre el estado del sistema. '
+  + 'Tienes dos herramientas: launch_app (abrir una app instalada) y open_path (abrir un archivo o '
+  + 'carpeta). Úsalas solo cuando el usuario pida explícitamente abrir algo — no las uses para '
+  + 'responder preguntas informativas. No tienes ninguna otra capacidad: no puedes ejecutar comandos, '
+  + 'borrar ni mover nada, ni cambiar configuración. Si piden algo fuera de estas dos acciones, aclara '
+  + 'que en este nivel solo puedes abrir apps y archivos. Responde en español, conciso, sin relleno.';
+
 app.post('/agent/ask', async (req, res) => {
-  const question = ((req.body||{}).question||'').trim().slice(0, 500);
-  if (!question) return res.json({ error: 'empty_question' });
   const apiKey = _cfg.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';
   if (!apiKey) return res.json({ error: 'no_api_key' });
 
-  const events = (_eventsCache?.events || []).slice(0, 40).map(e => ({
-    type: e.type, label: e.label, mag: e.mag, place: e.place, title: e.title
-  }));
-  const extra = (req.body||{}).extra; // renderer-supplied: top processes/windows when running in the Electron shell
-  const snapshot = {
-    now: new Date().toISOString(),
-    stats: _statsCache ? { cpuPct: _statsCache.cpu?.load, ramUsedGb: _statsCache.mem?.used, ramTotalGb: _statsCache.mem?.total, gpuPct: _statsCache.gpu?.load, uptimeSec: _statsCache.uptime } : null,
-    weather: _weatherCache,
-    crypto: _cryptoCache,
-    seismicEnergyJ: _eventsCache?.seismicEnergyJ,
-    events,
-    ...(extra && typeof extra === 'object' ? extra : {}),
-  };
+  const body = req.body || {};
+  let messages;
 
-  const system = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
-    + 'Respondes SOLO con base en los datos en <context>. No tienes capacidad de ejecutar comandos, '
-    + 'abrir archivos ni tomar ninguna acción — si piden que hagas algo más que responder, aclara que '
-    + 'en este nivel solo puedes consultar información. Responde en español, conciso, sin relleno.';
+  if (body.history && body.toolResult) {
+    // Continuing after the frontend executed a tool_use we handed back.
+    messages = [...body.history, {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: body.toolResult.tool_use_id, content: body.toolResult.content }],
+    }];
+  } else {
+    const question = (body.question || '').trim().slice(0, 500);
+    if (!question) return res.json({ error: 'empty_question' });
+    const events = (_eventsCache?.events || []).slice(0, 40).map(e => ({
+      type: e.type, label: e.label, mag: e.mag, place: e.place, title: e.title
+    }));
+    const extra = body.extra; // renderer-supplied: top processes/windows when running in the Electron shell
+    const snapshot = {
+      now: new Date().toISOString(),
+      stats: _statsCache ? { cpuPct: _statsCache.cpu?.load, ramUsedGb: _statsCache.mem?.used, ramTotalGb: _statsCache.mem?.total, gpuPct: _statsCache.gpu?.load, uptimeSec: _statsCache.uptime } : null,
+      weather: _weatherCache,
+      crypto: _cryptoCache,
+      seismicEnergyJ: _eventsCache?.seismicEnergyJ,
+      events,
+      ...(extra && typeof extra === 'object' ? extra : {}),
+    };
+    messages = [{ role: 'user', content: '<context>' + JSON.stringify(snapshot) + '</context>\n\nPregunta: ' + question }];
+  }
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1244,8 +1288,9 @@ app.post('/agent/ask', async (req, res) => {
       body: JSON.stringify({
         model: 'claude-haiku-4-5',
         max_tokens: 600,
-        system,
-        messages: [{ role: 'user', content: '<context>' + JSON.stringify(snapshot) + '</context>\n\nPregunta: ' + question }],
+        system: AGENT_SYSTEM,
+        tools: AGENT_TOOLS,
+        messages,
       }),
       signal: AbortSignal.timeout(20000),
     });
@@ -1255,8 +1300,14 @@ app.post('/agent/ask', async (req, res) => {
       return res.json({ error: 'api_error', detail: 'HTTP ' + r.status + (r.status===401?' (API key inválida)':'') });
     }
     const d = await r.json();
-    const answer = (d.content||[]).map(c=>c.text||'').join('').trim();
-    nxLog('Agent: ' + question.slice(0,60), 'info');
+    const toolUse = (d.content || []).find(c => c.type === 'tool_use');
+    if (toolUse) {
+      nxLog('Agent tool_use: ' + toolUse.name + ' ' + JSON.stringify(toolUse.input), 'info');
+      const newHistory = [...messages, { role: 'assistant', content: d.content }];
+      return res.json({ toolCall: { id: toolUse.id, name: toolUse.name, input: toolUse.input }, history: newHistory });
+    }
+    const answer = (d.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
+    nxLog('Agent: ' + (body.question || '(continuación tras tool_result)').slice(0,60), 'info');
     res.json({ answer });
   } catch(e) {
     nxLog('ERROR /agent/ask: ' + e.message, 'error');

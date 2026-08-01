@@ -1331,7 +1331,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     const voBtn=document.getElementById('agent-voiceout');
     if(voBtn)voBtn.style.opacity=_agentVoiceOut?'.6':'.25';
     const voiceNote=_agentSpeechSupported?', y voz — botón mic o F2':'';
-    agentPrint('system','NEXUS AGENT — nivel 0 (solo consulta). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'. No puede ejecutar nada.');
+    const actionNote=window.nexusApps?' Puede abrir apps y archivos si se lo pides.':'';
+    agentPrint('system','NEXUS AGENT — nivel 1 (consulta + acciones seguras). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'.'+actionNote+' No puede ejecutar comandos ni borrar/mover nada.');
   }
 
   async function agentGatherExtra(){
@@ -1410,6 +1411,36 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     rec.start();
   };
 
+  // Nivel 1 — mismo alcance que ya tienen el launcher (Ctrl+Space) y el
+  // explorador (doble clic en un archivo): abrir una app o un archivo/
+  // carpeta. Nada que un clic humano no pudiera hacer ya, así que no pide
+  // confirmación — ver ROADMAP.md, eso empieza en Nivel 2.
+  async function agentExecuteTool(toolCall){
+    if(!window.nexusApps||!window.nexusFS){
+      return 'No disponible fuera del shell Electron.';
+    }
+    try{
+      if(toolCall.name==='launch_app'){
+        const wanted=(toolCall.input.name||'').toLowerCase().trim();
+        const apps=await window.nexusApps.list();
+        const match=apps.find(a=>a.name.toLowerCase().includes(wanted))
+                 || apps.find(a=>wanted.includes(a.name.toLowerCase()));
+        if(!match)return 'No se encontró una app llamada "'+toolCall.input.name+'".';
+        await window.nexusApps.launch(match.target);
+        agentPrint('system','▸ abriendo '+match.name);
+        return 'Abierta: '+match.name;
+      }
+      if(toolCall.name==='open_path'){
+        const r=await window.nexusFS.openPath(toolCall.input.path);
+        if(r.ok){agentPrint('system','▸ abriendo '+toolCall.input.path);return 'Abierto: '+toolCall.input.path;}
+        return 'Error al abrir: '+(r.error||'desconocido');
+      }
+      return 'Herramienta desconocida: '+toolCall.name;
+    }catch(e){
+      return 'Error ejecutando la herramienta: '+e.message;
+    }
+  }
+
   async function agentAsk(question){
     const statusEl=document.getElementById('agent-status');
     if(statusEl)statusEl.textContent='pensando…';
@@ -1417,11 +1448,27 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     _ncAgentBusy=true;
     try{
       const extra=await agentGatherExtra();
-      const r=await fetch('http://localhost:19234/agent/ask',{
+      let d=await(await fetch('http://localhost:19234/agent/ask',{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({question,extra}),
-      });
-      const d=await r.json();
+      })).json();
+      // A tool_use round-trip: execute locally (this is the only place that
+      // has window.nexusApps/nexusFS — the backend never does), then send
+      // the result back so Claude can finish with a normal text answer.
+      // Capped implicitly by however many tool calls Claude actually makes
+      // in a row — Level 1's two tools don't chain into anything, so in
+      // practice this loop runs at most once or twice.
+      let hops=0;
+      while(d.toolCall&&hops<5){
+        hops++;
+        if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
+        const toolContent=await agentExecuteTool(d.toolCall);
+        d=await(await fetch('http://localhost:19234/agent/ask',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({history:d.history,toolResult:{tool_use_id:d.toolCall.id,content:toolContent}}),
+        })).json();
+        if(statusEl)statusEl.textContent='pensando…';
+      }
       if(d.error==='no_api_key'){
         agentPrint('system','No hay API key de Anthropic configurada. Ábrela en Settings (⚙) → Agent.');
       }else if(d.error){
