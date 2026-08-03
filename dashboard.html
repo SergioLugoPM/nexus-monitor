@@ -2017,6 +2017,14 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
   orbitGroup.appendChild(dot);
 }
 
+// Ubicación fija (Estado de México) — usada tanto por el pin de HOME en el
+// mapa como por el radar del panel (initPanelRadar), así siempre coinciden
+// en el mismo punto. Deliberadamente NO se geolocaliza por IP: esa
+// aproximación por ISP puede caer lejos del punto real. Declarada aquí
+// (antes de su primer uso) porque renderEventPins/initPanelRadar corren
+// de forma síncrona durante la carga inicial de la página.
+var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
+
 function renderEventPins(){
 const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
   // Separate orbit group (drawn first, under pins)
@@ -2907,7 +2915,7 @@ setInterval(fetchEvents,180000);
 setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);setInterval(fetchISSLive,30000);
 setInterval(fetchGlobalStats,120000);
 setInterval(updateTerminator,60000);
-fetchHomeLocation().then(()=>{ initPanelRadar(); });fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
+initPanelRadar();fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
 _applyNxPanel();initCritAlert();
 (function(){const hn=document.getElementById('hostname');if(hn&&_settings&&_settings.username)hn.textContent=_settings.username+'@NEXUS';})();
 setTimeout(fetchEvents,800);
@@ -3151,17 +3159,6 @@ function initPanelRadar(){
   _nxrRaf=requestAnimationFrame(nxrLoop);
 }
 
-var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
-async function fetchHomeLocation(){
-  try{
-    const d=await(await fetch('http://localhost:19234/location')).json();
-    if(d&&d.lat&&d.lon){
-      _homeCoords={lat:d.lat,lon:d.lon,city:d.city,country:d.country};
-      nxLog('Location: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');
-      renderEventPins();
-    }
-  }catch(e){}
-}
 
 function initSnake(canvas){
   const ctx=canvas.getContext('2d');

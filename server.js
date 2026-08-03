@@ -206,31 +206,6 @@ app.post('/exec', async (req,res)=>{
   });
 });
 
-let _locCache=null,_locTs=0;
-const TTL_LOC=60*60*1000;
-app.get('/location',async(req,res)=>{
-  if(_locCache&&Date.now()-_locTs<TTL_LOC)return res.json(_locCache);
-  try{
-    const http=require('http');
-    const data=await new Promise((resolve,reject)=>{
-      http.get('http://ip-api.com/json/?fields=lat,lon,city,country,status',r=>{
-        let b='';r.on('data',d=>b+=d);r.on('end',()=>{try{resolve(JSON.parse(b));}catch(e){reject(e);}});
-      }).on('error',reject);
-    });
-    if(data.status==='success'){
-      _locCache={lat:data.lat,lon:data.lon,city:data.city,country:data.country};
-      _locTs=Date.now();
-      nxLog(`Location: ${data.city}, ${data.country} (${data.lat.toFixed(2)},${data.lon.toFixed(2)})`,'info');
-    }else{
-      _locCache={lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'};
-    }
-    res.json(_locCache);
-  }catch(e){
-    nxLog('Location error: '+e.message,'warn');
-    res.json({lat:19.43,lon:-99.13,city:'Mexico City',country:'MX'});
-  }
-});
-
 nxLog('NEXUS MONITOR backend iniciado en puerto '+PORT,'ok');
 
 // ── DISK HELPER ───────────────────────────────────────────────────────────────
