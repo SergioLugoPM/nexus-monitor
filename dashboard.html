@@ -2185,9 +2185,10 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     g.appendChild(pinGroup);
   });
 
-  // ── HOME PIN — Estado de México (hardcoded)
+  // ── HOME PIN — ubicación real (geolocalizada por IP vía /location, con
+  // fallback a Estado de México mientras se resuelve la primera vez)
   {
-    const [hx,hy]=ll2xy(-99.66,19.28);
+    const [hx,hy]=ll2xy(_homeCoords.lon,_homeCoords.lat);
     const hg=document.createElementNS(ns,'g');
     const hpulse=document.createElementNS(ns,'circle');
     hpulse.setAttribute('cx',hx);hpulse.setAttribute('cy',hy);hpulse.setAttribute('r',12);
@@ -2202,7 +2203,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     const hlbl=document.createElementNS(ns,'text');
     hlbl.setAttribute('x',hx+8);hlbl.setAttribute('y',hy-4);
     hlbl.setAttribute('font-size','9');hlbl.setAttribute('font-family','monospace');hlbl.setAttribute('fill','#22D3EE');hlbl.setAttribute('opacity','0.85');
-    hlbl.textContent='HOME · RADAR CTR';
+    hlbl.textContent='HOME · '+(_homeCoords.city||'RADAR CTR').toUpperCase();
     [hpulse,hl1,hl2,hdiamond,hlbl].forEach(el=>hg.appendChild(el));
     g.appendChild(hg);
   }
@@ -3154,7 +3155,11 @@ var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
 async function fetchHomeLocation(){
   try{
     const d=await(await fetch('http://localhost:19234/location')).json();
-    if(d&&d.lat&&d.lon){nxLog('Location: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');}
+    if(d&&d.lat&&d.lon){
+      _homeCoords={lat:d.lat,lon:d.lon,city:d.city,country:d.country};
+      nxLog('Location: '+d.city+', '+d.country+' ('+d.lat.toFixed(2)+','+d.lon.toFixed(2)+')');
+      renderEventPins();
+    }
   }catch(e){}
 }
 
