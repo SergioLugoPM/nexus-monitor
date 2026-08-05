@@ -2072,6 +2072,19 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
 // de forma síncrona durante la carga inicial de la página.
 var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
 
+// El anillo de radar grande sobre el mapa (#radar-g) está dibujado en el
+// SVG estático con coordenadas fijas (428,442) — nunca dependió de
+// _homeCoords/ll2xy, así que quedaba desincronizado del pin de HOME
+// (sobre todo tras el fix de proyección Robinson, que movió el pin pero
+// no este anillo). Se traslada el grupo entero al punto real, una sola
+// vez al cargar, preservando su geometría interna (radios, crosshairs,
+// el barrido rotatorio).
+function positionHomeRadar(){
+  const g=document.getElementById('radar-g');if(!g)return;
+  const [hx,hy]=ll2xy(_homeCoords.lon,_homeCoords.lat);
+  g.setAttribute('transform','translate('+(hx-428)+','+(hy-442)+')');
+}
+
 function renderEventPins(){
 const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
   // Separate orbit group (drawn first, under pins)
@@ -2961,7 +2974,7 @@ setInterval(fetchEvents,180000);
 setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);setInterval(fetchISSLive,30000);
 setInterval(fetchGlobalStats,120000);
 setInterval(updateTerminator,60000);
-initPanelRadar();fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
+positionHomeRadar();initPanelRadar();fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
 _applyNxPanel();initCritAlert();
 (function(){const hn=document.getElementById('hostname');if(hn&&_settings&&_settings.username)hn.textContent=_settings.username+'@NEXUS';})();
 setTimeout(fetchEvents,800);
