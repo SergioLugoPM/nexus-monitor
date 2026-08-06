@@ -4,6 +4,7 @@ const { registerFsHandlers } = require('./fsapi');
 const { registerAppsHandlers } = require('./appsapi');
 const { registerSysmonHandlers } = require('./sysmon');
 const { registerActivityHandlers } = require('./activity');
+const { registerAuditHandlers } = require('./auditlog');
 
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 
@@ -107,6 +108,7 @@ app.whenReady().then(() => {
   registerAppsHandlers();
   registerSysmonHandlers();
   registerActivityHandlers();
+  registerAuditHandlers();
   createWindow();
   createTray();
 

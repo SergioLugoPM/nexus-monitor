@@ -1461,9 +1461,15 @@ app.post('/agent/ask', async (req, res) => {
     const d = await r.json();
     const toolUse = (d.content || []).find(c => c.type === 'tool_use');
     if (toolUse) {
+      // Claude often writes a short text block explaining itself in the same
+      // response as the tool_use — e.g. "Voy a abrir Chrome para ti." This
+      // used to be silently dropped. It's the "por qué lo decidió" the
+      // roadmap's audit-log requirement asks for, so it rides along with the
+      // tool call now instead of being discarded.
+      const reasoning = (d.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
       nxLog('Agent tool_use: ' + toolUse.name + ' ' + JSON.stringify(toolUse.input), 'info');
       const newHistory = [...messages, { role: 'assistant', content: d.content }];
-      return res.json({ toolCall: { id: toolUse.id, name: toolUse.name, input: toolUse.input }, history: newHistory });
+      return res.json({ toolCall: { id: toolUse.id, name: toolUse.name, input: toolUse.input, reasoning }, history: newHistory });
     }
     const answer = (d.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim();
     nxLog('Agent: ' + (body.question || '(continuación tras tool_result)').slice(0,60), 'info');

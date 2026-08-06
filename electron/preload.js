@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld('nexusActivity', {
   listChanges: () => ipcRenderer.invoke('activity:changes'),
 });
 
+contextBridge.exposeInMainWorld('nexusAudit', {
+  log: (entry) => ipcRenderer.invoke('audit:log', entry),
+  list: (limit) => ipcRenderer.invoke('audit:list', limit),
+});
+
 // Lets the renderer detect it's running inside the Electron shell (vs. the
 // WE/browser build) without probing for window.nexusFS everywhere.
 contextBridge.exposeInMainWorld('nexusShell', {

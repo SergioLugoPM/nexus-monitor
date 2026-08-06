@@ -1450,9 +1450,17 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   };
 })();
 </script>
-    <div class="view-pane" id="view-agent" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+    <div class="view-pane" id="view-agent" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;position:relative">
       <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;font-size:12px;line-height:1.6"></div>
+      <div id="agent-audit-panel" style="display:none;position:absolute;inset:0;bottom:37px;overflow-y:auto;padding:8px 10px;font-size:11px;z-index:5;background:rgba(0,0,0,.92)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span class="sub-lbl" style="margin:0">HISTORIAL DE ACCIONES</span>
+          <span onclick="agentToggleAudit()" style="cursor:pointer;opacity:.6">✕ cerrar</span>
+        </div>
+        <div id="agent-audit-list"></div>
+      </div>
       <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
+        <button onclick="agentToggleAudit()" title="Ver qué acciones ha ejecutado el agente" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;font-size:13px;color:inherit">📋</button>
         <span style="opacity:.5">&gt;</span>
         <button id="agent-mic" onclick="agentToggleMic()" title="Voz (F2)" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;display:flex;align-items:center;color:inherit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1584,7 +1592,62 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   // explorador (doble clic en un archivo): abrir una app o un archivo/
   // carpeta. Nada que un clic humano no pudiera hacer ya, así que no pide
   // confirmación — ver ROADMAP.md, eso empieza en Nivel 2.
-  async function agentExecuteTool(toolCall){
+  window.agentToggleAudit=async function(){
+    const panel=document.getElementById('agent-audit-panel');
+    if(!panel)return;
+    const opening=panel.style.display==='none';
+    panel.style.display=opening?'block':'none';
+    if(opening)await agentRenderAuditList();
+  };
+
+  async function agentRenderAuditList(){
+    const el=document.getElementById('agent-audit-list');
+    if(!el)return;
+    if(!window.nexusAudit){
+      el.innerHTML='<div style="padding:10px;opacity:.5">Solo disponible en la app Electron.</div>';
+      return;
+    }
+    const entries=await window.nexusAudit.list(100);
+    if(!entries.length){
+      el.innerHTML='<div style="padding:10px;opacity:.5">Sin acciones registradas todavía — se llena en cuanto el agente ejecute algo (abrir una app o un archivo).</div>';
+      return;
+    }
+    el.innerHTML=entries.map(en=>{
+      const t=new Date(en.ts);
+      const time=isNaN(t)?'':t.toLocaleString('es-MX',{dateStyle:'short',timeStyle:'medium'});
+      const okCol=en.ok?'#5DCAA5':'#E24B4A';
+      const okIcon=en.ok?'✓':'✕';
+      return `<div style="padding:6px 4px;border-bottom:.5px solid rgba(255,255,255,.08)">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span style="color:${okCol}">${okIcon} ${en.tool||'?'}</span>
+          <span style="opacity:.4;font-size:9px;flex-shrink:0">${time}</span>
+        </div>
+        ${en.question?`<div style="opacity:.55;margin-top:2px">pregunta: "${(en.question+'').replace(/</g,'&lt;')}"</div>`:''}
+        ${en.reasoning?`<div style="opacity:.55;margin-top:2px">razón: ${(en.reasoning+'').replace(/</g,'&lt;')}</div>`:''}
+        <div style="opacity:.7;margin-top:2px">${(en.result+'' || '').replace(/</g,'&lt;')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Requisito técnico del roadmap antes de Nivel 2 (comandos con
+  // confirmación): un log de auditoría de cada acción REAL que el agente
+  // ejecuta — qué, cuándo, por qué lo decidió. No bloquea la acción si
+  // falla el log (el log registra, no autoriza).
+  async function agentAuditLog(toolCall,question,ok,result){
+    if(!window.nexusAudit)return;
+    try{
+      await window.nexusAudit.log({
+        tool:toolCall.name,
+        input:toolCall.input,
+        reasoning:toolCall.reasoning||'',
+        question:question||'',
+        ok:!!ok,
+        result:String(result).slice(0,300),
+      });
+    }catch(e){/* logging failure must never block the actual action */}
+  }
+
+  async function agentExecuteTool(toolCall,question){
     if(!window.nexusApps||!window.nexusFS){
       return 'No disponible fuera del shell Electron.';
     }
@@ -1594,19 +1657,36 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         const apps=await window.nexusApps.list();
         const match=apps.find(a=>a.name.toLowerCase().includes(wanted))
                  || apps.find(a=>wanted.includes(a.name.toLowerCase()));
-        if(!match)return 'No se encontró una app llamada "'+toolCall.input.name+'".';
+        if(!match){
+          const msg='No se encontró una app llamada "'+toolCall.input.name+'".';
+          agentAuditLog(toolCall,question,false,msg);
+          return msg;
+        }
         await window.nexusApps.launch(match.target);
         agentPrint('system','▸ abriendo '+match.name);
-        return 'Abierta: '+match.name;
+        const msg='Abierta: '+match.name;
+        agentAuditLog(toolCall,question,true,msg);
+        return msg;
       }
       if(toolCall.name==='open_path'){
         const r=await window.nexusFS.openPath(toolCall.input.path);
-        if(r.ok){agentPrint('system','▸ abriendo '+toolCall.input.path);return 'Abierto: '+toolCall.input.path;}
-        return 'Error al abrir: '+(r.error||'desconocido');
+        if(r.ok){
+          agentPrint('system','▸ abriendo '+toolCall.input.path);
+          const msg='Abierto: '+toolCall.input.path;
+          agentAuditLog(toolCall,question,true,msg);
+          return msg;
+        }
+        const msg='Error al abrir: '+(r.error||'desconocido');
+        agentAuditLog(toolCall,question,false,msg);
+        return msg;
       }
-      return 'Herramienta desconocida: '+toolCall.name;
+      const msg='Herramienta desconocida: '+toolCall.name;
+      agentAuditLog(toolCall,question,false,msg);
+      return msg;
     }catch(e){
-      return 'Error ejecutando la herramienta: '+e.message;
+      const msg='Error ejecutando la herramienta: '+e.message;
+      agentAuditLog(toolCall,question,false,msg);
+      return msg;
     }
   }
 
@@ -1630,8 +1710,9 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       let hops=0;
       while(d.toolCall&&hops<5){
         hops++;
+        if(d.toolCall.reasoning)agentPrint('assistant',d.toolCall.reasoning);
         if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
-        const toolContent=await agentExecuteTool(d.toolCall);
+        const toolContent=await agentExecuteTool(d.toolCall,question);
         d=await(await fetch('http://localhost:19234/agent/ask',{
           method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({history:d.history,toolResult:{tool_use_id:d.toolCall.id,content:toolContent}}),
