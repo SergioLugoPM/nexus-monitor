@@ -314,6 +314,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <button class="vtab" data-view="terminal" onclick="showView('terminal')" title="Alt+T">⌥T&nbsp;TERM</button>
       <button class="vtab" data-view="snake" onclick="showView('snake')" title="Alt+S">⌥S&nbsp;SNAKE</button>
       <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
+      <button class="vtab" data-view="lan" onclick="showView('lan')" title="Alt+R">⌥R&nbsp;RED</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
       <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" title="Alt+P" style="display:none">⌥P&nbsp;PROC</button>
       <button class="vtab" data-view="agent" id="vtab-agent" onclick="showView('agent')" title="Alt+A" style="display:none">⌥A&nbsp;AGENT</button>
@@ -1346,6 +1347,109 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   if(document.readyState!=='loading')_showProcTab();
 })();
 </script>
+    <div class="view-pane" id="view-lan" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
+      <div style="display:flex;flex:1;min-height:0;gap:1px">
+        <div style="flex:1.4;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">DISPOSITIVOS EN LA RED</span>
+            <span id="lan-count" style="font-size:10px;opacity:.5"></span>
+          </div>
+          <div id="lan-devices" style="flex:1;overflow-y:auto;font-size:11px"></div>
+          <div style="font-size:9px;opacity:.35;padding:4px 2px">doble clic en un dispositivo para ponerle nombre</div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+            <span class="sub-lbl">RADAR DE PRESENCIA — WiFi CSI</span>
+          </div>
+          <div id="lan-radar" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+(function(){
+  const _prev=window.onShowView;
+  let _lanTimer=null;
+  const VENDOR_ICONS=[
+    [/apple/i,'🍎'],[/google|android/i,'🤖'],[/samsung/i,'📱'],[/xiaomi/i,'📱'],
+    [/amazon/i,'📦'],[/roku/i,'📺'],[/sony/i,'📺'],[/tp-link|netgear|d-link|fiberhome|huawei technologies|zte|arris|technicolor/i,'📡'],
+    [/espressif|raspberry|arduino/i,'🔧'],[/intel|realtek|dell|hewlett|lenovo|microsoft/i,'💻'],
+  ];
+  function lanIcon(vendor){
+    if(!vendor)return '❔';
+    const hit=VENDOR_ICONS.find(([re])=>re.test(vendor));
+    return hit?hit[1]:'📶';
+  }
+  function lanCustomNames(){
+    try{return JSON.parse(localStorage.getItem('nexus_lan_names')||'{}');}catch(e){return {};}
+  }
+  window.lanRename=function(mac){
+    const names=lanCustomNames();
+    const current=names[mac]||'';
+    const name=prompt('Nombre para este dispositivo:',current);
+    if(name===null)return;
+    if(name.trim())names[mac]=name.trim();else delete names[mac];
+    localStorage.setItem('nexus_lan_names',JSON.stringify(names));
+    lanRefreshDevices();
+  };
+
+  async function lanRefreshDevices(){
+    const el=document.getElementById('lan-devices');
+    const cnt=document.getElementById('lan-count');
+    if(!el)return;
+    let d;
+    try{ d=await(await fetch('http://localhost:19234/lan/devices')).json(); }
+    catch(e){ el.innerHTML='<div style="padding:16px;opacity:.5">Sin conexión al backend.</div>'; return; }
+    const devices=d.devices||[];
+    if(cnt)cnt.textContent=devices.length;
+    if(!devices.length){el.innerHTML='<div style="padding:16px;opacity:.5">Escaneando red…</div>';return;}
+    const names=lanCustomNames();
+    el.innerHTML=devices.map(dev=>{
+      const custom=names[dev.mac];
+      const label=custom||dev.hostname||dev.vendor||'Dispositivo desconocido';
+      const sub=[dev.ip,!custom&&dev.hostname&&dev.vendor?dev.vendor:null].filter(Boolean).join(' · ');
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:3px;cursor:pointer" ondblclick="lanRename('${dev.mac}')" title="MAC ${dev.mac}">
+        <span style="flex-shrink:0">${dev.isSelf?'🖥️':lanIcon(dev.vendor)}</span>
+        <span style="flex:1;min-width:0;overflow:hidden">
+          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${dev.isSelf?'font-weight:600':''}">${label}${dev.isSelf?' (esta PC)':''}</div>
+          <div style="font-size:9px;opacity:.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</div>
+        </span>
+      </div>`;
+    }).join('');
+  }
+
+  async function lanRefreshRadar(){
+    const el=document.getElementById('lan-radar');
+    if(!el)return;
+    let d;
+    try{ d=await(await fetch('http://localhost:19234/wifiradar')).json(); }
+    catch(e){ d={available:false}; }
+    if(!d.available||!d.live){
+      el.innerHTML=`<div style="padding:14px 10px;opacity:.7;line-height:1.6">
+        🔌 <b>Sin hardware conectado.</b><br/>
+        Este radar detecta presencia y movimiento a través de paredes usando
+        señales WiFi (sin cámara) — pero necesita un módulo <b>ESP32-S3</b>
+        (~$8 USD) enviando datos reales. Sin él, no hay nada real que mostrar
+        aquí — ver ROADMAP.md §3b para el plan de hardware.
+      </div>`;
+      return;
+    }
+    const persons=(d.persons||[]).length;
+    el.innerHTML=`<div style="padding:10px">
+      <div style="opacity:.7;margin-bottom:6px">🟢 Hardware conectado — ${persons} persona(s) detectada(s)</div>
+      ${d.vital_signs?`<div style="font-size:10px;opacity:.6">Respiración: ${(d.vital_signs.breathing_rate_bpm||0).toFixed(1)} rpm · Pulso: ${(d.vital_signs.heart_rate_bpm||0).toFixed(0)} bpm</div>`:''}
+    </div>`;
+  }
+
+  window.onShowView=function(name){
+    if(_prev)_prev(name);
+    if(_lanTimer){clearInterval(_lanTimer);_lanTimer=null;}
+    if(name==='lan'){
+      lanRefreshDevices();lanRefreshRadar();
+      _lanTimer=setInterval(()=>{lanRefreshDevices();lanRefreshRadar();},30000);
+    }
+  };
+})();
+</script>
     <div class="view-pane" id="view-agent" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
       <div id="agent-msgs" style="flex:1;overflow-y:auto;padding:8px 10px;font-size:12px;line-height:1.6"></div>
       <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
@@ -1718,7 +1822,7 @@ function showView(name){
 document.addEventListener('keydown',function(e){
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
   if(!e.altKey||e.ctrlKey||e.metaKey)return;
-  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyF:'explorer',KeyP:'proc',KeyA:'agent'};
+  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'lan',KeyF:'explorer',KeyP:'proc',KeyA:'agent'};
   if(vm[e.code]){showView(vm[e.code]);e.preventDefault();}
 });
 
