@@ -4,6 +4,7 @@ const si = require('systeminformation');
 const satLib = require('satellite.js');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const https = require('https');
 const _tlsAgent = new https.Agent({ rejectUnauthorized: false }); // for hosts with self-signed/incompatible certs
 const app = express();
@@ -1180,6 +1181,189 @@ app.get('/globalstats', async (req, res) => {
     _globalCache = result; _globalTs = now;
     res.json(result);
   } catch(e) { nxLog('ERROR /globalstats: '+e.message,'error'); res.status(500).json({error:e.message}); }
+});
+
+// ── LAN DEVICES (Pilar 3 — mapa de red doméstica) ────────────────────────────
+// Descubre dispositivos activos en la red local sin hardware adicional: ping
+// sweep del subnet + `arp -a` para IP/MAC, hostname vía PowerShell
+// Resolve-DnsName (cubre mDNS .local — el `ping -a` normal de Windows NO
+// resuelve estos nombres, verificado a mano antes de escribir esto) y
+// fabricante por MAC OUI vía api.macvendors.com, cacheado en disco
+// indefinidamente (el vendor de una MAC nunca cambia). Nombres
+// personalizados ("iPhone de Sergio") viven en el cliente (localStorage),
+// no aquí — este endpoint solo descubre, no etiqueta con nombres propios.
+const { execFile: _lanExecFile } = require('child_process');
+
+function runPS_lan(script, timeout) {
+  return new Promise(resolve => {
+    const tmpFile = path.join(os.tmpdir(), 'nexus-ps-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.ps1');
+    fs.writeFileSync(tmpFile, script, 'utf8');
+    _lanExecFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', tmpFile],
+      { timeout: timeout || 8000, maxBuffer: 2 * 1024 * 1024, windowsHide: true },
+      (err, stdout) => { fs.unlink(tmpFile, () => {}); resolve(err || !stdout ? null : stdout); }
+    );
+  });
+}
+
+function pingHost(ip) {
+  return new Promise(resolve => {
+    _lanExecFile('ping.exe', ['-n', '1', '-w', '200', ip], { timeout: 1200, windowsHide: true }, (err, stdout) => {
+      resolve(!!(stdout && /TTL=/i.test(stdout)));
+    });
+  });
+}
+
+// Pings every host in the /24 to populate the OS ARP cache — `arp -a` alone
+// only reflects devices this machine has recently talked to, which misses
+// plenty of real devices sitting quietly on the network.
+async function pingSweep(subnetBase) {
+  const ips = [];
+  for (let i = 1; i <= 254; i++) ips.push(subnetBase + '.' + i);
+  const CONCURRENCY = 60;
+  for (let i = 0; i < ips.length; i += CONCURRENCY) {
+    await Promise.all(ips.slice(i, i + CONCURRENCY).map(pingHost));
+  }
+}
+
+function parseArpTable() {
+  return new Promise(resolve => {
+    _lanExecFile('arp.exe', ['-a'], { timeout: 4000, windowsHide: true }, (err, stdout) => {
+      if (err || !stdout) return resolve([]);
+      const rows = [];
+      for (const line of stdout.split(/\r?\n/)) {
+        const m = line.trim().match(/^(\d+\.\d+\.\d+\.\d+)\s+([0-9a-f-]{17})\s+din/i);
+        if (m) rows.push({ ip: m[1], mac: m[2].replace(/-/g, ':').toLowerCase() });
+      }
+      resolve(rows);
+    });
+  });
+}
+
+const VENDOR_CACHE_PATH = path.join(__dirname, 'lan-vendor-cache.json');
+let _vendorCache = {};
+try { _vendorCache = JSON.parse(fs.readFileSync(VENDOR_CACHE_PATH, 'utf8')); } catch(_) {}
+function saveVendorCache() { try { fs.writeFileSync(VENDOR_CACHE_PATH, JSON.stringify(_vendorCache, null, 2)); } catch(e) {} }
+
+async function lookupVendor(mac) {
+  const prefix = mac.slice(0, 8); // first 3 octets identify the manufacturer
+  if (_vendorCache[prefix] !== undefined) return _vendorCache[prefix];
+  try {
+    const r = await fetch('https://api.macvendors.com/' + mac, { signal: AbortSignal.timeout(3000) });
+    if (r.status === 404) { _vendorCache[prefix] = null; saveVendorCache(); return null; } // confirmed unknown — safe to cache
+    if (!r.ok) return null; // rate-limited/transient — do NOT cache, retry next scan
+    const vendor = (await r.text()).trim();
+    _vendorCache[prefix] = vendor;
+    saveVendorCache();
+    return vendor;
+  } catch(e) { return null; }
+}
+
+// Resolve-DnsName (needed for mDNS .local names — plain ping -a and
+// System.Net.Dns don't resolve them, both verified by hand) can take
+// several seconds to give up on any single IP with no mDNS/PTR record, and
+// that per-IP cost doesn't parallelize cheaply (Start-Job's own per-job
+// spin-up overhead ate any benefit in testing). Batching 15-20 IPs into one
+// script with a shared time budget was tried and is order-dependent: a few
+// slow-to-fail IPs early in the list can burn the whole budget before ever
+// reaching ones that would have resolved instantly. So instead: don't
+// resolve hostnames inline at all. A background pass resolves one IP at a
+// time into a persistent cache, and /lan/devices always reads whatever's
+// cached so far — never blocks on this, and the cache fills in gradually
+// across the app's lifetime instead of trying to do it all in one shot.
+let _hostnameCache = {};
+let _hostnameResolving = false;
+
+async function resolveOneHostname(ip) {
+  const out = await runPS_lan(
+    `try{(Resolve-DnsName -Name '${ip}' -QuickTimeout -ErrorAction Stop|Select-Object -First 1 -ExpandProperty NameHost)}catch{}`,
+    4000
+  );
+  return (out || '').trim().replace(/\.$/, '');
+}
+
+async function backgroundResolveHostnames(ips) {
+  if (_hostnameResolving) return;
+  const pending = ips.filter(ip => _hostnameCache[ip] === undefined);
+  if (!pending.length) return;
+  _hostnameResolving = true;
+  (async () => {
+    for (const ip of pending) {
+      _hostnameCache[ip] = await resolveOneHostname(ip); // '' means "tried, nothing found" — still cached, so we don't retry every scan
+    }
+    _hostnameResolving = false;
+  })().catch(() => { _hostnameResolving = false; });
+}
+
+const PRIVATE_IP_RE = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
+async function refreshLanDevices() {
+  const ifaces = await si.networkInterfaces();
+  const main = ifaces.find(i => !i.internal && i.ip4 && PRIVATE_IP_RE.test(i.ip4)) || ifaces.find(i => !i.internal && i.ip4);
+  if (!main || !main.ip4) return [];
+  const subnetBase = main.ip4.split('.').slice(0, 3).join('.');
+  await pingSweep(subnetBase);
+  const arpRows = (await parseArpTable()).filter(r => r.ip.startsWith(subnetBase + '.') && r.mac !== 'ff:ff:ff:ff:ff:ff');
+  backgroundResolveHostnames(arpRows.map(r => r.ip)); // fire-and-forget — fills in over subsequent scans
+  const devices = [];
+  // A machine never ARPs for its own IP, so it's absent from arp -a — add it
+  // explicitly rather than have the user's own PC mysteriously missing.
+  devices.push({ ip: main.ip4, mac: (main.mac || '').toLowerCase(), hostname: os.hostname(), vendor: null, isSelf: true });
+  for (const row of arpRows) {
+    if (row.ip === main.ip4) continue;
+    const vendor = await lookupVendor(row.mac);
+    devices.push({
+      ip: row.ip,
+      mac: row.mac,
+      hostname: _hostnameCache[row.ip] || '',
+      vendor: vendor || null,
+      isSelf: false,
+    });
+  }
+  devices.sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
+  return devices;
+}
+
+const LAN_TTL = 45000;
+let _lanCache = null, _lanCacheTs = 0, _lanInFlight = null;
+
+app.get('/lan/devices', async (req, res) => {
+  const now = Date.now();
+  if (_lanCache && now - _lanCacheTs < LAN_TTL) return res.json({ devices: _lanCache, cachedAt: _lanCacheTs });
+  if (!_lanInFlight) {
+    _lanInFlight = refreshLanDevices().then(devices => {
+      _lanCache = devices; _lanCacheTs = Date.now(); _lanInFlight = null;
+      nxLog('LAN scan: ' + devices.length + ' dispositivos', 'ok');
+      return devices;
+    }).catch(e => {
+      nxLog('ERROR /lan/devices: ' + e.message, 'error');
+      _lanInFlight = null;
+      return _lanCache || [];
+    });
+  }
+  const devices = await _lanInFlight;
+  res.json({ devices, cachedAt: _lanCacheTs });
+});
+
+// ── RADAR DE PRESENCIA WiFi (CSI) — requiere hardware ESP32-S3 ──────────────
+// Proxy a wifi-densepose (ver ROADMAP.md §3b), que corre aparte en Docker.
+// Sin un ESP32 real mandando frames CSI por UDP al :5005, wifi-densepose
+// mismo devuelve datos SIMULADOS (source:"simulated", confirmado a mano
+// antes de construir esto — no existe un modo RSSI real sin hardware
+// dedicado, a pesar de lo que decía la investigación original de este
+// roadmap). Este proxy pasa esa bandera tal cual — nunca la oculta — para
+// que el frontend jamás presente datos falsos como reales. Si el contenedor
+// ni siquiera está corriendo, available:false.
+app.get('/wifiradar', async (req, res) => {
+  try {
+    const r = await fetch('http://localhost:3000/api/v1/sensing/latest', { signal: AbortSignal.timeout(2000) });
+    if (!r.ok) return res.json({ available: false });
+    const data = await r.json();
+    res.json({ available: true, live: !!(data.source && data.source !== 'simulated'), ...data });
+  } catch (e) {
+    res.json({ available: false });
+  }
 });
 
 // ── AGENT (Nivel 0 — solo lectura, sin ejecución) ────────────────────────────
