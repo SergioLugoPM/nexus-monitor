@@ -123,7 +123,12 @@ traduzca en pérdida de datos real.
 - ✅ Log de auditoría de cada acción que el agente ejecuta (qué, cuándo, por
   qué lo decidió) — `electron/auditlog.js`, JSON Lines en `agent-audit.log`,
   panel "📋 Historial" en el tab Agent. Verificado en vivo.
-- Lista de rutas/comandos explícitamente prohibidos, no solo permitidos
+- ✅ Lista de rutas/comandos explícitamente prohibidos — `electron/agentGuard.js`,
+  denylist de solo lectura (sin IPC de escritura): rutas de sistema/
+  credenciales/config del propio agente, extensiones ejecutables para
+  open_path, apps administrativas para launch_app. `agentExecuteTool()`
+  consulta esto antes de ejecutar; un bloqueo también queda auditado.
+  Verificado con 10/10 casos unitarios + el round-trip real de IPC.
 - Modo "deshacer" o backup automático antes de operaciones destructivas
   donde sea posible
 - El agente corre con el mismo usuario de Windows que ya tiene la sesión —
@@ -196,6 +201,14 @@ traduzca en pérdida de datos real.
   que antes se descartaba en silencio), la pregunta original, éxito/
   fallo, resultado. Panel "📋 Historial" en el tab Agent. Verificado en
   vivo: acción real ejecutada y registrada correctamente
+- ✅ **Lista de rutas/apps prohibidas del agente** (segundo requisito para
+  Nivel 2): `electron/agentGuard.js`, denylist de solo lectura (rutas de
+  sistema/credenciales, extensiones ejecutables, apps administrativas).
+  `agentExecuteTool()` la consulta antes de ejecutar; un bloqueo también
+  queda auditado. El system prompt del agente ahora menciona las
+  categorías prohibidas para que decline en texto en vez de intentar y
+  chocar con el bloqueo. Verificado: 10/10 casos unitarios + round-trip
+  real de IPC con la app corriendo
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -241,8 +254,8 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 **Agente IA — falta:**
 - Nivel 2 (comandos con confirmación explícita)
 - Nivel 3 (control total autónomo dentro de límites configurados)
-- De los "requisitos técnicos antes de Nivel 2+": log de auditoría ✅ listo;
-  faltan lista de rutas/comandos prohibidos y modo deshacer
+- De los "requisitos técnicos antes de Nivel 2+": log de auditoría ✅ y
+  lista de rutas/apps prohibidas ✅ listos; falta modo deshacer
 
 **Resuelto:** `master`/WE ya no se congela ni se mergea completo —
 cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
@@ -252,8 +265,10 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Requisitos del Agente Nivel 2, resto** — lista de rutas/comandos
-  prohibidos + modo deshacer (log de auditoría ya listo)
+- **Requisitos del Agente Nivel 2, último** — modo deshacer/backup
+  automático antes de operaciones destructivas (log de auditoría y
+  lista de rutas prohibidas ya listos — con esto se cierra la
+  precondición completa y se puede empezar Nivel 2 en sí)
 - **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
