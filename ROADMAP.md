@@ -164,6 +164,11 @@ traduzca en pérdida de datos real.
   desincronizado de los otros dos. Se eliminó el diamante duplicado — el
   radar+clima (el punto que el usuario reconoce como su ubicación real)
   queda como único indicador de "home" en el mapa
+- ✅ **Pilar 1 completo**: actividad de archivos reciente — 4ª columna del
+  tab PROC, dos fuentes: "abiertos" (carpeta shell Recent de Windows,
+  `.lnk` resueltos vía WScript.Shell) y "creados/modificados" (`fs.watch`
+  recursivo sobre Desktop/Documents/Downloads/Pictures, buffer en
+  memoria). Electron-only, igual que Explorer/Proc/Agent
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -194,8 +199,7 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 
 ## Qué falta
 
-**Pilar 1 (sistema local) — falta:**
-- Actividad de archivos reciente (qué se abrió/modificó/creó)
+**Pilar 1 (sistema local): completo.**
 
 **Pilar 2 (OSINT global) — sin tocar desde el roadmap original:**
 - Más fuentes por categoría, correlación de eventos, búsqueda histórica
@@ -221,7 +225,6 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Actividad de archivos reciente** — cierra el Pilar 1 por completo
 - **Radar por WiFi** (§3b) — ya investigado y decidido, plan técnico listo
 - **Requisitos del Agente Nivel 2** — log de auditoría + lista de rutas
   prohibidas, antes de dar cualquier capacidad de ejecutar comandos
