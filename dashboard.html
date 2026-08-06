@@ -1175,12 +1175,28 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
           </div>
           <div id="proc-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
-        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">NETWORK — WHO'S TALKING</span>
             <span id="proc-conn-count" style="font-size:10px;opacity:.5"></span>
           </div>
           <div id="proc-connections" style="flex:1;overflow-y:auto;font-size:11px"></div>
+        </div>
+        <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
+          <div style="display:flex;flex-direction:column;flex:1;min-height:0">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+              <span class="sub-lbl">RECENT — ABIERTOS</span>
+              <span id="proc-opened-count" style="font-size:10px;opacity:.5"></span>
+            </div>
+            <div id="proc-opened" style="flex:1;overflow-y:auto;font-size:11px"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;flex:1;min-height:0;border-top:.5px solid;margin-top:4px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
+              <span class="sub-lbl">RECENT — CREADOS/MODIFICADOS</span>
+              <span id="proc-changes-count" style="font-size:10px;opacity:.5"></span>
+            </div>
+            <div id="proc-changes" style="flex:1;overflow-y:auto;font-size:11px"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1191,10 +1207,59 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 
   function procRenderUnavailable(){
     const w=document.getElementById('proc-windows'),p=document.getElementById('proc-list'),c=document.getElementById('proc-connections');
+    const o=document.getElementById('proc-opened'),ch=document.getElementById('proc-changes');
     const msg='<div style="padding:16px;opacity:.5">Solo disponible en la app Electron (no en el modo wallpaper).</div>';
     if(w)w.innerHTML=msg;
     if(p)p.innerHTML='';
     if(c)c.innerHTML='';
+    if(o)o.innerHTML='';
+    if(ch)ch.innerHTML='';
+  }
+
+  // "hace 3m", "hace 2h", "hace 5d" — same terse style as the rest of the
+  // dashboard, no need for exact timestamps in a glanceable list.
+  function procTimeAgo(iso){
+    const s=Math.max(0,(Date.now()-new Date(iso).getTime())/1000);
+    if(s<60)return 'ahora';
+    if(s<3600)return Math.floor(s/60)+'m';
+    if(s<86400)return Math.floor(s/3600)+'h';
+    return Math.floor(s/86400)+'d';
+  }
+
+  async function procRefreshOpened(){
+    if(!window.nexusActivity)return;
+    const el=document.getElementById('proc-opened');
+    const cnt=document.getElementById('proc-opened-count');
+    const items=await window.nexusActivity.listOpened();
+    if(cnt)cnt.textContent=items.length;
+    if(!el)return;
+    if(!items.length){el.innerHTML='<div style="padding:10px;opacity:.5">(nada reciente)</div>';return;}
+    el.innerHTML=items.map(f=>{
+      const p=(f.path||'').replace(/'/g,"\\'");
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px;cursor:pointer" ondblclick="window.nexusFS.openPath('${p}')" title="${f.path}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${procTimeAgo(f.ts)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function procRefreshChanges(){
+    if(!window.nexusActivity)return;
+    const el=document.getElementById('proc-changes');
+    const cnt=document.getElementById('proc-changes-count');
+    const items=await window.nexusActivity.listChanges();
+    if(cnt)cnt.textContent=items.length;
+    if(!el)return;
+    if(!items.length){el.innerHTML='<div style="padding:10px;opacity:.5">(sin cambios detectados aún)</div>';return;}
+    el.innerHTML=items.map(f=>{
+      const p=(f.path||'').replace(/'/g,"\\'");
+      const tc=f.type==='creado'?'#38BDF8':'inherit';
+      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px;cursor:pointer" ondblclick="window.nexusFS.openPath('${p}')" title="${f.path}">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+        <span style="opacity:.6;font-size:10px;flex-shrink:0;color:${tc}">${f.type}</span>
+        <span style="opacity:.4;font-size:10px;flex-shrink:0">${procTimeAgo(f.ts)}</span>
+      </div>`;
+    }).join('');
   }
 
   async function procRefreshWindows(){
@@ -1270,8 +1335,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     if(_procTimer){clearInterval(_procTimer);_procTimer=null;}
     if(name==='proc'){
       if(!window.nexusSys){ procRenderUnavailable(); return; }
-      procRefreshWindows();procRefreshList();procRefreshConnections();
-      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();procRefreshConnections();},2500);
+      procRefreshWindows();procRefreshList();procRefreshConnections();procRefreshOpened();procRefreshChanges();
+      _procTimer=setInterval(()=>{procRefreshWindows();procRefreshList();procRefreshConnections();procRefreshOpened();procRefreshChanges();},2500);
     }
   };
 

@@ -37,6 +37,11 @@ contextBridge.exposeInMainWorld('nexusSys', {
   killProcess: (pid) => ipcRenderer.invoke('sysmon:killProcess', pid),
 });
 
+contextBridge.exposeInMainWorld('nexusActivity', {
+  listOpened: () => ipcRenderer.invoke('activity:opened'),
+  listChanges: () => ipcRenderer.invoke('activity:changes'),
+});
+
 // Lets the renderer detect it's running inside the Electron shell (vs. the
 // WE/browser build) without probing for window.nexusFS everywhere.
 contextBridge.exposeInMainWorld('nexusShell', {
