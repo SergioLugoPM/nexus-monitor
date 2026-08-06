@@ -157,6 +157,40 @@ traduzca en pérdida de datos real.
 - ✅ Fix: proyección del mapa — el paquete del mapa usa Robinson, no
   equirectangular; `ll2xy()` reescrito con la tabla de interpolación
   estándar, verificado con 8 puntos de referencia en todo el mapa
+- ✅ Fix: pin de HOME duplicado en el mapa — el pin del clima
+  (`#mx-weather-group`) y el anillo de radar (`#radar-g`) ya compartían un
+  punto fijo hardcodeado (428,442) desde antes del fix de Robinson; se
+  había añadido un tercer marcador (diamante `_homeCoords`) que terminó
+  desincronizado de los otros dos. Se eliminó el diamante duplicado — el
+  radar+clima (el punto que el usuario reconoce como su ubicación real)
+  queda como único indicador de "home" en el mapa
+
+## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
+
+`dashboard.html`/`server.js` en este repo (`F:\Descargas\nexus-monitor`)
+**no son lo que WE renderiza**. Wallpaper Engine tiene su propia copia
+independiente en:
+
+```
+E:\Archivos de programa\Steam\steamapps\common\wallpaper_engine\projects\myprojects\nexus_monitor\
+```
+
+(`project.json` ahí apunta a `"file": "dashboard.html"` — un archivo
+local, no una URL). Confirmar cuál carpeta es la activa vía
+`config.json` en la raíz de instalación de WE si hay dudas (hay una
+carpeta vieja abandonada, `nexus-monitor` con guion en vez de guion
+bajo, sin `project.json` válido — no confundir).
+
+Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
+1. `cp` el archivo desde este repo (rama `master`) a la carpeta de WE
+2. Cerrar Wallpaper Engine por completo (bandeja → Salir) — reaplicar o
+   cambiar de wallpaper y volver **no** fuerza una recarga real
+3. Borrar `Cache` y `Code Cache` (NO `Local Storage`/`IndexedDB`, ahí
+   vive la config guardada) dentro de cada
+   `wallpaper_engine\ui\wpcache\monitor*\base\` — WE mantiene un perfil
+   de Chromium completo por monitor que cachea el JS compilado
+   indefinidamente, incluso para `file://`
+4. Reabrir Wallpaper Engine
 
 ## Qué falta
 
