@@ -120,8 +120,9 @@ es el mismo tipo de riesgo. La arquitectura de niveles existe para que
 traduzca en pérdida de datos real.
 
 **Requisitos técnicos antes de llegar a Nivel 2+:**
-- Log de auditoría de cada acción que el agente ejecuta (qué, cuándo, por
-  qué lo decidió)
+- ✅ Log de auditoría de cada acción que el agente ejecuta (qué, cuándo, por
+  qué lo decidió) — `electron/auditlog.js`, JSON Lines en `agent-audit.log`,
+  panel "📋 Historial" en el tab Agent. Verificado en vivo.
 - Lista de rutas/comandos explícitamente prohibidos, no solo permitidos
 - Modo "deshacer" o backup automático antes de operaciones destructivas
   donde sea posible
@@ -189,6 +190,12 @@ traduzca en pérdida de datos real.
   claro en el tab RED cuando no hay hardware; se promueve solo a datos
   reales en cuanto se conecte un ESP32-S3. Ver §3b para el procedimiento
   exacto de activación
+- ✅ **Log de auditoría del agente** (primer requisito para Nivel 2):
+  `electron/auditlog.js`, JSON Lines en `agent-audit.log` (gitignored) —
+  qué herramienta, con qué input, por qué lo decidió Claude (el texto
+  que antes se descartaba en silencio), la pregunta original, éxito/
+  fallo, resultado. Panel "📋 Historial" en el tab Agent. Verificado en
+  vivo: acción real ejecutada y registrada correctamente
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -234,8 +241,8 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 **Agente IA — falta:**
 - Nivel 2 (comandos con confirmación explícita)
 - Nivel 3 (control total autónomo dentro de límites configurados)
-- Los "requisitos técnicos antes de Nivel 2+" del roadmap (log de auditoría,
-  lista de rutas prohibidas, modo deshacer) — ninguno existe todavía
+- De los "requisitos técnicos antes de Nivel 2+": log de auditoría ✅ listo;
+  faltan lista de rutas/comandos prohibidos y modo deshacer
 
 **Resuelto:** `master`/WE ya no se congela ni se mergea completo —
 cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
@@ -245,8 +252,8 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Requisitos del Agente Nivel 2** — log de auditoría + lista de rutas
-  prohibidas, antes de dar cualquier capacidad de ejecutar comandos
+- **Requisitos del Agente Nivel 2, resto** — lista de rutas/comandos
+  prohibidos + modo deshacer (log de auditoría ya listo)
 - **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
