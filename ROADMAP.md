@@ -39,40 +39,47 @@ Dirección de crecimiento:
 - Búsqueda/consulta histórica — hoy todo es "últimas 24h en vivo y ya", no
   hay forma de preguntar "qué pasó la semana pasada en tal región"
 
-### 3. Red local (LAN)
-Mapa de tu propia red doméstica: qué dispositivos están conectados, tráfico
-por dispositivo, puertos abiertos, servicios expuestos (cámaras IP, IoT,
-NAS). Esto es reconocimiento de red pasivo sobre tu propia infraestructura —
-mismo principio que el resto del dashboard (visibilidad, no intrusión).
+### 3. Red local (LAN) — ✅ implementado
 
-#### 3b. Radar por WiFi (CSI sensing) — decidido, pendiente de implementar
+Mapa de tu propia red doméstica vía tab RED (⌥R): dispositivos activos
+(ping sweep + `arp -a`), fabricante por MAC OUI (api.macvendors.com,
+cacheado indefinidamente), hostname (PowerShell Resolve-DnsName, cubre
+mDNS .local), nombres personalizados por dispositivo (localStorage,
+doble clic para renombrar). Universal — vive en `server.js`, funciona
+igual en WE y en Electron. Detalles técnicos e implementación en
+`server.js` (`/lan/devices`) y `dashboard.html` (tab `lan`).
 
-Investigado y decidido: integrar **[wifi-densepose](https://github.com/yangsuzhou/wifi-densepose)**
-para presencia/movimiento a través de paredes usando señales WiFi, sin
-cámara. Comparado contra `ESPectre` (GPLv3, atado a Home Assistant) y
-`esp-csi` de Espressif (solo el toolkit crudo, habría que construir la
-detección desde cero) — wifi-densepose ganó por licencia MIT y por exponer
-una API REST + WebSocket en JSON, el mismo patrón que ya usa `server.js`
-para vuelos/sismos/satélites.
+#### 3b. Radar por WiFi (CSI sensing) — investigado a fondo, requiere hardware real
 
-**Modo elegido: sin hardware nuevo.** Con WiFi normal (RSSI, sin hardware
-CSI dedicado) da presencia/movimiento "grueso" — detecta que hay alguien y
-se mueve, no pose completa. Suficiente para prototipar el panel sin comprar
-nada. La ruta con hardware (malla de 3-6 ESP32-S3, ~$8-54) que da pose
-completa (17 keypoints), respiración y ritmo cardíaco queda para más
-adelante si el modo RSSI resulta útil.
+**Corrección importante a la investigación original de este documento:**
+"sin hardware nuevo" NO es un modo real. Se probó wifi-densepose en
+Docker directamente (`docker pull ruvnet/wifi-densepose:latest`) antes
+de construir nada — sin un ESP32/MediaTek/Qualcomm/RTL8720F real
+mandando frames CSI por UDP al :5005, el servidor devuelve datos 100%
+**simulados** (`source:"simulated"` en cada respuesta, confirmado
+directamente en `/api/v1/sensing/latest`: persona inventada, pose
+completa fabricada, ritmo cardíaco y respiración generados — nada real).
+No existe un modo RSSI intermedio que use el WiFi normal de la PC para
+presencia real; eso fue una suposición incorrecta de una sesión anterior.
 
-**Cuando se retome, el plan técnico es:**
-1. Levantar wifi-densepose por separado (Docker: `docker pull
-   ruvnet/wifi-densepose:latest`, expone REST en :3000 y WebSocket en :3001)
-2. En `server.js`, agregar un endpoint tipo `/wifiradar` que haga proxy/cache
-   de `GET http://localhost:3000/api/v1/sensing/latest` — mismo patrón de
-   cache con TTL que ya usan `/events`, `/flights`, etc.
-3. En `dashboard.html`, nuevo panel o modo del radar existente (`NEXUS
-   RADAR`) que dibuje las detecciones de presencia — reutiliza el canvas de
-   radar que ya existe en vez de construir uno nuevo
-4. Encaja en Pilar 3 (red LAN) porque literalmente usa la infraestructura
-   WiFi de la casa como sensor, sin hardware de vigilancia dedicado
+**Lo que SÍ está listo para cuando haya hardware:**
+- `server.js` ya tiene `/wifiradar`, que hace proxy a
+  `http://localhost:3000/api/v1/sensing/latest` y pasa el flag `source`
+  del upstream tal cual — nunca lo oculta, así el frontend nunca muestra
+  datos falsos como reales
+- `dashboard.html` (tab RED) ya consume ese endpoint: si no está
+  disponible o `source==="simulated"`, muestra un banner claro ("sin
+  hardware conectado"); en cuanto `live:true` (un ESP32 real enviando
+  frames), renderiza personas/vital signs reales — cero cambios de
+  código necesarios, solo conectar el hardware
+
+**Para activarlo cuando llegue el ESP32-S3 (~$8 USD):**
+1. `docker run -d -p 127.0.0.1:3000:3000 -p 127.0.0.1:3001:3001 -p 5005:5005/udp -e RUVIEW_ALLOW_UNAUTHENTICATED=1 ruvnet/wifi-densepose:latest`
+   (el bind restringido a 127.0.0.1 en el mapeo de puertos de Docker,
+   NO en la app vía `RUVIEW_BIND_ADDR`, que la deja inalcanzable desde
+   fuera del contenedor — verificado a mano)
+2. Conectar el ESP32-S3 enviando frames CSI al puerto UDP 5005 del host
+3. Listo — el tab RED promueve automáticamente a datos reales
 
 ## Agente de IA — control total, con capa de permisos
 
@@ -169,6 +176,19 @@ traduzca en pérdida de datos real.
   `.lnk` resueltos vía WScript.Shell) y "creados/modificados" (`fs.watch`
   recursivo sobre Desktop/Documents/Downloads/Pictures, buffer en
   memoria). Electron-only, igual que Explorer/Proc/Agent
+- ✅ **Pilar 3 (LAN) — mapa de dispositivos**: tab RED (⌥R), universal
+  (`server.js`, funciona igual en WE y Electron). Ping sweep + `arp -a`
+  + fabricante por MAC OUI + hostname (mDNS .local vía PowerShell) +
+  nombres personalizados. Verificado contra la red real: 22 dispositivos
+  descubiertos. Ver detalles y decisiones de diseño en el commit
+  `feat: mapa de dispositivos LAN`
+- ✅ **Radar por WiFi — investigado a fondo, listo para hardware**: se
+  probó wifi-densepose en Docker antes de construir nada; sin ESP32 real
+  no existe modo "sin hardware" (era una suposición incorrecta del
+  roadmap original) — solo simula. `/wifiradar` en `server.js` + banner
+  claro en el tab RED cuando no hay hardware; se promueve solo a datos
+  reales en cuanto se conecte un ESP32-S3. Ver §3b para el procedimiento
+  exacto de activación
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -205,11 +225,11 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 - Más fuentes por categoría, correlación de eventos, búsqueda histórica
   (hoy todo es "últimas 24h en vivo", sin memoria)
 
-**Pilar 3 (red LAN) — sin empezar:**
-- Mapa de dispositivos en la red doméstica, tráfico, puertos, servicios
-  expuestos (cámaras IP, IoT, NAS)
-- Radar por WiFi (wifi-densepose, modo sin hardware) — investigado y
-  decidido, plan técnico documentado arriba (§3b), pendiente de implementar
+**Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
+- Tráfico por dispositivo, puertos abiertos, servicios expuestos
+  (cámaras IP, IoT, NAS) — nada de esto empezado
+- Radar por WiFi: bloqueado en hardware, no en código — comprar un
+  ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 
 **Agente IA — falta:**
 - Nivel 2 (comandos con confirmación explícita)
@@ -225,9 +245,11 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Radar por WiFi** (§3b) — ya investigado y decidido, plan técnico listo
 - **Requisitos del Agente Nivel 2** — log de auditoría + lista de rutas
   prohibidas, antes de dar cualquier capacidad de ejecutar comandos
+- **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
+- **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
+- **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 
 ---
 *Documento vivo — actualizar conforme se decida qué construir en cada
