@@ -1461,6 +1461,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       </div>
       <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:.5px solid;flex-shrink:0">
         <button onclick="agentToggleAudit()" title="Ver qué acciones ha ejecutado el agente" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;font-size:13px;color:inherit">📋</button>
+        <button id="agent-l3-toggle" onclick="agentToggleLevel3()" title="Nivel 3: modo autónomo — mover/borrar/ejecutar sin pedir confirmación. Apagado al recargar la app, nunca queda prendido solo." style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;font-size:13px;color:inherit">🔒</button>
         <span style="opacity:.5">&gt;</span>
         <button id="agent-mic" onclick="agentToggleMic()" title="Voz (F2)" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;display:flex;align-items:center;color:inherit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1612,22 +1613,49 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       el.innerHTML='<div style="padding:10px;opacity:.5">Sin acciones registradas todavía — se llena en cuanto el agente ejecute algo (abrir una app o un archivo).</div>';
       return;
     }
+    const MODE_LABEL={nivel1:'nivel 1',confirmado:'confirmado',autonomo:'🔓 autónomo',cancelado:'cancelado'};
     el.innerHTML=entries.map(en=>{
       const t=new Date(en.ts);
       const time=isNaN(t)?'':t.toLocaleString('es-MX',{dateStyle:'short',timeStyle:'medium'});
       const okCol=en.ok?'#5DCAA5':'#E24B4A';
       const okIcon=en.ok?'✓':'✕';
+      const modeLabel=MODE_LABEL[en.mode]||'';
+      const modeCol=en.mode==='autonomo'?'#E24B4A':'inherit';
       return `<div style="padding:6px 4px;border-bottom:.5px solid rgba(255,255,255,.08)">
         <div style="display:flex;justify-content:space-between;gap:8px">
           <span style="color:${okCol}">${okIcon} ${en.tool||'?'}</span>
           <span style="opacity:.4;font-size:9px;flex-shrink:0">${time}</span>
         </div>
+        ${modeLabel?`<div style="opacity:.6;font-size:9px;color:${modeCol}">${modeLabel}</div>`:''}
         ${en.question?`<div style="opacity:.55;margin-top:2px">pregunta: "${(en.question+'').replace(/</g,'&lt;')}"</div>`:''}
         ${en.reasoning?`<div style="opacity:.55;margin-top:2px">razón: ${(en.reasoning+'').replace(/</g,'&lt;')}</div>`:''}
         <div style="opacity:.7;margin-top:2px">${(en.result+'' || '').replace(/</g,'&lt;')}</div>
       </div>`;
     }).join('');
   }
+
+  // Nivel 3 — autónomo: se salta la tarjeta de confirmación de Nivel 2,
+  // pero NO se salta el guardián de rutas/apps ni el modo deshacer, y cada
+  // acción autónoma queda marcada como tal en el audit log. Deliberadamente
+  // NO persistido en localStorage — arranca en false en cada carga de la
+  // app, nunca queda "prendido solo" entre sesiones. El límite de 5 hops
+  // del loop de agentAsk (ver más abajo) ya pone un tope natural a cuántas
+  // acciones autónomas puede encadenar el agente en un solo mensaje.
+  let _agentLevel3=false;
+  let _agentActionMode='nivel1'; // 'nivel1'|'confirmado'|'autonomo'|'cancelado' — leído por agentAuditLog
+
+  window.agentToggleLevel3=function(){
+    _agentLevel3=!_agentLevel3;
+    const btn=document.getElementById('agent-l3-toggle');
+    if(btn){
+      btn.textContent=_agentLevel3?'🔓':'🔒';
+      btn.style.opacity=_agentLevel3?'1':'.6';
+      btn.style.color=_agentLevel3?'#E24B4A':'inherit';
+    }
+    agentPrint('system',_agentLevel3
+      ?'🔓 Nivel 3 activado — mover/borrar/ejecutar sin pedir confirmación (hasta 5 acciones seguidas por mensaje). Sigue protegido por el guardián de rutas y el modo deshacer.'
+      :'🔒 Nivel 3 desactivado — vuelve a pedir confirmación antes de cada acción.');
+  };
 
   // Requisito técnico del roadmap antes de Nivel 2 (comandos con
   // confirmación): un log de auditoría de cada acción REAL que el agente
@@ -1643,6 +1671,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         question:question||'',
         ok:!!ok,
         result:String(result).slice(0,300),
+        mode:_agentActionMode,
       });
     }catch(e){/* logging failure must never block the actual action */}
   }
@@ -1812,18 +1841,22 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         hops++;
         if(d.toolCall.reasoning)agentPrint('assistant',d.toolCall.reasoning);
         let toolContent;
-        if(AGENT_LEVEL2_TOOLS.has(d.toolCall.name)){
+        if(AGENT_LEVEL2_TOOLS.has(d.toolCall.name)&&!_agentLevel3){
           if(statusEl)statusEl.textContent='esperando confirmación…';
           const confirmed=await agentConfirm(d.toolCall);
           if(!confirmed){
+            _agentActionMode='cancelado';
             toolContent='El usuario canceló esta acción. No se ejecutó nada.';
             agentPrint('system','✕ cancelado por el usuario');
             agentAuditLog(d.toolCall,question,false,'CANCELADO POR EL USUARIO');
           }else{
+            _agentActionMode='confirmado';
             if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
             toolContent=await agentExecuteTool(d.toolCall,question);
           }
         }else{
+          _agentActionMode=AGENT_LEVEL2_TOOLS.has(d.toolCall.name)?'autonomo':'nivel1';
+          if(_agentActionMode==='autonomo')agentPrint('system','🔓 autónomo: ejecutando '+d.toolCall.name+' sin confirmar');
           if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
           toolContent=await agentExecuteTool(d.toolCall,question);
         }
