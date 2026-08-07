@@ -6,6 +6,7 @@ const { registerSysmonHandlers } = require('./sysmon');
 const { registerActivityHandlers } = require('./activity');
 const { registerAuditHandlers } = require('./auditlog');
 const { registerAgentGuardHandlers } = require('./agentGuard');
+const { registerUndoHandlers } = require('./undoManager');
 
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 
@@ -111,6 +112,7 @@ app.whenReady().then(() => {
   registerActivityHandlers();
   registerAuditHandlers();
   registerAgentGuardHandlers();
+  registerUndoHandlers();
   createWindow();
   createTray();
 

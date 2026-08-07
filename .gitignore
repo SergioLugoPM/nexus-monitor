@@ -8,3 +8,4 @@ npm-debug.log*
 Thumbs.db
 nexus.config.json
 lan-vendor-cache.json
+agent-backups/

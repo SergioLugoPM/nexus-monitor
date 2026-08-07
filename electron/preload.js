@@ -52,6 +52,13 @@ contextBridge.exposeInMainWorld('nexusAgentGuard', {
   checkApp: (name) => ipcRenderer.invoke('agent:checkApp', name),
 });
 
+contextBridge.exposeInMainWorld('nexusUndo', {
+  safeDelete: (p) => ipcRenderer.invoke('undo:safeDelete', p),
+  backupBeforeWrite: (p) => ipcRenderer.invoke('undo:backupBeforeWrite', p),
+  listBackups: (limit) => ipcRenderer.invoke('undo:listBackups', limit),
+  restoreBackup: (id) => ipcRenderer.invoke('undo:restoreBackup', id),
+});
+
 // Lets the renderer detect it's running inside the Electron shell (vs. the
 // WE/browser build) without probing for window.nexusFS everywhere.
 contextBridge.exposeInMainWorld('nexusShell', {
