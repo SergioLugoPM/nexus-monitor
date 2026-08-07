@@ -62,6 +62,34 @@ function registerFsHandlers() {
     shell.showItemInFolder(path.resolve(targetPath));
     return { ok: true };
   });
+
+  // Backs the agent's Nivel 2 move_path tool (and could back a future
+  // human-facing move in the Explorer tab, though nothing calls it yet).
+  // Callers are expected to have already run agentGuard's checkPath() and
+  // undoManager's backupBeforeWrite() on the destination — this handler
+  // only does the raw move, no policy or safety-net logic of its own.
+  ipcMain.handle('fs:movePath', (event, sourcePath, destPath) => {
+    const src = path.resolve(sourcePath);
+    const dst = path.resolve(destPath);
+    try {
+      if (!fs.existsSync(src)) return { ok: false, error: 'No existe: ' + src };
+      fs.renameSync(src, dst);
+      return { ok: true };
+    } catch (e) {
+      // renameSync can't move across drives (EXDEV) — fall back to
+      // copy+delete, but only for files; a recursive directory copy is out
+      // of scope here and riskier to get right under time pressure.
+      if (e.code === 'EXDEV') {
+        try {
+          if (!fs.statSync(src).isFile()) return { ok: false, error: 'Mover carpetas entre unidades distintas no está soportado.' };
+          fs.copyFileSync(src, dst);
+          fs.unlinkSync(src);
+          return { ok: true };
+        } catch (e2) { return { ok: false, error: e2.message }; }
+      }
+      return { ok: false, error: e.message };
+    }
+  });
 }
 
 module.exports = { registerFsHandlers };

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('nexusFS', {
   listDir: (dirPath) => ipcRenderer.invoke('fs:listDir', dirPath),
   openPath: (targetPath) => ipcRenderer.invoke('fs:openPath', targetPath),
   showInExplorer: (targetPath) => ipcRenderer.invoke('fs:showInExplorer', targetPath),
+  movePath: (source, dest) => ipcRenderer.invoke('fs:movePath', source, dest),
 });
 
 contextBridge.exposeInMainWorld('nexusApps', {

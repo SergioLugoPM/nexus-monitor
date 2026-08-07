@@ -1368,17 +1368,21 @@ app.get('/wifiradar', async (req, res) => {
 
 // ── AGENT (Nivel 1 — consulta + acciones seguras) ────────────────────────────
 // Nivel 0 era texto entra, texto sale, cero ejecución. Nivel 1 añade dos
-// herramientas — abrir una app instalada, abrir un archivo/carpeta con la
-// app default — mismo alcance que YA tienen el launcher (Ctrl+Space) y el
-// explorador (doble clic): nada que un clic humano no pudiera hacer ya.
-// Ver ROADMAP.md para la escalera completa de niveles de confianza.
+// herramientas de solo apertura — abrir una app instalada, abrir un
+// archivo/carpeta con la app default — mismo alcance que YA tienen el
+// launcher (Ctrl+Space) y el explorador (doble clic), se ejecutan directo
+// sin pedir nada. Nivel 2 añade tres herramientas con efecto real
+// (mover/borrar archivos, correr un comando) — el frontend SIEMPRE pide
+// confirmación explícita del usuario antes de ejecutar cualquiera de esas
+// tres (ver AGENT_LEVEL2_TOOLS en dashboard.html), nunca se auto-ejecutan
+// como las de Nivel 1. Ver ROADMAP.md para la escalera completa.
 //
 // server.js NUNCA ejecuta las herramientas — no tiene acceso a
-// window.nexusApps/nexusFS, eso vive en el renderer vía preload. Cuando
-// Claude pide una tool_use, este endpoint se la devuelve tal cual al
-// frontend; el frontend la ejecuta (o rechaza, si no está en el shell
-// Electron real) y vuelve a llamar aquí con el resultado para que la
-// conversación continúe.
+// window.nexusApps/nexusFS/nexusUndo, eso vive en el renderer vía preload.
+// Cuando Claude pide una tool_use, este endpoint se la devuelve tal cual al
+// frontend; el frontend decide si pedir confirmación, la ejecuta (o
+// rechaza, si no está en el shell Electron real o el usuario cancela) y
+// vuelve a llamar aquí con el resultado para que la conversación continúe.
 const AGENT_TOOLS = [
   {
     name: 'launch_app',
@@ -1398,18 +1402,55 @@ const AGENT_TOOLS = [
       required: ['path'],
     },
   },
+  {
+    name: 'move_path',
+    description: 'Mueve o renombra un archivo o carpeta de una ruta absoluta a otra. Nivel 2: el usuario confirma explícitamente antes de que se ejecute.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: 'Ruta absoluta actual del archivo o carpeta' },
+        destination: { type: 'string', description: 'Ruta absoluta de destino' },
+      },
+      required: ['source', 'destination'],
+    },
+  },
+  {
+    name: 'delete_path',
+    description: 'Envía un archivo o carpeta a la Papelera de reciclaje de Windows (nunca borra permanentemente, siempre recuperable). Nivel 2: el usuario confirma explícitamente antes de que se ejecute.',
+    input_schema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'Ruta absoluta del archivo o carpeta a eliminar' } },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'run_command',
+    description: 'Ejecuta un comando de una lista fija de solo lectura/información (dir, tasklist, ipconfig, netstat, ping, whoami, hostname, systeminfo, route, arp, nslookup, net, wmic, echo, date, time, ver) — ningún comando destructivo o de escritura está permitido, se rechaza en el backend si no está en la lista. Nivel 2: el usuario confirma explícitamente antes de que se ejecute.',
+    input_schema: {
+      type: 'object',
+      properties: { cmd: { type: 'string', description: 'El comando completo con sus argumentos, ej. "ipconfig /all"' } },
+      required: ['cmd'],
+    },
+  },
 ];
 
 const AGENT_SYSTEM = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
   + 'Respondes usando los datos en <context> cuando la pregunta es sobre el estado del sistema. '
-  + 'Tienes dos herramientas: launch_app (abrir una app instalada) y open_path (abrir un archivo o '
-  + 'carpeta). Úsalas solo cuando el usuario pida explícitamente abrir algo — no las uses para '
-  + 'responder preguntas informativas. No tienes ninguna otra capacidad: no puedes ejecutar comandos, '
-  + 'borrar ni mover nada, ni cambiar configuración. Hay rutas y apps que tienes explícitamente '
-  + 'prohibido abrir (C:\\Windows, archivos ejecutables como .exe/.bat/.ps1/.reg, y herramientas '
-  + 'administrativas como el editor de registro o PowerShell) — si piden eso, explica que está '
-  + 'bloqueado por política de seguridad, no lo intentes. Si piden algo fuera de estas dos acciones, '
-  + 'aclara que en este nivel solo puedes abrir apps y archivos. Responde en español, conciso, sin relleno.';
+  + 'Tienes herramientas de Nivel 1 — launch_app, open_path — que se ejecutan directo sin pedir nada, '
+  + 'y de Nivel 2 — move_path, delete_path, run_command — con efecto real. '
+  + 'IMPORTANTE sobre Nivel 2: cuando el usuario pida una de estas acciones, LLAMA LA HERRAMIENTA '
+  + 'DIRECTAMENTE, de inmediato — no le preguntes tú primero en un mensaje de texto si confirma ni '
+  + 'describas la acción esperando su respuesta. El sistema, no tú, le muestra automáticamente una '
+  + 'tarjeta con botones Confirmar/Cancelar antes de ejecutar nada — si en vez de llamar la herramienta '
+  + 'escribes la pregunta de confirmación tú mismo, esa tarjeta nunca aparece y la acción nunca ocurre, '
+  + 'aunque el usuario "confirme" en el chat. Llama la herramienta y el flujo de confirmación pasa solo. '
+  + 'delete_path nunca borra permanentemente, manda a la Papelera. run_command solo acepta comandos de '
+  + 'una lista fija de solo lectura, nada destructivo ni de escritura. Hay rutas y apps que tienes '
+  + 'explícitamente prohibido tocar con cualquier herramienta (C:\\Windows, archivos ejecutables como '
+  + '.exe/.bat/.ps1/.reg, herramientas administrativas como el editor de registro o PowerShell, y tu '
+  + 'propio archivo de configuración/auditoría) — si piden eso, explica que está bloqueado por política '
+  + 'de seguridad, no lo intentes. Usa las herramientas solo cuando el usuario pida explícitamente una '
+  + 'acción — no las uses para responder preguntas informativas. Responde en español, conciso, sin relleno.';
 
 app.post('/agent/ask', async (req, res) => {
   const apiKey = _cfg.anthropicApiKey || process.env.ANTHROPIC_API_KEY || '';

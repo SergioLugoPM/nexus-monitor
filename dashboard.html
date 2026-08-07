@@ -1508,8 +1508,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     const voBtn=document.getElementById('agent-voiceout');
     if(voBtn)voBtn.style.opacity=_agentVoiceOut?'.6':'.25';
     const voiceNote=_agentSpeechSupported?', y voz — botón mic o F2':'';
-    const actionNote=window.nexusApps?' Puede abrir apps y archivos si se lo pides.':'';
-    agentPrint('system','NEXUS AGENT — nivel 1 (consulta + acciones seguras). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'.'+actionNote+' No puede ejecutar comandos ni borrar/mover nada.');
+    const actionNote=window.nexusApps?' Puede abrir apps y archivos directo, y mover/borrar archivos o correr un comando si tú lo confirmas primero.':'';
+    agentPrint('system','NEXUS AGENT — nivel 2 (acciones seguras directas + acciones con confirmación). Responde sobre lo que el dashboard tiene en pantalla ahora mismo: sismos, clima, cripto, stats del sistema'+(window.nexusSys?', procesos y ventanas':'')+voiceNote+'.'+actionNote+' Nunca borra permanentemente (todo va a la Papelera) y hay rutas/apps que tiene prohibido tocar.');
   }
 
   async function agentGatherExtra(){
@@ -1694,6 +1694,60 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         agentAuditLog(toolCall,question,false,msg);
         return msg;
       }
+      if(toolCall.name==='move_path'){
+        const {source,destination}=toolCall.input;
+        let guard=window.nexusAgentGuard?await window.nexusAgentGuard.checkPath(source):{blocked:false};
+        if(!guard.blocked&&window.nexusAgentGuard)guard=await window.nexusAgentGuard.checkPath(destination);
+        if(guard.blocked){
+          agentPrint('system','🛑 '+guard.reason);
+          const msg='Bloqueado por política de seguridad: '+guard.reason;
+          agentAuditLog(toolCall,question,false,msg);
+          return msg;
+        }
+        // No-op if nothing exists at destination yet — backupBeforeWrite
+        // itself checks existence, this just protects whatever the move is
+        // about to overwrite.
+        if(window.nexusUndo)await window.nexusUndo.backupBeforeWrite(destination);
+        const r=await window.nexusFS.movePath(source,destination);
+        if(r.ok){
+          agentPrint('system','▸ movido: '+source+' → '+destination);
+          const msg='Movido a: '+destination;
+          agentAuditLog(toolCall,question,true,msg);
+          return msg;
+        }
+        const msg='Error al mover: '+(r.error||'desconocido');
+        agentAuditLog(toolCall,question,false,msg);
+        return msg;
+      }
+      if(toolCall.name==='delete_path'){
+        const guard=window.nexusAgentGuard?await window.nexusAgentGuard.checkPath(toolCall.input.path):{blocked:false};
+        if(guard.blocked){
+          agentPrint('system','🛑 '+guard.reason);
+          const msg='Bloqueado por política de seguridad: '+guard.reason;
+          agentAuditLog(toolCall,question,false,msg);
+          return msg;
+        }
+        const r=window.nexusUndo?await window.nexusUndo.safeDelete(toolCall.input.path):{ok:false,error:'No disponible'};
+        if(r.ok){
+          agentPrint('system','▸ enviado a la Papelera: '+toolCall.input.path);
+          const msg='Enviado a la Papelera de reciclaje: '+toolCall.input.path+'. '+r.restoreHint;
+          agentAuditLog(toolCall,question,true,msg);
+          return msg;
+        }
+        const msg='Error al eliminar: '+(r.error||'desconocido');
+        agentAuditLog(toolCall,question,false,msg);
+        return msg;
+      }
+      if(toolCall.name==='run_command'){
+        const cmd=toolCall.input.cmd||'';
+        const r=await(await fetch('http://localhost:19234/exec',{
+          method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd}),
+        })).json();
+        agentPrint('system','▸ comando ejecutado: '+cmd);
+        const msg=(r.error?'Error: ':'')+(r.output||'(sin salida)');
+        agentAuditLog(toolCall,question,!r.error,msg);
+        return msg;
+      }
       const msg='Herramienta desconocida: '+toolCall.name;
       agentAuditLog(toolCall,question,false,msg);
       return msg;
@@ -1702,6 +1756,38 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       agentAuditLog(toolCall,question,false,msg);
       return msg;
     }
+  }
+
+  // Nivel 2: mover/borrar archivos y correr comandos tienen efecto real —
+  // a diferencia de Nivel 1 (que se auto-ejecuta), estas SIEMPRE se
+  // detienen a pedir confirmación explícita antes de tocar nada, igual que
+  // este mismo asistente (Claude Code) le pide confirmación a Sergio antes
+  // de acciones riesgosas. La decisión es del usuario, no de Claude.
+  const AGENT_LEVEL2_TOOLS=new Set(['move_path','delete_path','run_command']);
+
+  function agentDescribeAction(toolCall){
+    if(toolCall.name==='move_path')return 'mover "'+toolCall.input.source+'" a "'+toolCall.input.destination+'"';
+    if(toolCall.name==='delete_path')return 'enviar a la Papelera "'+toolCall.input.path+'"';
+    if(toolCall.name==='run_command')return 'ejecutar el comando: '+toolCall.input.cmd;
+    return toolCall.name;
+  }
+
+  function agentConfirm(toolCall){
+    return new Promise(resolve=>{
+      const el=document.getElementById('agent-msgs');
+      if(!el){resolve(false);return;}
+      const div=document.createElement('div');
+      div.style.cssText='margin:8px 0;padding:8px 10px;border:1px solid #EF9F27;border-radius:4px;background:rgba(239,159,39,0.08)';
+      div.innerHTML='<div style="opacity:.9;margin-bottom:6px;color:#EF9F27">⚠ El agente quiere '+agentDescribeAction(toolCall).replace(/</g,'&lt;')+'</div>'
+        +'<div style="display:flex;gap:8px">'
+        +'<button class="agent-confirm-yes" style="cursor:pointer;padding:4px 12px;border:1px solid #5DCAA5;background:transparent;color:#5DCAA5;border-radius:3px;font-family:monospace;font-size:11px">Confirmar</button>'
+        +'<button class="agent-confirm-no" style="cursor:pointer;padding:4px 12px;border:1px solid #E24B4A;background:transparent;color:#E24B4A;border-radius:3px;font-family:monospace;font-size:11px">Cancelar</button>'
+        +'</div>';
+      el.appendChild(div);
+      el.scrollTop=el.scrollHeight;
+      div.querySelector('.agent-confirm-yes').onclick=()=>{div.remove();resolve(true);};
+      div.querySelector('.agent-confirm-no').onclick=()=>{div.remove();resolve(false);};
+    });
   }
 
   async function agentAsk(question){
@@ -1716,17 +1802,31 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         body:JSON.stringify({question,extra}),
       })).json();
       // A tool_use round-trip: execute locally (this is the only place that
-      // has window.nexusApps/nexusFS — the backend never does), then send
-      // the result back so Claude can finish with a normal text answer.
-      // Capped implicitly by however many tool calls Claude actually makes
-      // in a row — Level 1's two tools don't chain into anything, so in
-      // practice this loop runs at most once or twice.
+      // has window.nexusApps/nexusFS/nexusUndo — the backend never does),
+      // then send the result back so Claude can finish with a normal text
+      // answer. Level 2 tools (move_path/delete_path/run_command) pause
+      // for user confirmation before agentExecuteTool ever runs — Claude
+      // proposes, the human decides, not the other way around.
       let hops=0;
       while(d.toolCall&&hops<5){
         hops++;
         if(d.toolCall.reasoning)agentPrint('assistant',d.toolCall.reasoning);
-        if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
-        const toolContent=await agentExecuteTool(d.toolCall,question);
+        let toolContent;
+        if(AGENT_LEVEL2_TOOLS.has(d.toolCall.name)){
+          if(statusEl)statusEl.textContent='esperando confirmación…';
+          const confirmed=await agentConfirm(d.toolCall);
+          if(!confirmed){
+            toolContent='El usuario canceló esta acción. No se ejecutó nada.';
+            agentPrint('system','✕ cancelado por el usuario');
+            agentAuditLog(d.toolCall,question,false,'CANCELADO POR EL USUARIO');
+          }else{
+            if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
+            toolContent=await agentExecuteTool(d.toolCall,question);
+          }
+        }else{
+          if(statusEl)statusEl.textContent='ejecutando '+d.toolCall.name+'…';
+          toolContent=await agentExecuteTool(d.toolCall,question);
+        }
         d=await(await fetch('http://localhost:19234/agent/ask',{
           method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({history:d.history,toolResult:{tool_use_id:d.toolCall.id,content:toolContent}}),
