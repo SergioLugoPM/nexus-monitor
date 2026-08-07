@@ -140,10 +140,10 @@ traduzca en pérdida de datos real.
 - El agente corre con el mismo usuario de Windows que ya tiene la sesión —
   no hay elevación de privilegios adicional
 
-**Los tres requisitos técnicos para Nivel 2 están completos.** Falta
-diseñar Nivel 2 en sí: qué herramientas destructivas exactas expone
-(mover/borrar archivos, ¿comandos de shell?), y el flujo de confirmación
-explícita antes de cada una.
+**Nivel 2: implementado.** Tres herramientas nuevas — move_path,
+delete_path, run_command (whitelist de solo lectura reutilizada de
+`/exec`) — cada una detenida por una tarjeta de confirmación en el chat
+antes de ejecutar. Ver detalle completo abajo en "Estado actual".
 
 ## Estado actual (lo ya construido en `electron-shell`)
 
@@ -226,8 +226,23 @@ explícita antes de cada una.
   `restoreBackup()` respaldan un archivo antes de sobrescribirlo,
   restaurable por ID. Verificado en vivo con archivos reales (backup+
   restauración byte a byte, borrado confirmado recuperable en la
-  Papelera vía COM). **Los tres requisitos técnicos para Nivel 2 ya
-  están completos** — falta diseñar Nivel 2 en sí
+  Papelera vía COM)
+- ✅ **Agente IA — Nivel 2** (comandos con confirmación explícita): tres
+  herramientas nuevas — `move_path` (usa agentGuard + backupBeforeWrite
+  antes de sobrescribir el destino), `delete_path` (usa agentGuard +
+  safeDelete, nunca borra de verdad), `run_command` (reutiliza la
+  whitelist ya probada de `/exec`/tab TERM — dir, tasklist, ipconfig,
+  netstat, ping, whoami, etc., nada destructivo). Cada una se detiene
+  en una tarjeta de confirmación (Confirmar/Cancelar) en el chat antes
+  de ejecutar — Claude propone, el usuario decide. Hallazgo importante:
+  el primer intento falló porque Claude preguntaba "¿confirmas?" en
+  texto plano en vez de llamar la herramienta (así la tarjeta real
+  nunca aparecía) — el system prompt tuvo que ser explícito: "llama la
+  herramienta directo, el sistema maneja la confirmación, tú no
+  preguntes". Verificado en vivo, las tres herramientas de punta a
+  punta con la app real (archivo movido, archivo enviado a la Papelera,
+  comando ejecutado con salida real) y el flujo de cancelación
+  (ninguna se ejecuta si el usuario cancela, queda auditado igual)
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -271,11 +286,8 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
   ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 
 **Agente IA — falta:**
-- Nivel 2 (comandos con confirmación explícita) — los tres requisitos
-  técnicos previos ya están listos (log de auditoría, lista de rutas/apps
-  prohibidas, modo deshacer); falta diseñar las herramientas destructivas
-  en sí y el flujo de confirmación
-- Nivel 3 (control total autónomo dentro de límites configurados)
+- Nivel 3 (control total autónomo dentro de límites configurados — sin
+  confirmación caso por caso, solo dentro de reglas ya aprobadas)
 
 **Resuelto:** `master`/WE ya no se congela ni se mergea completo —
 cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
@@ -285,10 +297,10 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Agente Nivel 2 en sí** — los tres requisitos técnicos ya están
-  listos; falta decidir las herramientas destructivas exactas
-  (¿mover/borrar archivos? ¿comandos de shell whitelisteados?) y el
-  flujo de confirmación explícita antes de cada una
+- **Agente Nivel 3** — control total autónomo dentro de límites
+  configurados, sin confirmación caso por caso (probablemente el más
+  delicado de diseñar bien — requiere pensar qué reglas bastan para
+  no necesitar ya el "botón humano" en cada acción)
 - **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
