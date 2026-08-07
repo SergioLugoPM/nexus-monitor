@@ -129,10 +129,21 @@ traduzca en pérdida de datos real.
   open_path, apps administrativas para launch_app. `agentExecuteTool()`
   consulta esto antes de ejecutar; un bloqueo también queda auditado.
   Verificado con 10/10 casos unitarios + el round-trip real de IPC.
-- Modo "deshacer" o backup automático antes de operaciones destructivas
-  donde sea posible
+- ✅ Modo "deshacer" o backup automático antes de operaciones destructivas
+  — `electron/undoManager.js`: `safeDelete()` nunca borra de verdad, manda
+  a la Papelera de Windows (`shell.trashItem`, deshacer = Restaurar en la
+  Papelera, sin sistema paralelo); `backupBeforeWrite()`/`restoreBackup()`
+  guardan copia con timestamp antes de sobrescribir, restaurable por ID
+  (tope 100 respaldos). Verificado en vivo: archivo real modificado y
+  restaurado byte a byte; archivo real borrado y confirmado recuperable
+  en la Papelera vía Shell.Application COM.
 - El agente corre con el mismo usuario de Windows que ya tiene la sesión —
   no hay elevación de privilegios adicional
+
+**Los tres requisitos técnicos para Nivel 2 están completos.** Falta
+diseñar Nivel 2 en sí: qué herramientas destructivas exactas expone
+(mover/borrar archivos, ¿comandos de shell?), y el flujo de confirmación
+explícita antes de cada una.
 
 ## Estado actual (lo ya construido en `electron-shell`)
 
@@ -209,6 +220,14 @@ traduzca en pérdida de datos real.
   categorías prohibidas para que decline en texto en vez de intentar y
   chocar con el bloqueo. Verificado: 10/10 casos unitarios + round-trip
   real de IPC con la app corriendo
+- ✅ **Modo deshacer del agente** (tercer y último requisito para Nivel 2):
+  `electron/undoManager.js` — `safeDelete()` manda a la Papelera de
+  Windows en vez de borrar de verdad; `backupBeforeWrite()`/
+  `restoreBackup()` respaldan un archivo antes de sobrescribirlo,
+  restaurable por ID. Verificado en vivo con archivos reales (backup+
+  restauración byte a byte, borrado confirmado recuperable en la
+  Papelera vía COM). **Los tres requisitos técnicos para Nivel 2 ya
+  están completos** — falta diseñar Nivel 2 en sí
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -252,10 +271,11 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
   ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 
 **Agente IA — falta:**
-- Nivel 2 (comandos con confirmación explícita)
+- Nivel 2 (comandos con confirmación explícita) — los tres requisitos
+  técnicos previos ya están listos (log de auditoría, lista de rutas/apps
+  prohibidas, modo deshacer); falta diseñar las herramientas destructivas
+  en sí y el flujo de confirmación
 - Nivel 3 (control total autónomo dentro de límites configurados)
-- De los "requisitos técnicos antes de Nivel 2+": log de auditoría ✅ y
-  lista de rutas/apps prohibidas ✅ listos; falta modo deshacer
 
 **Resuelto:** `master`/WE ya no se congela ni se mergea completo —
 cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
@@ -265,10 +285,10 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Requisitos del Agente Nivel 2, último** — modo deshacer/backup
-  automático antes de operaciones destructivas (log de auditoría y
-  lista de rutas prohibidas ya listos — con esto se cierra la
-  precondición completa y se puede empezar Nivel 2 en sí)
+- **Agente Nivel 2 en sí** — los tres requisitos técnicos ya están
+  listos; falta decidir las herramientas destructivas exactas
+  (¿mover/borrar archivos? ¿comandos de shell whitelisteados?) y el
+  flujo de confirmación explícita antes de cada una
 - **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
