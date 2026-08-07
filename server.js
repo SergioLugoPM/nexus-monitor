@@ -527,10 +527,12 @@ const FEEDS = [
   {url:'https://feeds.bbci.co.uk/mundo/rss.xml',        name:'BBC Mundo'},
   {url:'https://www.eluniversal.com.mx/rss.xml',         name:'El Universal MX'},
   {url:'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', name:'NYT World'},
+  {url:'https://www.batimes.com.ar/feed',                name:'Buenos Aires Times'}, // previously only Mexico represented all of Latin America
   // Europe
   {url:'https://feeds.bbci.co.uk/news/world/rss.xml',    name:'BBC World'},
   {url:'https://rss.dw.com/rdf/rss-en-all',              name:'DW (Germany)'},
   {url:'https://www.france24.com/en/rss',                name:'France 24'},
+  {url:'https://www.themoscowtimes.com/rss/news',        name:'Moscow Times'}, // Russia/Eastern Europe — previously no coverage at all
   // Middle East / Africa
   {url:'https://www.aljazeera.com/xml/rss/all.xml',      name:'Al Jazeera'},
   {url:'https://rss.nytimes.com/services/xml/rss/nyt/Africa.xml', name:'NYT Africa'},
@@ -538,6 +540,9 @@ const FEEDS = [
   {url:'https://japantoday.com/feed',                    name:'Japan Today'},
   {url:'https://timesofindia.indiatimes.com/rssfeedstopstories.cms', name:'Times of India'},
   {url:'https://rss.nytimes.com/services/xml/rss/nyt/AsiaPacific.xml', name:'NYT Asia'},
+  {url:'https://www.channelnewsasia.com/rssfeeds/8395986', name:'Channel News Asia'}, // Southeast Asia — previously only Japan/India
+  // Oceania
+  {url:'https://www.abc.net.au/news/feed/51120/rss.xml', name:'ABC Australia'}, // previously no Oceania coverage at all
 ];
 
 async function fetchOneFeed(feed) {
@@ -558,14 +563,24 @@ async function fetchOneFeed(feed) {
       }
     }
   } catch(_) {}
-  // Direct RSS fallback
+  // Direct RSS fallback. Extract titles from within <item> blocks only —
+  // an earlier version grabbed <title> matches positionally (skipping just
+  // the first, assumed to be the channel's own title), which broke on any
+  // feed with a second non-item title before the first real article (very
+  // common: <image><title> duplicates the channel title for feed-reader
+  // favicons). That let feed names like "NYT > World News" or "BBC Mundo"
+  // through as if they were headlines. Scoping to <item>...</item> first
+  // is immune to how many extra <title> elements the header/image/textInput
+  // blocks contain, since none of those live inside an <item>.
   try {
     const r = await fetch(feed.url, {signal: AbortSignal.timeout(5000), headers: {'User-Agent': 'Mozilla/5.0'}});
     if (r.ok) {
       const xml = await r.text();
-      const m = [...xml.matchAll(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/g)];
-      m.slice(1, 5).forEach(x => {
-        const t = x[1].replace(/<[^>]+>/g, '').trim().replace(/&amp;/g, '&');
+      const items = [...xml.matchAll(/<item\b[\s\S]*?<\/item>/g)];
+      items.slice(0, 4).forEach(m => {
+        const tm = m[0].match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/);
+        if (!tm) return;
+        const t = tm[1].replace(/<[^>]+>/g, '').trim().replace(/&amp;/g, '&');
         if (t.length > 8) titles.push(t);
       });
       nxLog(feed.name + ': +' + titles.length + ' (direct)', 'ok');
@@ -579,15 +594,24 @@ app.get('/news', async (req, res) => {
   if (_newsCache && now - _newsTs < TTL_NEWS) return res.json(_newsCache);
   nxLog('Fetching news feeds (parallel)...', 'info');
   const results = await Promise.allSettled(FEEDS.map(fetchOneFeed));
+  const perFeed = results.map(r => r.status === 'fulfilled' ? r.value : []);
   const seen = new Set();
   const items = [];
-  for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
-    for (const t of r.value) {
-      if (!seen.has(t)) { seen.add(t); items.push(t); }
+  // Round-robin across feeds instead of draining them in FEEDS[] order —
+  // with more feeds than the 20-item cap, taking them in array order meant
+  // the first ~5 feeds (always the same ones, Americas/Europe) filled the
+  // whole cap before later regions (Asia-Pacific, Oceania, Africa) ever got
+  // a turn. This was already happening with the original 11 feeds; adding
+  // more without fixing it would have only made the imbalance worse.
+  for (let round = 0; items.length < 20; round++) {
+    let addedThisRound = false;
+    for (const titles of perFeed) {
+      if (round >= titles.length) continue;
+      const t = titles[round];
+      if (!seen.has(t)) { seen.add(t); items.push(t); addedThisRound = true; }
       if (items.length >= 20) break;
     }
-    if (items.length >= 20) break;
+    if (!addedThisRound) break; // every feed exhausted before hitting the cap
   }
   nxLog('News total: ' + items.length + ' items', 'ok');
   const result = {items: items.length ? items : ['Sin noticias disponibles por ahora']};
