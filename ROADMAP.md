@@ -243,6 +243,20 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   punta con la app real (archivo movido, archivo enviado a la Papelera,
   comando ejecutado con salida real) y el flujo de cancelación
   (ninguna se ejecuta si el usuario cancela, queda auditado igual)
+- ✅ **Agente IA — Nivel 3** (control total autónomo): toggle 🔒/🔓 en el
+  tab Agent — activo, move_path/delete_path/run_command se ejecutan sin
+  la tarjeta de confirmación de Nivel 2. Deliberadamente NO persistido
+  (arranca apagado en cada carga de la app, nunca "prendido solo" entre
+  sesiones). Solo se salta la confirmación humana — agentGuard y
+  undoManager siguen aplicando exactamente igual (mismo código de
+  agentExecuteTool, sin condicional de por medio). El límite de 5 hops
+  que ya tenía el loop de agentAsk sirve de tope natural, no hizo falta
+  un rate-limit nuevo. Cada acción queda marcada con su modo real
+  (nivel1/confirmado/autónomo/cancelado) en el audit log. Verificado en
+  vivo: con Nivel 3 activo, un comando corrió de inmediato sin tarjeta
+  de confirmación ni clic humano, auditado como mode:"autonomo" con la
+  salida real. **Con esto, los cuatro niveles de la escalera de
+  confianza del agente están completos.**
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -285,9 +299,7 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 - Radar por WiFi: bloqueado en hardware, no en código — comprar un
   ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 
-**Agente IA — falta:**
-- Nivel 3 (control total autónomo dentro de límites configurados — sin
-  confirmación caso por caso, solo dentro de reglas ya aprobadas)
+**Agente IA: los cuatro niveles de la escalera de confianza están implementados.**
 
 **Resuelto:** `master`/WE ya no se congela ni se mergea completo —
 cherry-pick selectivo. Lo universal (backend, fixes de bugs, fórmulas
@@ -297,10 +309,6 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Agente Nivel 3** — control total autónomo dentro de límites
-  configurados, sin confirmación caso por caso (probablemente el más
-  delicado de diseñar bien — requiere pensar qué reglas bastan para
-  no necesitar ya el "botón humano" en cada acción)
 - **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
