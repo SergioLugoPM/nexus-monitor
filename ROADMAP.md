@@ -257,6 +257,26 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   de confirmación ni clic humano, auditado como mode:"autonomo" con la
   salida real. **Con esto, los cuatro niveles de la escalera de
   confianza del agente están completos.**
+- ✅ **Pilar 2 — más fuentes de noticias** (primera de las 3 direcciones
+  pedidas): 4 feeds regionales nuevos, verificados a mano antes de
+  agregarlos — Buenos Aires Times (Sudamérica, antes solo México
+  representaba Latinoamérica), Moscow Times (Rusia/Europa del Este,
+  cobertura cero antes — se descartó RT por ser medio estatal del
+  Kremlin, poco confiable para OSINT neutral), Channel News Asia
+  (sudeste asiático), ABC Australia (Oceanía, cobertura cero antes).
+  De paso se encontraron y arreglaron dos bugs reales en el agregador
+  (`server.js` `/news`): el armado final tomaba los primeros 20
+  titulares en orden de array — con 5+ feeds ya se llenaba el tope
+  completo con solo Américas/Europa, así que Asia-Pacífico/Oceanía/
+  África nunca aparecían (ya pasaba con los 11 feeds originales, no
+  solo con los nuevos) — ahora es round-robin, una vuelta por feed. Y
+  el fallback de RSS directo confundía el `<title>` del feed (o de su
+  `<image>`) con un artículo real cuando rss2json fallaba — "NYT >
+  World News", "BBC Mundo", "Latest News" aparecían como si fueran
+  noticias. Ahora extrae títulos solo de dentro de `<item>` reales.
+  Verificado en vivo: 20/20 titulares reales tras el fix (antes 6+ de
+  20 eran basura), con las 4 regiones nuevas representadas. Universal
+  (server.js) — cruzó a `master` también
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -289,9 +309,12 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 
 **Pilar 1 (sistema local): completo.**
 
-**Pilar 2 (OSINT global) — sin tocar desde el roadmap original:**
-- Más fuentes por categoría, correlación de eventos, búsqueda histórica
-  (hoy todo es "últimas 24h en vivo", sin memoria)
+**Pilar 2 (OSINT global) — en progreso, el usuario pidió las 3 direcciones:**
+- ✅ Más fuentes de noticias (primera de las 3) — ver "Estado actual"
+- Correlación de eventos (¿el sismo M6 coincide con actividad volcánica
+  cercana? ¿el pico de vuelos coincide con algo?)
+- Búsqueda/consulta histórica — hoy todo es "últimas 24h en vivo", sin
+  memoria (el más grande de los tres, necesita empezar a persistir datos)
 
 **Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
 - Tráfico por dispositivo, puertos abiertos, servicios expuestos
@@ -309,7 +332,9 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Pilar 2** — más fuentes OSINT, correlación de eventos, búsqueda histórica
+- **Pilar 2 — correlación de eventos** (2ª de 3, más fuentes ✅ lista)
+- **Pilar 2 — búsqueda histórica** (3ª de 3 — la más grande, necesita
+  empezar a persistir datos que hoy son solo "últimas 24h en vivo")
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 
