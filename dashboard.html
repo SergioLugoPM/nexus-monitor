@@ -2417,14 +2417,21 @@ function ll2xy(lon,lat){
   const xFac=ROBINSON_TABLE[i0][0]+(ROBINSON_TABLE[i0+1][0]-ROBINSON_TABLE[i0][0])*frac;
   const yFacMag=ROBINSON_TABLE[i0][1]+(ROBINSON_TABLE[i0+1][1]-ROBINSON_TABLE[i0][1])*frac;
   const yFac=clampedLat>=0?yFacMag:-yFacMag;
-  // At the equator xFac=1 and lon=180° spans the map's half-width; at the
-  // poles yFac=1 spans the half-height. Scaling by those maxima fits the
-  // projection exactly into the 2000×1001 viewBox.
-  const scaleX=1000/Math.PI;
-  const scaleY=500.5;
-  const x=Math.round(1000+xFac*(lon*Math.PI/180)*scaleX);
-  const y=Math.round(500.5-yFac*scaleY);
-  return[x,y];
+  // These constants are NOT the textbook "xFac=1/lon=180° spans half-width,
+  // yFac=1 spans half-height" values the previous version used (scaleX=
+  // 1000/π, scaleY=500.5, centered at 1000/500.5) — that theoretical
+  // calibration was never actually verified against the map's real
+  // coordinate space and was off by 20-100px almost everywhere, enough to
+  // drop pins in the ocean next to narrow landmasses (reported: Fuego
+  // volcano, Guatemala, pin landing in the Gulf of Mexico). Re-derived here
+  // by linear regression against the actual on-screen bounding boxes of 8
+  // small/precisely-located countries (getBBox() on their SVG paths vs.
+  // known real coordinates), then confirmed against 9 more points not used
+  // in the fit. Error dropped from 20-100px to 1-20px; Fuego now lands
+  // inside Guatemala's own path, not the ocean.
+  const x=968.6231+315.19926*xFac*(lon*Math.PI/180);
+  const y=574.893-546.47419*yFac;
+  return[Math.round(x),Math.round(y)];
 }
 let _evts=[];
 let _correlations=[];
