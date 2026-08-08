@@ -277,6 +277,35 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   Verificado en vivo: 20/20 titulares reales tras el fix (antes 6+ de
   20 eran basura), con las 4 regiones nuevas representadas. Universal
   (server.js) — cruzó a `master` también
+- ✅ **Pilar 2 — correlación de eventos** (segunda de las 3 direcciones
+  pedidas): `findCorrelations()` cruza los eventos ya recolectados por
+  cercanía geográfica (haversine) con pares específicos — sismo↔volcán
+  (100km), incendio↔tormenta (300km), volcán↔tormenta (200km) — no
+  todos contra todos, para no marcar coincidencias sin sentido.
+  Expuesto en `/events` como `correlations`. En el mapa se dibuja como
+  línea punteada + etiqueta de distancia entre los dos eventos, no un
+  panel nuevo (el lateral ya estaba lleno).
+
+  Al construirlo se encontró que la pregunta de ejemplo del propio
+  roadmap ("¿el sismo coincide con actividad volcánica cercana?") era
+  literalmente imposible de responder — dos bugs reales de datos:
+  1. El frontend ya tenía TODO el soporte para `type:'volcano'` (color,
+     ícono, leyenda, alertas críticas) pero el backend nunca lo
+     llenaba — el parser de GDACS descartaba cualquier evento que no
+     fuera `TC` (ciclón), aunque GDACS sí reporta volcanes (`VO`) en
+     el mismo feed. Arreglado.
+  2. La extracción de ciclones llevaba tiempo rota — GDACS dejó de
+     incluir `<gdacs:latitude>/<gdacs:longitude>` en sus items TC
+     (confirmado: 0 de 3 items actuales lo tienen), así que `storms`
+     volvía vacío sin ningún error visible. Arreglado usando
+     `<geo:Point>`, universal en el feed.
+
+  Verificado en vivo (Fuego/Guatemala extraído correctamente, 3
+  ciclones activos extraídos) y con datos sintéticos (2/2 correlaciones
+  esperadas detectadas, líneas dibujadas con coordenadas correctas).
+  0 correlaciones reales ahora mismo es el resultado correcto —
+  verificado a mano que el evento más cercano real está a 6399km.
+  Universal (server.js + dashboard.html) — cruzó a `master` también
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -310,11 +339,16 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 **Pilar 1 (sistema local): completo.**
 
 **Pilar 2 (OSINT global) — en progreso, el usuario pidió las 3 direcciones:**
-- ✅ Más fuentes de noticias (primera de las 3) — ver "Estado actual"
-- Correlación de eventos (¿el sismo M6 coincide con actividad volcánica
-  cercana? ¿el pico de vuelos coincide con algo?)
-- Búsqueda/consulta histórica — hoy todo es "últimas 24h en vivo", sin
-  memoria (el más grande de los tres, necesita empezar a persistir datos)
+- ✅ Más fuentes de noticias (1ª de 3) — ver "Estado actual"
+- ✅ Correlación de eventos (2ª de 3) — ver "Estado actual". Queda
+  pendiente la otra pregunta de ejemplo del roadmap ("¿el pico de
+  vuelos coincide con algo?") — se dejó fuera del alcance de esta
+  ronda porque aviación hoy es solo un conteo agregado, no por región;
+  necesitaría una línea base histórica para saber qué es un "pico",
+  lo cual se solapa con la 3ª dirección (búsqueda histórica)
+- Búsqueda/consulta histórica (3ª de 3) — hoy todo es "últimas 24h en
+  vivo", sin memoria (el más grande de los tres, necesita empezar a
+  persistir datos)
 
 **Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
 - Tráfico por dispositivo, puertos abiertos, servicios expuestos
@@ -332,9 +366,9 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Pilar 2 — correlación de eventos** (2ª de 3, más fuentes ✅ lista)
-- **Pilar 2 — búsqueda histórica** (3ª de 3 — la más grande, necesita
-  empezar a persistir datos que hoy son solo "últimas 24h en vivo")
+- **Pilar 2 — búsqueda histórica** (3ª de 3, la última que falta — la
+  más grande, necesita empezar a persistir datos que hoy son solo
+  "últimas 24h en vivo")
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 
