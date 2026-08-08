@@ -779,7 +779,7 @@ app.get('/events', async (req, res) => {
       _eventsCache = r; _eventsTs = Date.now(); _eventsInFlight = null; return r;
     }).catch(e => {
       nxLog('ERROR /events fatal: ' + e.message, 'error'); _eventsInFlight = null;
-      return _eventsCache || { events: [], seismicEnergyJ: 0, ts: Date.now() };
+      return _eventsCache || { events: [], correlations: [], seismicEnergyJ: 0, ts: Date.now() };
     });
   }
   res.json(await _eventsInFlight);
@@ -793,9 +793,54 @@ async function buildEvents() {
   const raceResult = await Promise.race([_fetchAllEvents(), HARD_TIMEOUT]);
   if (raceResult._timeout) {
     nxLog('ERROR /events: hard timeout 20s — returning partial cache', 'warn');
-    return _eventsCache || { events: [], seismicEnergyJ: 0, ts: Date.now() };
+    return _eventsCache || { events: [], correlations: [], seismicEnergyJ: 0, ts: Date.now() };
   }
   return raceResult;
+}
+
+// ── EVENT CORRELATION (Pilar 2, 2ª de 3 direcciones) ────────────────────────
+// Cruza los eventos que ya se recolectan por cercanía geográfica — "este
+// sismo M6 está a 40km de un volcán activo" es un hecho distinto y con más
+// señal que cualquiera de los dos eventos por separado. La pregunta del
+// roadmap ("¿el sismo coincide con actividad volcánica cercana?") era
+// literalmente imposible de responder antes de esto: no se recolectaban
+// volcanes en absoluto (ver fix de GDACS VO arriba).
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Solo pares de tipo específicos, no un cruce de todos contra todos — un
+// satélite pasando sobre un incendio no es una "correlación" significativa,
+// solo geografía compartida por casualidad.
+const CORRELATION_PAIRS = [
+  { a: 'quake',   b: 'volcano', radiusKm: 100 },
+  { a: 'fire',    b: 'storm',   radiusKm: 300 },
+  { a: 'volcano', b: 'storm',   radiusKm: 200 },
+];
+
+function findCorrelations(events) {
+  const correlations = [];
+  for (const rule of CORRELATION_PAIRS) {
+    const as = events.filter(e => e.type === rule.a);
+    const bs = events.filter(e => e.type === rule.b);
+    for (const a of as) {
+      for (const b of bs) {
+        const d = haversineKm(a.lat, a.lon, b.lat, b.lon);
+        if (d <= rule.radiusKm) {
+          correlations.push({
+            typeA: a.type, labelA: a.label, infoA: a.info, latA: a.lat, lonA: a.lon,
+            typeB: b.type, labelB: b.label, infoB: b.info, latB: b.lat, lonB: b.lon,
+            distanceKm: Math.round(d),
+          });
+        }
+      }
+    }
+  }
+  correlations.sort((x, y) => x.distanceKm - y.distanceKm);
+  return correlations.slice(0, 15);
 }
 
 async function _fetchAllEvents() {
@@ -931,8 +976,14 @@ async function _fetchAllEvents() {
       const content = item[1];
       const evtype = (content.match(/<gdacs:eventtype[^>]*>(.*?)<\/gdacs:eventtype>/) || [])[1];
       if (evtype !== 'TC') return;
-      const lat  = parseFloat((content.match(/<gdacs:latitude[^>]*>(.*?)<\/gdacs:latitude>/) || [])[1]);
-      const lon  = parseFloat((content.match(/<gdacs:longitude[^>]*>(.*?)<\/gdacs:longitude>/) || [])[1]);
+      // <gdacs:latitude>/<gdacs:longitude> no longer appear in GDACS's feed
+      // (verified: zero TC items had them as of this fix) — <geo:Point> is
+      // the coordinate tag GDACS actually uses now, universal across event
+      // types. This was silently returning 0 cyclones for who knows how
+      // long before it got noticed here while building volcano/storm
+      // correlation, which needed real storm data to even test against.
+      const lat  = parseFloat((content.match(/<geo:lat>(.*?)<\/geo:lat>/) || [])[1]);
+      const lon  = parseFloat((content.match(/<geo:long>(.*?)<\/geo:long>/) || [])[1]);
       const name = ((content.match(/<gdacs:eventname[^>]*>(.*?)<\/gdacs:eventname>/) || [])[1] || 'CYCLONE').toUpperCase();
       const sev  = (content.match(/<gdacs:severity[^>]*>([^<]*)<\/gdacs:severity>/) || [])[1] || '';
       if (isNaN(lat) || isNaN(lon)) return;
@@ -940,6 +991,30 @@ async function _fetchAllEvents() {
       cycCount++;
     });
     nxLog('GDACS cyclones: ' + cycCount, cycCount > 0 ? 'ok' : 'info');
+
+    // 5b. Volcanoes — same GDACS feed, different event type (VO). The
+    // frontend already had full support for type:'volcano' (color, icon,
+    // legend, critical alerts) but nothing ever populated it — this feed
+    // reports volcanic activity too, just under a type the old code
+    // silently discarded (`if (evtype !== 'TC') return`). VO items use
+    // <geo:Point> for coordinates, not the <gdacs:latitude>/<gdacs:longitude>
+    // cyclone items have — confirmed by inspecting the raw feed, a VO item
+    // has no gdacs:latitude tag at all.
+    let volcCount = 0;
+    items.forEach(item => {
+      const content = item[1];
+      const evtype = (content.match(/<gdacs:eventtype[^>]*>(.*?)<\/gdacs:eventtype>/) || [])[1];
+      if (evtype !== 'VO') return;
+      const lat = parseFloat((content.match(/<geo:lat>(.*?)<\/geo:lat>/) || [])[1]);
+      const lon = parseFloat((content.match(/<geo:long>(.*?)<\/geo:long>/) || [])[1]);
+      const name = ((content.match(/<gdacs:eventname[^>]*>(.*?)<\/gdacs:eventname>/) || [])[1] || 'VOLCANO').toUpperCase();
+      const alertLevel = (content.match(/<gdacs:alertlevel[^>]*>(.*?)<\/gdacs:alertlevel>/) || [])[1] || '';
+      const country = (content.match(/<gdacs:country[^>]*>(.*?)<\/gdacs:country>/) || [])[1] || '';
+      if (isNaN(lat) || isNaN(lon)) return;
+      events.push({ type:'volcano', lat, lon, label: name, classification:'VO', classLabel:'VOLCANIC ACTIVITY', info:`${name}${country?' ('+country+')':''} | Alerta: ${alertLevel}` });
+      volcCount++;
+    });
+    nxLog('GDACS volcanoes: ' + volcCount, volcCount > 0 ? 'ok' : 'info');
   } else {
     nxLog('GDACS unavailable: ' + cycloneRes.reason?.message, 'warn');
   }
@@ -949,7 +1024,10 @@ async function _fetchAllEvents() {
     .filter(e => e.type === 'quake' && e.mag != null)
     .reduce((sum, e) => sum + Math.pow(10, 1.5 * e.mag + 4.8), 0);
 
-  return { events, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
+  const correlations = findCorrelations(events);
+  if (correlations.length) nxLog('Correlaciones detectadas: ' + correlations.length, 'ok');
+
+  return { events, correlations, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
 }
 
 let _flightsCache = null, _flightsTs = 0;

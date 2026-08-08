@@ -2087,6 +2087,7 @@ function ll2xy(lon,lat){
   return[x,y];
 }
 let _evts=[];
+let _correlations=[];
 
 // Draw a subtle orbital arc in the satellite's direction of travel
 function drawSatOrbit(ns, sat, x, y, orbitGroup){
@@ -2299,11 +2300,38 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
 
     g.appendChild(pinGroup);
   });
+
+  // Correlaciones — línea punteada conectando dos eventos que el backend
+  // marcó como geográficamente cercanos (findCorrelations() en server.js,
+  // ej. un sismo a 40km de un volcán activo). Se dibuja aparte de los
+  // pines normales porque conecta DOS eventos ya existentes, no es un
+  // evento nuevo en sí — reutiliza las mismas coordenadas ll2xy().
+  (_correlations||[]).forEach(corr=>{
+    const [ax,ay]=ll2xy(corr.lonA,corr.latA);
+    const [bx,by]=ll2xy(corr.lonB,corr.latB);
+    if(ax<5||ax>1995||ay<5||ay>996||bx<5||bx>1995||by<5||by>996)return;
+    const line=document.createElementNS(ns,'line');
+    line.setAttribute('x1',ax);line.setAttribute('y1',ay);
+    line.setAttribute('x2',bx);line.setAttribute('y2',by);
+    line.setAttribute('stroke','#FBBF24');line.setAttribute('stroke-width','1.2');
+    line.setAttribute('stroke-dasharray','3,3');line.setAttribute('opacity','.55');
+    line.style.pointerEvents='none';
+    g.appendChild(line);
+    const midx=(ax+bx)/2, midy=(ay+by)/2;
+    const label=document.createElementNS(ns,'text');
+    label.setAttribute('x',midx);label.setAttribute('y',midy-3);
+    label.setAttribute('font-size','8');label.setAttribute('font-family','monospace');
+    label.setAttribute('fill','#FBBF24');label.setAttribute('opacity','.8');
+    label.setAttribute('text-anchor','middle');
+    label.style.pointerEvents='none';
+    label.textContent=corr.distanceKm+'km';
+    g.appendChild(label);
+  });
 }
 
 async function fetchEvents(){
   try{
-    const d=await(await fetch('http://localhost:19234/events')).json();_evts=d.events||[];renderEventPins();
+    const d=await(await fetch('http://localhost:19234/events')).json();_evts=d.events||[];_correlations=d.correlations||[];renderEventPins();
     const qc=_evts.filter(e=>e.type==='quake').length;
     const fc=_evts.filter(e=>e.type==='fire').length;
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
