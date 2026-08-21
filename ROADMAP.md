@@ -339,7 +339,7 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   `master`
 - ✅ **Pilar 2 — búsqueda histórica** (tercera y última de las 3
   direcciones pedidas — cierra Pilar 2 por completo). Sin base de
-  datos: `history/*.jsonl` particionado por día, un archivo por evento
+  datos: `.history/*.jsonl` particionado por día, un archivo por evento
   genuinamente nuevo (dedup por tipo+coordenada redondeada a 1
   decimal+label, TTL 26h). Se decidió explícitamente no usar
   `better-sqlite3` — es módulo nativo y este proyecto se empaqueta con
@@ -376,12 +376,40 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   coordenadas y filtra por radio (1 resultado a <300km), región
   inexistente devuelve `region_not_found` en vez de 500,
   `dashboard.html` y el resto del static siguen sirviendo normal tras
-  el middleware nuevo. Universal (server.js) — pendiente cruzar a
-  `master` y desplegar a la copia de WE.
+  el middleware nuevo. Universal (server.js) — cruzó a `master`,
+  pendiente desplegar a la copia de WE. La alerta del panel RECENT
+  EVENTS (abajo) sí es universal y se vería en WE, pero no antes de
+  acumular 3 días reales de `.history/` ahí — sin apuro por eso solo.
+  El tool del Agent es Electron-only de todos modos (el tab AGENT ya
+  está gateado, no aparece en WE).
 
-  Sin frontend todavía — no se scopeó con el usuario cómo exponerlo en
-  `dashboard.html` (¿panel de búsqueda? ¿tool nuevo de solo-lectura
-  para el Agent?); por ahora es API-only, consultable con curl/fetch.
+  **Frontend** (decidido con el usuario tras completar el backend — dos
+  superficies, no una): alerta automática en el panel RECENT EVENTS +
+  tool nuevo del Agent, ambas construidas.
+  - `buildHistoricalInsight()` en `server.js`: compara volcán/tormenta/
+    noticias de HOY contra el promedio diario ya persistido (mínimo 3
+    días de historial real antes de comparar nada — si no, cualquier
+    primer evento del día se vería como "pico infinito"; sismos quedan
+    fuera a propósito, ya tienen su propia alerta con línea base
+    externa más robusta en `buildSeismicStats`). Umbral: ≥2.5x el
+    promedio Y ≥3 eventos absolutos, para no marcar ruido normal.
+    Expuesto en `/events` como `historicalInsight`. Nuevo bloque
+    `#gs-history-alert` dentro de `#gs-ev-wrap` (el panel RECENT
+    EVENTS mismo, no el status global de arriba — así lo pidió el
+    usuario: "como información aparte" dentro de ese panel). Oculto
+    por completo cuando no hay historial suficiente o nada destacable.
+    Verificado en vivo con datos sintéticos vía `javascript_tool`
+    (estado oculto y estado con 2 insights, HTML/colores correctos) y
+    captura de pantalla confirmando la posición en el panel.
+  - Tool nuevo del Agent, `query_history` (Nivel 1 — solo lectura,
+    auto-ejecuta sin pedir confirmación, igual que `launch_app`/
+    `open_path`): permite preguntas tipo "qué pasó la semana pasada en
+    Guatemala" directo en el chat. Reusa `/history` — el frontend solo
+    arma la URL desde el `input` que decide el modelo y devuelve el
+    JSON (capado a 15 eventos) como `tool_result` para que Claude
+    redacte la respuesta final. Verificado en vivo simulando la misma
+    lógica de fetch+formato contra el servidor de prueba (filtro por
+    tipo, por región, y el caso de región inexistente).
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -442,9 +470,10 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Frontend para búsqueda histórica** — hoy `/history` es API-only,
-  falta decidir cómo exponerlo en `dashboard.html` (¿panel de
-  búsqueda? ¿tool nuevo de solo-lectura para el Agent?)
+- **Desplegar búsqueda histórica a WE** — ya está en `master`, falta
+  copiar a la carpeta de WE + cerrar/limpiar cache/reabrir (ver
+  sección de despliegue abajo). Sin apuro porque no hay nada visible
+  que cambie ahí sin el panel/agente Electron-only
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 

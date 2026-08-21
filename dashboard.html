@@ -283,6 +283,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
   </div>
   <div id="gs-ev-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
     <div class="sub-lbl">RECENT EVENTS</div>
+    <div id="gs-history-alert" style="display:none;font-size:9px;line-height:1.4;margin:4px 0 6px;padding:4px 6px;border-radius:2px" title="Comparado contra el historial persistido localmente, no una línea base externa"></div>
     <div id="gs-events" style="margin-top:4px;font-size:11px;line-height:1.6"></div>
     <div id="gs-mag-hist" style="margin-top:8px;border-top:.5px solid #1e3a2a;padding-top:6px;flex-shrink:0"></div>
   </div>
@@ -1724,6 +1725,23 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
         agentAuditLog(toolCall,question,false,msg);
         return msg;
       }
+      if(toolCall.name==='query_history'){
+        const {days,type,region}=toolCall.input||{};
+        const params=new URLSearchParams();
+        if(days)params.set('days',days);
+        if(type)params.set('type',type);
+        if(region)params.set('region',region);
+        const r=await(await fetch('http://localhost:19234/history?'+params.toString())).json();
+        if(r.error){
+          const msg='Error en búsqueda histórica: '+(r.message||r.error);
+          agentAuditLog(toolCall,question,false,msg);
+          return msg;
+        }
+        agentPrint('system','▸ búsqueda histórica: '+r.count+' eventos'+(r.region?' cerca de '+r.region:'')+' ('+(days||7)+'d)');
+        agentAuditLog(toolCall,question,true,r.count+' resultados, '+r.from+' a '+r.to+(r.region?', región '+r.region:''));
+        return JSON.stringify({count:r.count,from:r.from,to:r.to,region:r.region,radiusKm:r.radiusKm,
+          events:r.events.slice(0,15).map(e=>({ts:e.ts,type:e.type,label:e.label,mag:e.mag,place:e.place,info:e.info}))});
+      }
       if(toolCall.name==='move_path'){
         const {source,destination}=toolCall.input;
         let guard=window.nexusAgentGuard?await window.nexusAgentGuard.checkPath(source):{blocked:false};
@@ -2719,6 +2737,7 @@ async function fetchEvents(){
     renderGSPulseAndEvents(_evts);
     checkCriticalEvents(_evts);
     renderSeismicStatsAlert(d.seismicStats);
+    renderHistoricalInsightAlert(d.historicalInsight);
   }catch(e){}
 }
 
@@ -2748,6 +2767,32 @@ function renderSeismicStatsAlert(stats){
   el.style.display='block';
   el.style.background=(stats.level==='muy_elevado'?'#E24B4A':c.warn)+'14';
   el.style.border='1px solid '+(stats.level==='muy_elevado'?'#E24B4A':c.warn)+'40';
+}
+
+// Complemento del panel RECENT EVENTS, no del status sísmico de arriba:
+// "¿algo de lo que se ve hoy en volcanes/tormentas/noticias está fuera de lo
+// normal comparado con lo que este mismo proceso ya registró?" (sismos ya
+// tienen su propia alerta con línea base externa — ver renderSeismicStatsAlert).
+// server.js ya decide si hay o no suficiente historial acumulado para
+// comparar (mínimo 3 días); null significa "todavía no hay base", no "todo
+// normal" — en ambos casos se oculta, la diferencia no importa para el
+// usuario.
+function renderHistoricalInsightAlert(insight){
+  const el=document.getElementById('gs-history-alert');
+  if(!el)return;
+  if(!insight||!insight.insights||!insight.insights.length){
+    el.style.display='none';
+    return;
+  }
+  const c=_pal;
+  const typeLabel={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',news:'Volumen de noticias'};
+  const lines=insight.insights.map(i=>
+    `<div style="color:${c.warn}">⚠ ${typeLabel[i.type]||i.type}: ${i.todayCount} hoy vs. promedio de ${i.avgPerDay}/día (últimos ${insight.daysOfHistory}d)</div>`
+  );
+  el.innerHTML=lines.join('');
+  el.style.display='block';
+  el.style.background=c.warn+'14';
+  el.style.border='1px solid '+c.warn+'40';
 }
 
 // ── MAP TICKER ─────────────────────────────────────────────────────────────

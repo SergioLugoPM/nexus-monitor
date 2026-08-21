@@ -784,7 +784,7 @@ app.get('/events', async (req, res) => {
       _eventsCache = r; _eventsTs = Date.now(); _eventsInFlight = null; return r;
     }).catch(e => {
       nxLog('ERROR /events fatal: ' + e.message, 'error'); _eventsInFlight = null;
-      return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, seismicEnergyJ: 0, ts: Date.now() };
+      return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, historicalInsight: null, seismicEnergyJ: 0, ts: Date.now() };
     });
   }
   res.json(await _eventsInFlight);
@@ -798,7 +798,7 @@ async function buildEvents() {
   const raceResult = await Promise.race([_fetchAllEvents(), HARD_TIMEOUT]);
   if (raceResult._timeout) {
     nxLog('ERROR /events: hard timeout 20s — returning partial cache', 'warn');
-    return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, seismicEnergyJ: 0, ts: Date.now() };
+    return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, historicalInsight: null, seismicEnergyJ: 0, ts: Date.now() };
   }
   return raceResult;
 }
@@ -994,6 +994,51 @@ function queryHistory({ fromDate, toDate, type, lat, lon, radiusKm, limit }) {
   }
   results.sort((a, b) => new Date(b.ts) - new Date(a.ts));
   return results.slice(0, limit || 200);
+}
+
+// Alerta automática en el panel RECENT EVENTS: ¿hay hoy algo fuera de lo
+// normal comparado con lo que ya persistimos? A propósito NO incluye
+// 'quake' — eso ya lo cubre buildSeismicStats() con una línea base externa
+// (USGS 2000-2024) más robusta que unos pocos días de historial local; acá
+// solo se compara contra datos que este mismo proceso ya observó, así que
+// necesita cierto volumen acumulado antes de decir algo (si no, cualquier
+// primer incendio del día se vería como un "infinito %" de aumento).
+const HIST_INSIGHT_TYPES = ['volcano', 'storm', 'news'];
+const HIST_MIN_DAYS = 3;          // mínimo de días con datos reales antes de comparar contra nada
+const HIST_SPIKE_MULTIPLIER = 2.5;
+const HIST_MIN_ABS = 3;           // evita marcar "pico" solo por pasar de 0/1 a 2/3
+
+function buildHistoricalInsight(events) {
+  let files;
+  try { ensureHistoryDir(); files = fs.readdirSync(HISTORY_DIR).filter(f => f.endsWith('.jsonl')); }
+  catch (e) { return null; }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const pastDays = files.filter(f => f.replace('.jsonl', '') !== today);
+  if (pastDays.length < HIST_MIN_DAYS) return null;
+
+  const histCounts = {};
+  for (const f of pastDays) {
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, f), 'utf8'); } catch (e) { continue; }
+    for (const line of content.split('\n')) {
+      if (!line.trim()) continue;
+      let ev;
+      try { ev = JSON.parse(line); } catch (e) { continue; }
+      histCounts[ev.type] = (histCounts[ev.type] || 0) + 1;
+    }
+  }
+
+  const insights = [];
+  for (const type of HIST_INSIGHT_TYPES) {
+    const todayCount = events.filter(e => e.type === type).length;
+    const avgPerDay = (histCounts[type] || 0) / pastDays.length;
+    if (todayCount >= HIST_MIN_ABS && avgPerDay > 0 && todayCount >= avgPerDay * HIST_SPIKE_MULTIPLIER) {
+      insights.push({ type, todayCount, avgPerDay: Math.round(avgPerDay * 10) / 10 });
+    }
+  }
+  if (!insights.length) return null;
+  return { daysOfHistory: pastDays.length, insights };
 }
 
 app.get('/history', (req, res) => {
@@ -1217,9 +1262,12 @@ async function _fetchAllEvents() {
   if (seismicStats.level !== 'normal') nxLog('Actividad sísmica ' + seismicStats.level + ': ' + seismicStats.m6WeekCount + ' M6+ esta semana (base ' + M6_WEEK_BASELINE + ')', 'warn');
   if (seismicStats.solarCoincidence) nxLog('Coincidencia temporal: sismo ' + seismicStats.solarCoincidence.quakeLabel + ' + actividad solar clase ' + seismicStats.solarCoincidence.solarClass, 'info');
 
+  const historicalInsight = buildHistoricalInsight(events);
+  if (historicalInsight) nxLog('Insight histórico: ' + historicalInsight.insights.map(i => i.type + ' hoy=' + i.todayCount + ' vs prom=' + i.avgPerDay + '/día').join(', '), 'info');
+
   recordHistory(events);
 
-  return { events, correlations, seismicStats, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
+  return { events, correlations, seismicStats, historicalInsight, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
 }
 
 let _flightsCache = null, _flightsTs = 0;
@@ -1697,6 +1745,19 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'query_history',
+    description: 'Busca en el historial persistido de eventos globales (sismos, incendios, volcanes, tormentas, noticias) — útil para preguntas tipo "qué pasó la semana pasada en Guatemala" o "cuántos incendios hubo este mes". Solo lectura, sin efecto. Cubre desde que se activó el historial, no eventos de antes.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'Cuántos días hacia atrás desde hoy buscar. Default 7 si no se especifica.' },
+        type: { type: 'string', description: 'Filtrar por tipo de evento: quake, fire, volcano, storm, o news. Omitir para todos.' },
+        region: { type: 'string', description: 'Nombre de país o ciudad para filtrar por cercanía geográfica (ej. "Guatemala", "Japón"). Omitir para buscar en todo el mundo.' },
+      },
+      required: [],
+    },
+  },
+  {
     name: 'move_path',
     description: 'Mueve o renombra un archivo o carpeta de una ruta absoluta a otra. Nivel 2: el usuario confirma explícitamente antes de que se ejecute.',
     input_schema: {
@@ -1730,7 +1791,9 @@ const AGENT_TOOLS = [
 
 const AGENT_SYSTEM = 'Eres el asistente integrado de NEXUS MONITOR, un dashboard de sistema y OSINT. '
   + 'Respondes usando los datos en <context> cuando la pregunta es sobre el estado del sistema. '
-  + 'Tienes herramientas de Nivel 1 — launch_app, open_path — que se ejecutan directo sin pedir nada, '
+  + 'Tienes herramientas de Nivel 1 — launch_app, open_path, query_history — que se ejecutan directo '
+  + 'sin pedir nada (query_history es de solo lectura, úsala cada vez que pregunten por eventos pasados '
+  + 'que no estén ya en <context>, que solo cubre lo más reciente), '
   + 'y de Nivel 2 — move_path, delete_path, run_command — con efecto real. '
   + 'IMPORTANTE sobre Nivel 2: cuando el usuario pida una de estas acciones, LLAMA LA HERRAMIENTA '
   + 'DIRECTAMENTE, de inmediato — no le preguntes tú primero en un mensaje de texto si confirma ni '
