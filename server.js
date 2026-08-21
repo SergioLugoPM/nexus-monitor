@@ -779,7 +779,7 @@ app.get('/events', async (req, res) => {
       _eventsCache = r; _eventsTs = Date.now(); _eventsInFlight = null; return r;
     }).catch(e => {
       nxLog('ERROR /events fatal: ' + e.message, 'error'); _eventsInFlight = null;
-      return _eventsCache || { events: [], correlations: [], seismicEnergyJ: 0, ts: Date.now() };
+      return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, seismicEnergyJ: 0, ts: Date.now() };
     });
   }
   res.json(await _eventsInFlight);
@@ -793,7 +793,7 @@ async function buildEvents() {
   const raceResult = await Promise.race([_fetchAllEvents(), HARD_TIMEOUT]);
   if (raceResult._timeout) {
     nxLog('ERROR /events: hard timeout 20s — returning partial cache', 'warn');
-    return _eventsCache || { events: [], correlations: [], seismicEnergyJ: 0, ts: Date.now() };
+    return _eventsCache || { events: [], correlations: [], seismicStats: { m6WeekCount: 0, m6WeekBaseline: 2.87, level: 'normal', solarCoincidence: null }, seismicEnergyJ: 0, ts: Date.now() };
   }
   return raceResult;
 }
@@ -841,6 +841,60 @@ function findCorrelations(events) {
   }
   correlations.sort((x, y) => x.distanceKm - y.distanceKm);
   return correlations.slice(0, 15);
+}
+
+// ── SEISMIC STATS vs. HISTORICAL BASELINE ───────────────────────────────────
+// "¿la actividad sísmica de hoy es inusualmente alta?" — compara los sismos
+// M6.0+ de la última semana (que /events ya trae, via el feed 6.0_week de
+// USGS) contra el promedio histórico REAL: 149.3 sismos M6.0+/año a nivel
+// global, promedio 2000-2024 (3359 de M6.0-6.9 + 346 de M7.0-7.9 + 28 de
+// M8.0+ en 25 años, USGS vía compilación de Wikipedia, verificado antes de
+// escribir esto — no es un número inventado). Eso da ≈2.87/semana.
+//
+// El umbral usa varianza tipo Poisson (razonable para conteo de eventos
+// raros e independientes, σ=√2.87≈1.69): media+2σ≈6.2 y media+3σ≈7.9,
+// redondeados a 6 y 9. Sin esto, "por encima del promedio" dispararía en
+// cualquier semana normal — la variación aleatoria semana a semana es
+// esperada, no es lo mismo que "inusual".
+const M6_WEEK_BASELINE = 2.87;
+function seismicLevel(m6WeekCount) {
+  if (m6WeekCount >= 9) return 'muy_elevado';
+  if (m6WeekCount >= 6) return 'elevado';
+  return 'normal';
+}
+
+// Coincidencia temporal entre un sismo M6+ reciente y actividad solar
+// elevada (clase M o X) — deliberadamente NO se presenta como relación
+// científica: USGS es explícito en que no hay vínculo comprobado entre
+// actividad solar y sismicidad terrestre, así que esto es solo "pasó al
+// mismo tiempo", nunca "esto causó aquello". Solo se revisa contra
+// actividad solar (no CO2/escombros/aviación) porque es la única de las
+// otras "estadísticas globales" con variabilidad real de corto plazo —
+// CO2 cambia en escalas de años, escombros espaciales no tiene picos
+// diarios, aviación no tiene una línea base histórica todavía (eso es la
+// 3ª dirección de Pilar 2, búsqueda histórica, sin construir aún).
+function checkSolarCoincidence(events) {
+  if (!_flaresCache || !_flaresCache.class) return null;
+  const solarClass = _flaresCache.class[0];
+  if (solarClass !== 'X' && solarClass !== 'M') return null;
+  const bigQuake = events.find(e => e.type === 'quake' && e.mag >= 6);
+  if (!bigQuake) return null;
+  return {
+    quakeLabel: bigQuake.label,
+    quakePlace: bigQuake.place,
+    solarClass: _flaresCache.class,
+    note: 'Coincidencia temporal — no hay relación científica establecida entre actividad solar y sismicidad (USGS).',
+  };
+}
+
+function buildSeismicStats(events) {
+  const m6WeekCount = events.filter(e => e.type === 'quake' && e.mag >= 6).length;
+  return {
+    m6WeekCount,
+    m6WeekBaseline: M6_WEEK_BASELINE,
+    level: seismicLevel(m6WeekCount),
+    solarCoincidence: checkSolarCoincidence(events),
+  };
 }
 
 async function _fetchAllEvents() {
@@ -1027,7 +1081,11 @@ async function _fetchAllEvents() {
   const correlations = findCorrelations(events);
   if (correlations.length) nxLog('Correlaciones detectadas: ' + correlations.length, 'ok');
 
-  return { events, correlations, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
+  const seismicStats = buildSeismicStats(events);
+  if (seismicStats.level !== 'normal') nxLog('Actividad sísmica ' + seismicStats.level + ': ' + seismicStats.m6WeekCount + ' M6+ esta semana (base ' + M6_WEEK_BASELINE + ')', 'warn');
+  if (seismicStats.solarCoincidence) nxLog('Coincidencia temporal: sismo ' + seismicStats.solarCoincidence.quakeLabel + ' + actividad solar clase ' + seismicStats.solarCoincidence.solarClass, 'info');
+
+  return { events, correlations, seismicStats, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
 }
 
 let _flightsCache = null, _flightsTs = 0;
