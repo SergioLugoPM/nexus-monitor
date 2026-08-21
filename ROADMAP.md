@@ -306,6 +306,37 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   0 correlaciones reales ahora mismo es el resultado correcto —
   verificado a mano que el evento más cercano real está a 6399km.
   Universal (server.js + dashboard.html) — cruzó a `master` también
+- ✅ **Fix: recalibración de `ll2xy()`** — reportado con evidencia: el pin
+  del volcán Fuego (Guatemala) aparecía en el golfo, en el mar. La
+  calibración Robinson de una sesión anterior nunca se verificó
+  rigurosamente (solo a ojo sobre una captura, 8 puntos). Medido contra
+  los bounding boxes reales de los paths SVG (`getBBox()`), CADA punto
+  probado —16 países, todos los continentes— caía sistemáticamente
+  20-100px mal ubicado, siempre en la misma dirección. Recalibrado por
+  regresión lineal contra 8 referencias precisas, verificado contra 9
+  más que no se usaron en el ajuste. Error máximo bajó a 20px (la
+  mayoría <10px). Afecta TODOS los pines del mapa. Universal — cruzó a
+  `master`
+- ✅ **Fix: tooltip del mapa no apuntaba al pin** — el SVG del mapa
+  (sin `preserveAspectRatio`) se letterboxea con el default del
+  navegador, y los tres lugares que posicionaban el tooltip (sismos,
+  vuelos, clima) ignoraban ese margen por completo (~130px de desfase
+  medido). Nueva función compartida `svgToScreen()` que sí lo calcula.
+  Verificado con `getBoundingClientRect()`: hueco tooltip↔pin de
+  exactamente 12px, flecha alineada al pin con error de fracción de
+  pixel, en los tres tipos. Universal — cruzó a `master`
+- ✅ **Estadísticas sísmicas vs. línea base histórica**: dos preguntas
+  del usuario — ¿la actividad actual es inusualmente alta?, ¿coincide
+  con otra estadística ya trackeada? `buildSeismicStats()` compara
+  sismos M6+/semana contra 2.87 (promedio real 2000-2024, verificado
+  por búsqueda, no inventado), con umbral tipo Poisson (media+2σ≈6,
+  +3σ≈9) para no disparar en variación normal. `checkSolarCoincidence()`
+  marca cuándo un sismo M6+ coincide en tiempo con actividad solar
+  clase M/X — la única otra estadística global con variabilidad de
+  corto plazo — sin presentarlo como relación científica (USGS es
+  explícito en que no existe vínculo comprobado). Alerta oculta por
+  completo cuando no hay nada que reportar. Universal — cruzó a
+  `master`
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
