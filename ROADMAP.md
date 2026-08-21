@@ -337,6 +337,51 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   explícito en que no existe vínculo comprobado). Alerta oculta por
   completo cuando no hay nada que reportar. Universal — cruzó a
   `master`
+- ✅ **Pilar 2 — búsqueda histórica** (tercera y última de las 3
+  direcciones pedidas — cierra Pilar 2 por completo). Sin base de
+  datos: `history/*.jsonl` particionado por día, un archivo por evento
+  genuinamente nuevo (dedup por tipo+coordenada redondeada a 1
+  decimal+label, TTL 26h). Se decidió explícitamente no usar
+  `better-sqlite3` — es módulo nativo y este proyecto se empaqueta con
+  `pkg` (`node18-win-x64`), donde eso complica el bundling; el volumen
+  real (unos cuantos eventos nuevos cada 2 min, TTL del cache de
+  `/events`) no lo justifica. Se engancha en `_fetchAllEvents()`, solo
+  en refresh real, no en cada poll del cliente.
+
+  Nuevo endpoint `GET /history` — `days`/`from`/`to`, `type`, `region`
+  (reutiliza `geolocate()`/`GEO_TABLE`, ya existente para geo-tag de
+  noticias — sin duplicar geocoding), `radiusKm` (default 300km si hay
+  región/coords, usando el `haversineKm()` ya existente de
+  correlación).
+
+  Bug real encontrado y arreglado al probarlo en vivo: la carpeta se
+  llamaba `history/` a secas, y `express.static(__dirname)` sirve TODO
+  el directorio del proyecto — eso causaba (a) redirect 301 de
+  `/history` a `/history/` por colisión con el nombre de carpeta,
+  ANTES de que la ruta pudiera responder, y (b) el `.jsonl` crudo
+  quedaba descargable público en `/history/2026-08-21.jsonl`
+  (`application/octet-stream`), sin pasar por el filtrado del
+  endpoint. Renombrado a `.history/` (gitignored) para separar del
+  nombre de ruta, pero además: dotfiles NO se ignoran por defecto en
+  este setup pese a lo documentado en serve-static — verificado en
+  vivo, `.history/archivo.jsonl` seguía devolviendo 200 con el
+  contenido real. No confiar en ese default: se agregó un middleware
+  explícito (`app.use('/.history', (req,res)=>res.status(404).end())`)
+  antes de `express.static`, y así sí se verificó 404.
+
+  Verificado en vivo end-to-end en servidor de prueba (puerto 19235,
+  separado del real): 75 eventos nuevos grabados en el primer fetch,
+  0 duplicados en un segundo fetch dentro del TTL, `/history?type=quake`
+  devuelve solo sismos, `/history?region=Guatemala` resuelve
+  coordenadas y filtra por radio (1 resultado a <300km), región
+  inexistente devuelve `region_not_found` en vez de 500,
+  `dashboard.html` y el resto del static siguen sirviendo normal tras
+  el middleware nuevo. Universal (server.js) — pendiente cruzar a
+  `master` y desplegar a la copia de WE.
+
+  Sin frontend todavía — no se scopeó con el usuario cómo exponerlo en
+  `dashboard.html` (¿panel de búsqueda? ¿tool nuevo de solo-lectura
+  para el Agent?); por ahora es API-only, consultable con curl/fetch.
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -369,17 +414,17 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 
 **Pilar 1 (sistema local): completo.**
 
-**Pilar 2 (OSINT global) — en progreso, el usuario pidió las 3 direcciones:**
+**Pilar 2 (OSINT global): completo — las 3 direcciones que pidió el usuario.**
 - ✅ Más fuentes de noticias (1ª de 3) — ver "Estado actual"
 - ✅ Correlación de eventos (2ª de 3) — ver "Estado actual". Queda
   pendiente la otra pregunta de ejemplo del roadmap ("¿el pico de
-  vuelos coincide con algo?") — se dejó fuera del alcance de esta
-  ronda porque aviación hoy es solo un conteo agregado, no por región;
-  necesitaría una línea base histórica para saber qué es un "pico",
-  lo cual se solapa con la 3ª dirección (búsqueda histórica)
-- Búsqueda/consulta histórica (3ª de 3) — hoy todo es "últimas 24h en
-  vivo", sin memoria (el más grande de los tres, necesita empezar a
-  persistir datos)
+  vuelos coincide con algo?") — se dejó fuera del alcance porque
+  aviación hoy es solo un conteo agregado, no por región; ahora que
+  existe persistencia histórica (3ª dirección) esto ya es viable como
+  siguiente paso, no bloqueado
+- ✅ Búsqueda/consulta histórica (3ª de 3) — ver "Estado actual". Ya
+  persiste datos (`.history/*.jsonl`) y tiene endpoint `GET /history`;
+  falta cruzar a `master`/WE y decidir superficie de frontend
 
 **Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
 - Tráfico por dispositivo, puertos abiertos, servicios expuestos
@@ -397,9 +442,9 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Pilar 2 — búsqueda histórica** (3ª de 3, la última que falta — la
-  más grande, necesita empezar a persistir datos que hoy son solo
-  "últimas 24h en vivo")
+- **Frontend para búsqueda histórica** — hoy `/history` es API-only,
+  falta decidir cómo exponerlo en `dashboard.html` (¿panel de
+  búsqueda? ¿tool nuevo de solo-lectura para el Agent?)
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 

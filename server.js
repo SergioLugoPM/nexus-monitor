@@ -30,6 +30,11 @@ app.use(cors({
     cb(new Error('CORS blocked: ' + origin));
   }
 }));
+// Bloqueo explícito antes del static: probado en vivo que serve-static NO
+// ignora ".history" por defecto pese a ser dotfile (devolvía 200 con el
+// .jsonl crudo, application/octet-stream) — no confiar en ese default,
+// cerrar la ruta a mano.
+app.use('/.history', (req, res) => res.status(404).end());
 app.use(express.static(__dirname));
 app.get('/',(req,res)=>res.redirect('/dashboard.html'));
 app.use(express.json());
@@ -897,6 +902,133 @@ function buildSeismicStats(events) {
   };
 }
 
+// ── BÚSQUEDA HISTÓRICA (Pilar 2, 3ª y última de las 3 direcciones) ──────────
+// "Qué pasó la semana pasada en tal región" — hoy /events es solo "últimas
+// 24h en vivo", sin memoria. Esto le agrega memoria real, sin depender de
+// una base de datos: archivos JSON Lines particionados por día
+// (history/2026-08-21.jsonl), uno por evento genuinamente NUEVO. Nada de
+// SQLite/better-sqlite3 — sería un módulo nativo, y este proyecto se
+// empaqueta con `pkg` (ver package.json), que complica bastante los
+// módulos nativos; el volumen real (unos cuantos eventos nuevos cada 2
+// minutos, la mayoría de los polls no traen nada nuevo) no lo justifica.
+//
+// Se engancha en cada refresh real de /events (cada 2 min como máximo, el
+// TTL del cache) — no en cada poll del cliente, que reutiliza el cache.
+// Nombre con punto a propósito: express.static(__dirname) sirve TODO el
+// directorio del proyecto (ver línea ~33), así que un "history/" normal
+// quedaría públicamente descargable en crudo vía /history/2026-08-21.jsonl
+// (bypaseando el filtrado del endpoint) y además colisionaría con la ruta
+// /history (express.static redirige "/history" -> "/history/" si existe
+// como carpeta, antes de que la ruta de abajo pueda responder). serve-static
+// ignora dotfiles por defecto (dotfiles:'ignore' → 404, ni siquiera 403),
+// así que ".history" resuelve ambos problemas sin tocar el middleware.
+const HISTORY_DIR = path.join(__dirname, '.history');
+// Un poco más de 24h — así el primer sismo del día no se "pierde" del
+// dedup si el proceso llevaba corriendo desde el día anterior.
+const HISTORY_DEDUP_TTL = 26 * 60 * 60 * 1000;
+let _historyDedup = new Map(); // "type|lat|lon|label" -> cuándo se vio por última vez
+
+function ensureHistoryDir() {
+  if (!fs.existsSync(HISTORY_DIR)) fs.mkdirSync(HISTORY_DIR, { recursive: true });
+}
+
+// Redondear a 1 decimal (~11km) absorbe el jitter normal de coordenadas
+// entre fetches del mismo evento (ej. USGS revisa la posición de un sismo
+// según llegan más estaciones) sin confundir dos eventos genuinamente
+// distintos que caigan cerca.
+function historyKey(ev) {
+  return [ev.type, Math.round((ev.lat || 0) * 10) / 10, Math.round((ev.lon || 0) * 10) / 10, ev.label || ''].join('|');
+}
+
+function recordHistory(events) {
+  const now = Date.now();
+  for (const [k, ts] of _historyDedup) { if (now - ts > HISTORY_DEDUP_TTL) _historyDedup.delete(k); }
+
+  const fresh = [];
+  for (const ev of events) {
+    if (ev.lat == null || ev.lon == null) continue; // sin coordenadas no hay nada que archivar geográficamente
+    const key = historyKey(ev);
+    if (_historyDedup.has(key)) continue;
+    _historyDedup.set(key, now);
+    fresh.push({ ts: new Date().toISOString(), type: ev.type, lat: ev.lat, lon: ev.lon, label: ev.label || '', mag: ev.mag ?? null, place: ev.place ?? null, info: ev.info ?? null });
+  }
+  if (!fresh.length) return;
+
+  try {
+    ensureHistoryDir();
+    const day = new Date().toISOString().slice(0, 10);
+    const filePath = path.join(HISTORY_DIR, day + '.jsonl');
+    fs.appendFileSync(filePath, fresh.map(e => JSON.stringify(e)).join('\n') + '\n', 'utf8');
+    nxLog('Historial: +' + fresh.length + ' eventos nuevos guardados (' + day + '.jsonl)', 'info');
+  } catch (e) {
+    nxLog('ERROR guardando historial: ' + e.message, 'warn');
+  }
+}
+
+function queryHistory({ fromDate, toDate, type, lat, lon, radiusKm, limit }) {
+  ensureHistoryDir();
+  const files = fs.readdirSync(HISTORY_DIR).filter(f => f.endsWith('.jsonl')).sort();
+  const from = fromDate ? new Date(fromDate) : new Date(0);
+  const to = toDate ? new Date(toDate) : new Date();
+  const results = [];
+  for (const file of files) {
+    const day = file.replace('.jsonl', '');
+    // Mediodía UTC evita que un día completo se descarte por un corrimiento
+    // de zona horaria de unas horas en la comparación from/to de abajo.
+    const dayMid = new Date(day + 'T12:00:00Z');
+    if (dayMid < new Date(from.getTime() - 86400000) || dayMid > new Date(to.getTime() + 86400000)) continue;
+    let content;
+    try { content = fs.readFileSync(path.join(HISTORY_DIR, file), 'utf8'); } catch (e) { continue; }
+    for (const line of content.split('\n')) {
+      if (!line.trim()) continue;
+      let ev;
+      try { ev = JSON.parse(line); } catch (e) { continue; }
+      const evTs = new Date(ev.ts);
+      if (evTs < from || evTs > to) continue;
+      if (type && ev.type !== type) continue;
+      if (lat != null && lon != null && radiusKm != null) {
+        if (haversineKm(lat, lon, ev.lat, ev.lon) > radiusKm) continue;
+      }
+      results.push(ev);
+    }
+  }
+  results.sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  return results.slice(0, limit || 200);
+}
+
+app.get('/history', (req, res) => {
+  try {
+    const q = req.query || {};
+    const toDate = q.to ? new Date(q.to) : new Date();
+    const fromDate = q.from ? new Date(q.from) : new Date(toDate.getTime() - (parseInt(q.days, 10) || 7) * 86400000);
+    if (isNaN(fromDate) || isNaN(toDate)) return res.status(400).json({ error: 'bad_date' });
+
+    let lat = q.lat != null ? parseFloat(q.lat) : null;
+    let lon = q.lon != null ? parseFloat(q.lon) : null;
+    let regionName = null;
+    if (q.region && lat == null) {
+      const geo = geolocate(q.region);
+      if (!geo) return res.json({ error: 'region_not_found', message: 'No se encontró "' + q.region + '" en la tabla de lugares conocidos.', events: [], count: 0 });
+      lat = geo.lat; lon = geo.lon; regionName = geo.name;
+    }
+    const radiusKm = q.radiusKm ? parseFloat(q.radiusKm) : (lat != null ? 300 : null);
+
+    const events = queryHistory({
+      fromDate: fromDate.toISOString(), toDate: toDate.toISOString(),
+      type: q.type || null, lat, lon, radiusKm, limit: q.limit ? parseInt(q.limit, 10) : 200,
+    });
+    nxLog('Búsqueda histórica: ' + events.length + ' resultados (' + fromDate.toISOString().slice(0,10) + ' a ' + toDate.toISOString().slice(0,10) + (regionName ? ', ' + regionName : '') + ')', 'info');
+    res.json({
+      events, count: events.length,
+      from: fromDate.toISOString(), to: toDate.toISOString(),
+      region: regionName, regionCoords: lat != null ? { lat, lon } : null, radiusKm,
+    });
+  } catch (e) {
+    nxLog('ERROR /history: ' + e.message, 'error');
+    res.status(500).json({ error: e.message });
+  }
+});
+
 async function _fetchAllEvents() {
   // Run all independent fetches in parallel
   const [quakeRes, satRes, fireRes, geoNewsRes, cycloneRes] = await Promise.allSettled([
@@ -1084,6 +1216,8 @@ async function _fetchAllEvents() {
   const seismicStats = buildSeismicStats(events);
   if (seismicStats.level !== 'normal') nxLog('Actividad sísmica ' + seismicStats.level + ': ' + seismicStats.m6WeekCount + ' M6+ esta semana (base ' + M6_WEEK_BASELINE + ')', 'warn');
   if (seismicStats.solarCoincidence) nxLog('Coincidencia temporal: sismo ' + seismicStats.solarCoincidence.quakeLabel + ' + actividad solar clase ' + seismicStats.solarCoincidence.solarClass, 'info');
+
+  recordHistory(events);
 
   return { events, correlations, seismicStats, seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3)), ts: Date.now() };
 }
