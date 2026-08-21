@@ -265,6 +265,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <div id="gs-seismic-sub" style="font-size:9px">joules / 24h</div>
     </div>
   </div>
+  <div id="gs-seismic-alert" style="display:none;font-size:9px;line-height:1.4;margin-bottom:6px;padding:4px 6px;border-radius:2px" title="Nivel base: 2.87 sismos M6+/semana, promedio global USGS 2000-2024"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
     <div>
       <div class="sub-lbl">DEBRIS</div>
@@ -1914,12 +1915,16 @@ function renderFlightPins(flights) {
       const tooltip = document.getElementById('map-tooltip'); if(!tooltip) return;
       tooltip.style.display = 'block';
       tooltip.innerHTML = `<strong>✈️ ${f.callsign}</strong><div style="margin-top:4px;font-size:11px;color:#80EEFF;">${f.country} · ${f.alt.toLocaleString()} ft · ${f.speed} kts · HDG ${f.heading}°</div>`;
-      const rect = tooltip.closest('#wmap-wrap')?.getBoundingClientRect() || {left:0,top:0};
-      const svg = document.getElementById('wmap').getBoundingClientRect();
-      const px = svg.left + (x / 2000) * svg.width - rect.left;
-      const py = svg.top  + (y / 1001) * svg.height - rect.top;
-      tooltip.style.left = Math.min(px + 8, rect.width - 220) + 'px';
-      tooltip.style.top  = Math.max(py - 50, 4) + 'px';
+      const wRect = document.getElementById('wmap-wrap').getBoundingClientRect();
+      const [px, py] = svgToScreen(x, y);
+      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+      let leftPos = px - tw / 2;
+      const topPos = py - th - 12;
+      if(leftPos < 4) leftPos = 4;
+      if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
+      tooltip.style.left = leftPos + 'px';
+      tooltip.style.top = topPos + 'px';
+      tooltip.style.setProperty('--arrow-left', (px - leftPos) + 'px');
     });
     dot.addEventListener('mouseout', () => { const t = document.getElementById('map-tooltip'); if(t) t.style.display='none'; });
     g.appendChild(dot);
@@ -2092,6 +2097,34 @@ function ll2xy(lon,lat){
   const x=968.6231+315.19926*xFac*(lon*Math.PI/180);
   const y=574.893-546.47419*yFac;
   return[Math.round(x),Math.round(y)];
+}
+
+// Converts a point in the map SVG's viewBox space (0-2000, 0-1001, same
+// space ll2xy() returns) into actual on-screen CSS pixels relative to
+// #wmap-wrap — needed by every tooltip, since tooltips are plain HTML divs
+// positioned with left/top, not SVG elements the browser places for us.
+//
+// The SVG has no preserveAspectRatio set, so the browser applies its
+// default "xMidYMid meet": the drawn map is scaled to fit the SVG's own
+// box while keeping the viewBox's 2000:1001 aspect ratio, then centered —
+// letterboxed with empty margin on whichever axis doesn't match. Every
+// previous version of this math (three separate near-duplicate copies, one
+// per tooltip) multiplied straight by sRect.width/height as if the drawn
+// map filled the SVG's box exactly, ignoring that margin entirely. In this
+// layout the mismatch is large (measured ~130px of horizontal letterbox on
+// a typical window size) — enough to park a tooltip nowhere near the pin
+// it's for, arrow included, instead of pointing at it like a speech bubble.
+function svgToScreen(vx,vy){
+  const svg=document.getElementById('wmap');
+  const wrap=document.getElementById('wmap-wrap');
+  const sRect=svg.getBoundingClientRect();
+  const wRect=wrap.getBoundingClientRect();
+  const scale=Math.min(sRect.width/2000,sRect.height/1001);
+  const letterboxX=(sRect.width-2000*scale)/2;
+  const letterboxY=(sRect.height-1001*scale)/2;
+  const px=(sRect.left-wRect.left)+letterboxX+vx*scale;
+  const py=(sRect.top-wRect.top)+letterboxY+vy*scale;
+  return[px,py];
 }
 let _evts=[];
 let _correlations=[];
@@ -2271,21 +2304,17 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
         bodyHtml += `<div style="margin-top: 4px; font-size: 9px; color: ${c.warn}; font-weight: bold;">Click to read article</div>`;
       }
       tooltip.innerHTML = `${titleHtml}${bodyHtml}`;
-      
-      const svg = document.getElementById('wmap');
+
       const wrap = document.getElementById('wmap-wrap');
-      const sRect = svg.getBoundingClientRect();
       const wRect = wrap.getBoundingClientRect();
-      
-      const px = (sRect.left - wRect.left) + (x / 2000) * sRect.width;
-      const py = (sRect.top - wRect.top) + (y / 1001) * sRect.height;
-      
+      const [px, py] = svgToScreen(x, y);
+
       const tw = tooltip.offsetWidth;
       const th = tooltip.offsetHeight;
-      
+
       let leftPos = px - tw / 2;
       let topPos = py - th - 12;
-      
+
       if(leftPos < 4) leftPos = 4;
       if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
       
@@ -2352,7 +2381,36 @@ async function fetchEvents(){
     if(newsTitles.length) runNewsTicker(newsTitles);
     renderGSPulseAndEvents(_evts);
     checkCriticalEvents(_evts);
+    renderSeismicStatsAlert(d.seismicStats);
   }catch(e){}
+}
+
+// "¿la actividad sísmica de hoy es inusualmente alta?" y "¿coincide con
+// otra estadística?" — server.js ya calculó esto (buildSeismicStats),
+// aquí solo se renderiza. Oculto por completo cuando no hay nada que
+// reportar (nivel normal, sin coincidencia solar) — no ocupa espacio del
+// panel salvo que realmente haya algo que decir.
+function renderSeismicStatsAlert(stats){
+  const el=document.getElementById('gs-seismic-alert');
+  if(!el)return;
+  if(!stats||(stats.level==='normal'&&!stats.solarCoincidence)){
+    el.style.display='none';
+    return;
+  }
+  const c=_pal;
+  const lines=[];
+  if(stats.level!=='normal'){
+    const col=stats.level==='muy_elevado'?'#E24B4A':c.warn;
+    lines.push(`<div style="color:${col}">⚠ Sismicidad ${stats.level==='muy_elevado'?'muy elevada':'elevada'}: ${stats.m6WeekCount} sismos M6+ esta semana (base histórica: ${stats.m6WeekBaseline}/semana)</div>`);
+  }
+  if(stats.solarCoincidence){
+    const sc=stats.solarCoincidence;
+    lines.push(`<div style="color:${c.warn};margin-top:2px">☀ ${sc.quakeLabel} (${sc.quakePlace||'?'}) coincidió con actividad solar clase ${sc.solarClass}. ${sc.note}</div>`);
+  }
+  el.innerHTML=lines.join('');
+  el.style.display='block';
+  el.style.background=(stats.level==='muy_elevado'?'#E24B4A':c.warn)+'14';
+  el.style.border='1px solid '+(stats.level==='muy_elevado'?'#E24B4A':c.warn)+'40';
 }
 
 // ── MAP TICKER ─────────────────────────────────────────────────────────────
@@ -2976,21 +3034,17 @@ function initWeatherHover() {
         `;
       }
       tooltip.innerHTML = `${titleHtml}${bodyHtml}`;
-      
-      const svg = document.getElementById('wmap');
+
       const wrap = document.getElementById('wmap-wrap');
-      const sRect = svg.getBoundingClientRect();
       const wRect = wrap.getBoundingClientRect();
-      
-      const px = (sRect.left - wRect.left) + (428 / 2000) * sRect.width;
-      const py = (sRect.top - wRect.top) + (393 / 1001) * sRect.height;
-      
+      const [px, py] = svgToScreen(428, 393);
+
       const tw = tooltip.offsetWidth;
       const th = tooltip.offsetHeight;
-      
+
       let leftPos = px - tw / 2;
       let topPos = py - th - 12;
-      
+
       if(leftPos < 4) leftPos = 4;
       if(leftPos + tw > wRect.width - 4) leftPos = wRect.width - tw - 4;
       
