@@ -824,6 +824,7 @@ const CORRELATION_PAIRS = [
   { a: 'quake',   b: 'volcano', radiusKm: 100 },
   { a: 'fire',    b: 'storm',   radiusKm: 300 },
   { a: 'volcano', b: 'storm',   radiusKm: 200 },
+  { a: 'flood',   b: 'storm',   radiusKm: 300 },
 ];
 
 function findCorrelations(events) {
@@ -1003,7 +1004,7 @@ function queryHistory({ fromDate, toDate, type, lat, lon, radiusKm, limit }) {
 // solo se compara contra datos que este mismo proceso ya observó, así que
 // necesita cierto volumen acumulado antes de decir algo (si no, cualquier
 // primer incendio del día se vería como un "infinito %" de aumento).
-const HIST_INSIGHT_TYPES = ['volcano', 'storm', 'news'];
+const HIST_INSIGHT_TYPES = ['volcano', 'storm', 'flood', 'news'];
 const HIST_MIN_DAYS = 3;          // mínimo de días con datos reales antes de comparar contra nada
 const HIST_SPIKE_MULTIPLIER = 2.5;
 const HIST_MIN_ABS = 3;           // evita marcar "pico" solo por pasar de 0/1 a 2/3
@@ -1246,6 +1247,36 @@ async function _fetchAllEvents() {
       volcCount++;
     });
     nxLog('GDACS volcanoes: ' + volcCount, volcCount > 0 ? 'ok' : 'info');
+
+    // 5c. Floods — mismo feed, evtype FL. A diferencia de TC/VO, GDACS casi
+    // nunca pone <gdacs:eventname> en inundaciones (confirmado: vacío en
+    // items reales) — el país es el único nombre usable. La <description>
+    // sí trae víctimas/desplazados en texto libre ("caused N deaths and M
+    // displaced"), la única fuente de esa cifra en todo el feed — vale la
+    // pena extraerla en vez de descartar la descripción como en TC/VO.
+    // Nota: esto es un feed automatizado de modelos hidrológicos — una
+    // inundación repentina tipo GLOF (ej. la de Rasuwa, Nepal, ago-2026)
+    // puede no aparecer aquí de inmediato o nunca, si no encaja en el
+    // patrón que GDACS detecta. No es una cobertura garantizada, es lo que
+    // GDACS reporta.
+    let floodCount = 0;
+    items.forEach(item => {
+      const content = item[1];
+      const evtype = (content.match(/<gdacs:eventtype[^>]*>(.*?)<\/gdacs:eventtype>/) || [])[1];
+      if (evtype !== 'FL') return;
+      const lat = parseFloat((content.match(/<geo:lat>(.*?)<\/geo:lat>/) || [])[1]);
+      const lon = parseFloat((content.match(/<geo:long>(.*?)<\/geo:long>/) || [])[1]);
+      const country = (content.match(/<gdacs:country>(.*?)<\/gdacs:country>/) || [])[1] || '';
+      const name = ((content.match(/<gdacs:eventname[^>]*>(.*?)<\/gdacs:eventname>/) || [])[1] || '').trim() || (country ? country.toUpperCase() : 'FLOOD');
+      const alertLevel = (content.match(/<gdacs:alertlevel[^>]*>(.*?)<\/gdacs:alertlevel>/) || [])[1] || '';
+      const desc = (content.match(/<description>(.*?)<\/description>/) || [])[1] || '';
+      const casualties = desc.match(/caused (\d+) deaths? and (\d+) displaced/i);
+      const casualtiesTxt = casualties ? ` | ${casualties[1]} muertes, ${casualties[2]} desplazados` : '';
+      if (isNaN(lat) || isNaN(lon)) return;
+      events.push({ type:'flood', lat, lon, label: name, classification:'FL', classLabel:'FLOOD', info:`${name}${country && name!==country.toUpperCase()?' ('+country+')':''} | Alerta: ${alertLevel}${casualtiesTxt}` });
+      floodCount++;
+    });
+    nxLog('GDACS floods: ' + floodCount, floodCount > 0 ? 'ok' : 'info');
   } else {
     nxLog('GDACS unavailable: ' + cycloneRes.reason?.message, 'warn');
   }

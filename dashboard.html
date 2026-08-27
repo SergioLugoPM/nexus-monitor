@@ -580,15 +580,16 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       <text id="lbl-eq" x="8" y="505" font-size="14" font-family="monospace" opacity=".2">EQ</text>
       <!-- MAP LEGEND bottom-left -->
       <g id="map-legend" opacity=".85">
-        <rect x="12" y="826" width="220" height="170" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
-        <circle cx="26" cy="844" r="3" fill="#F0F0F0"/><text x="36" y="848" fill="#E0E0E0" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
-        <circle cx="26" cy="862" r="3" fill="#FF6D00"/><text x="36" y="866" fill="#FFB74D" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
-        <circle cx="26" cy="880" r="4" fill="#1D9E75"/><text x="36" y="884" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
-        <circle cx="26" cy="898" r="4" fill="#EF4444"/><text x="36" y="902" fill="#FCA5A5" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
-        <circle cx="26" cy="916" r="4" fill="#F59E0B"/><text x="36" y="920" fill="#FCD34D" font-size="12" font-family="monospace">ISS TRACKER</text>
-        <circle cx="26" cy="934" r="4" fill="#38BDF8"/><text x="36" y="938" fill="#BAE6FD" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
-        <circle cx="26" cy="952" r="4" fill="#EC4899"/><text x="36" y="956" fill="#F9A8D4" font-size="12" font-family="monospace">VOLCANO</text>
-        <circle cx="26" cy="970" r="4" fill="#8B5CF6"/><text x="36" y="974" fill="#C4B5FD" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <rect x="12" y="808" width="220" height="188" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
+        <circle cx="26" cy="826" r="3" fill="#F0F0F0"/><text x="36" y="830" fill="#E0E0E0" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
+        <circle cx="26" cy="844" r="3" fill="#FF6D00"/><text x="36" y="848" fill="#FFB74D" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
+        <circle cx="26" cy="862" r="4" fill="#1D9E75"/><text x="36" y="866" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
+        <circle cx="26" cy="880" r="4" fill="#EF4444"/><text x="36" y="884" fill="#FCA5A5" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
+        <circle cx="26" cy="898" r="4" fill="#F59E0B"/><text x="36" y="902" fill="#FCD34D" font-size="12" font-family="monospace">ISS TRACKER</text>
+        <circle cx="26" cy="916" r="4" fill="#38BDF8"/><text x="36" y="920" fill="#BAE6FD" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
+        <circle cx="26" cy="934" r="4" fill="#EC4899"/><text x="36" y="938" fill="#F9A8D4" font-size="12" font-family="monospace">VOLCANO</text>
+        <circle cx="26" cy="952" r="4" fill="#8B5CF6"/><text x="36" y="956" fill="#C4B5FD" font-size="12" font-family="monospace">STORM / CYCLONE</text>
+        <circle cx="26" cy="970" r="4" fill="#2563EB"/><text x="36" y="974" fill="#93C5FD" font-size="12" font-family="monospace">FLOOD</text>
         <circle cx="26" cy="988" r="4" fill="#84CC16"/><text x="36" y="992" fill="#D9F99D" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
       </g>
       <!-- MAP STATUS TICKER bottom-right -->
@@ -2188,12 +2189,13 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     if(ev.type==='news' && !_settings.showNews) return;
     if(ev.type==='quake' && ev.mag !== undefined && ev.mag < _settings.seismicMin) return;
     const[x,y]=ll2xy(ev.lon,ev.lat);if(x<5||x>1995||y<5||y>996)return;
-    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
-    
+    const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isFlood=ev.type==='flood',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
+
     let dc=c.hi, tc=c.mid, r=5;
     if(isISS){dc='#F59E0B';tc='#FCD34D';r=9;}        // amber
     else if(isVolc){dc='#EC4899';tc='#F9A8D4';r=7;} // magenta (≠ red quakes)
     else if(isStorm){dc='#8B5CF6';tc='#C4B5FD';r=7;}// violet (≠ flights)
+    else if(isFlood){dc='#2563EB';tc='#93C5FD';r=7;}// blue (≠ light satellite blue)
     else if(isBig){dc='#EF4444';tc='#FCA5A5';r=8;}  // red ≥M6
     else if(isSat){dc='#38BDF8';tc='#BAE6FD';r=4;}  // sky blue
     else if(isNews){dc='#84CC16';tc='#D9F99D';r=5;} // lime (≠ ISS amber)
@@ -2298,6 +2300,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       if(isISS) { const crew = _issCrew.length ? '<br><span style="font-size:10px;opacity:.8;">' + _issCrew.join(' · ') + '</span>' : ''; titleHtml = `<strong>🛸 ISS (Space Station)</strong>${crew}`; }
       if(ev.type === 'quake') titleHtml = `<strong>⚠️ EARTHQUAKE: ${ev.label || ''}</strong>`;
       if(isStorm) titleHtml = `<strong>🌀 ${ev.classLabel||'STORM'}: ${ev.label}</strong>`;
+      if(isFlood) titleHtml = `<strong>🌊 FLOOD: ${ev.label}</strong>`;
       
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
       if(isNews) {
@@ -2374,8 +2377,9 @@ async function fetchEvents(){
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
     const nc=_evts.filter(e=>e.type==='news').length;
     const stc=_evts.filter(e=>e.type==='storm').length;
+    const flc=_evts.filter(e=>e.type==='flood').length;
     const eqc=document.getElementById('eq-count');
-    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
+    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${flc>0?' · 🌊FL:'+flc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
     const eqf=document.getElementById('eq-footer');if(eqf){eqf.textContent='EQ '+qc;eqf.style.color=_pal.fH;}
     // Feed news headlines to ticker
     const newsTitles=_evts.filter(e=>e.type==='news').map(e=>e.title||e.info).filter(Boolean);
@@ -2431,7 +2435,7 @@ function renderHistoricalInsightAlert(insight){
     return;
   }
   const c=_pal;
-  const typeLabel={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',news:'Volumen de noticias'};
+  const typeLabel={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',flood:'Inundaciones',news:'Volumen de noticias'};
   const lines=insight.insights.map(i=>
     `<div style="color:${c.warn}">⚠ ${typeLabel[i.type]||i.type}: ${i.todayCount} hoy vs. promedio de ${i.avgPerDay}/día (últimos ${insight.daysOfHistory}d)</div>`
   );
@@ -2553,13 +2557,13 @@ function renderGlobalStats(d) {
 function renderGSPulseAndEvents(events) {
   const c = currentPalette();
   // 24H PULSE — counts by type
-  const counts = {quake:0, fire:0, news:0, volcano:0, storm:0, satellite:0};
+  const counts = {quake:0, fire:0, news:0, volcano:0, storm:0, flood:0, satellite:0};
   events.forEach(e => { if(counts[e.type]!==undefined) counts[e.type]++; });
   const pulseEl = document.getElementById('gs-pulse');
   if (pulseEl) {
-    const icons = {quake:'⬡',fire:'⬡',news:'⬡',volcano:'⬡',storm:'⬡',satellite:'⬡'};
-    const colors = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:c.hi};
-    const labels = {quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',satellite:'SATELLITES'};
+    const icons = {quake:'⬡',fire:'⬡',news:'⬡',volcano:'⬡',storm:'⬡',flood:'⬡',satellite:'⬡'};
+    const colors = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:c.hi};
+    const labels = {quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',flood:'FLOODS',satellite:'SATELLITES'};
     pulseEl.innerHTML = Object.entries(counts).map(([k,v])=>
       `<div style="display:flex;justify-content:space-between;align-items:center">
         <span style="color:${colors[k]};opacity:.7">${labels[k]}</span>
@@ -2570,20 +2574,27 @@ function renderGSPulseAndEvents(events) {
   // RECENT EVENTS — last 12 significant events (M4.5+, volcanoes, storms, news)
   const evEl = document.getElementById('gs-events');
   if (evEl) {
-    const typeIcon = {quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',satellite:'◈',iss:'◈'};
-    const typeColor = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:c.hi,iss:c.hi};
+    const typeIcon = {quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',flood:'≈',satellite:'◈',iss:'◈'};
+    const typeColor = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:c.hi,iss:c.hi};
+    // isCrit primero (orden estable dentro de cada grupo) — sin esto, un día
+    // con 12+ sismos M4.5+ (nada raro) llena el cupo antes de llegar a
+    // cualquier volcán/tormenta/inundación, sin importar qué tan grave sea.
+    // Encontrado al agregar inundaciones: 21 inundaciones reales quedaban
+    // completamente invisibles aquí por 13 sismos menores de ese día.
+    const isCritType = e => (e.type==='quake'&&(e.mag||0)>=6.0)||e.type==='volcano'||e.type==='storm'||e.type==='flood';
     const significant = events
       .filter(e => {
         if(e.type==='quake') return (e.mag||0)>=4.5;
         if(e.type==='fire') return false;
-        return ['volcano','storm','news'].includes(e.type);
+        return ['volcano','storm','flood','news'].includes(e.type);
       })
+      .sort((a,b)=>(isCritType(b)?1:0)-(isCritType(a)?1:0))
       .slice(0,12);
     if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; }
     else evEl.innerHTML = significant.map(e=>{
       const ic = typeIcon[e.type]||'◉';
       const col = typeColor[e.type]||c.mid;
-      const isCrit=(e.type==='quake'&&(e.mag||0)>=6.0)||e.type==='volcano'||e.type==='storm';
+      const isCrit=isCritType(e);
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
       let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,44)}`
               : e.type==='news'  ? (e.title||e.info||'').substring(0,44)
@@ -3223,7 +3234,7 @@ function toggleNxPanel(){
 var CRIT_KEY='nexus_crit_alert';
 var CRIT_TTL=72*3600*1000;
 function checkCriticalEvents(events){
-  const crits=events.filter(e=>(e.type==='quake'&&e.mag>=6.0)||e.type==='volcano'||e.type==='storm')
+  const crits=events.filter(e=>(e.type==='quake'&&e.mag>=6.0)||e.type==='volcano'||e.type==='storm'||e.type==='flood')
     .sort((a,b)=>(b.mag||5)-(a.mag||5));
   if(!crits.length)return;
   const top=crits[0];
@@ -3235,8 +3246,8 @@ function checkCriticalEvents(events){
 function showCritAlert(ev,key){
   const wrap=document.getElementById('crit-alert-wrap');if(!wrap)return;
   const c=_pal,col=ev.mag>=7?'#E24B4A':c.warn;
-  const icon=ev.type==='quake'?'⬡':ev.type==='volcano'?'▲':'◎';
-  const title=ev.type==='quake'?'SEISMIC ALERT':ev.type==='volcano'?'VOLCANIC ALERT':'STORM ALERT';
+  const icon=ev.type==='quake'?'⬡':ev.type==='volcano'?'▲':ev.type==='flood'?'≈':'◎';
+  const title=ev.type==='quake'?'SEISMIC ALERT':ev.type==='volcano'?'VOLCANIC ALERT':ev.type==='flood'?'FLOOD ALERT':'STORM ALERT';
   const barW=Math.min(100,((ev.mag||5)-5)/4*100).toFixed(0);
   wrap.style.display='block';
   wrap.innerHTML=`<div class="crit-alert-card" style="border:1px solid ${col};background:${col}18;">
@@ -3270,7 +3281,7 @@ function initPanelRadar(){
   const hLat=(_homeCoords||{lat:19.43}).lat,hLon=(_homeCoords||{lon:-99.13}).lon;
   let angle=0,blips=[],lastEvtsRef=null;
   const SPD=0.018;
-  const tColors={quake:'#5DCAA5',fire:'#EF9F27',news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',satellite:'#38BDF8',iss:'#F59E0B'};
+  const tColors={quake:'#5DCAA5',fire:'#EF9F27',news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:'#38BDF8',iss:'#F59E0B'};
 
   function nxrXY(ev){
     try{if(ev.lat==null||ev.lon==null)return null;const brg=_nxrGeoB(hLat,hLon,ev.lat,ev.lon);const d=_nxrGeoD(hLat,hLon,ev.lat,ev.lon);const r=Math.min(d/MAX_KM,1)*R*0.93;return[CX+Math.sin(brg)*r,CY-Math.cos(brg)*r];}catch(e){return null;}
