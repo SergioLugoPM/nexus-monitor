@@ -451,8 +451,10 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
   existe persistencia histórica (3ª dirección) esto ya es viable como
   siguiente paso, no bloqueado
 - ✅ Búsqueda/consulta histórica (3ª de 3) — ver "Estado actual". Ya
-  persiste datos (`.history/*.jsonl`) y tiene endpoint `GET /history`;
-  falta cruzar a `master`/WE y decidir superficie de frontend
+  persiste datos (`.history/*.jsonl`), endpoint `GET /history`, alerta
+  automática en RECENT EVENTS, y tool `query_history` del Agent. Ya
+  desplegado en `master` y en la copia real de WE (verificado en vivo:
+  `/events`, `/history`, `/dashboard.html` respondiendo 200 en :19234)
 
 **Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
 - Tráfico por dispositivo, puertos abiertos, servicios expuestos
@@ -470,10 +472,9 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Desplegar búsqueda histórica a WE** — ya está en `master`, falta
-  copiar a la carpeta de WE + cerrar/limpiar cache/reabrir (ver
-  sección de despliegue abajo). Sin apuro porque no hay nada visible
-  que cambie ahí sin el panel/agente Electron-only
+- **Correlación vuelos↔algo** — única pregunta de ejemplo del roadmap
+  original sin resolver; ahora viable con `.history/` ya persistiendo
+  datos (antes bloqueada por falta de línea base)
 - **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
 
