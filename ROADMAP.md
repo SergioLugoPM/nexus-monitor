@@ -410,6 +410,34 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
     redacte la respuesta final. Verificado en vivo simulando la misma
     lógica de fetch+formato contra el servidor de prueba (filtro por
     tipo, por región, y el caso de región inexistente).
+- ✅ **Pilar 3 — tráfico por dispositivo, acotado a esta PC** (el
+  usuario eligió este alcance entre 3 opciones — LAN completo vía
+  router, o vía ARP spoofing, quedaron descartadas por depender del
+  modelo de router o ser intrusivas con otros dispositivos de la red).
+
+  Hallazgo real antes de construir nada: verificado en vivo con
+  `Get-Counter -ListSet` que Windows **no expone bytes de red por
+  proceso** en ningún counter set nativo (`Proceso`/`V2 del proceso`
+  solo tienen E/S de disco combinada — nada de red). Bytes reales por
+  proceso solo existen vía ETW (lo que usa el Monitor de Recursos),
+  que requiere admin. Se le explicó la disyuntiva al usuario (UAC por
+  cada captura vs. correr todo `server.js` como admin — esto último
+  rechazado explícitamente por romper el principio ya establecido de
+  que el Agente nunca corre con privilegios elevados) y eligió no
+  usar admin por ahora: conteo de conexiones por proceso, no bytes.
+
+  `dashboard.html` (tab PROC, panel "NETWORK — WHO'S TALKING"):
+  reescrito de una fila por conexión a agrupado por proceso — nombre,
+  número de conexiones activas, hosts remotos (hasta 6, resto en
+  tooltip), ordenado de mayor a menor actividad. Nunca se presenta
+  como "tráfico en MB" — es honesto sobre ser solo conteo de
+  conexiones. Electron-only (usa `window.nexusSys.listConnections`,
+  ya existente vía `electron/sysmon.js` + `netstat -ano`) — no cruza a
+  `master`. Verificado con datos sintéticos vía `javascript_tool`:
+  agrupación correcta (3 conexiones de un mismo proceso con 2 PIDs
+  distintos → "2 procesos"), orden por actividad, truncado de hosts,
+  singular/plural de "conexión" correcto tras corregir un error de
+  acentuación encontrado en la primera verificación ("conexiónes").
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -457,8 +485,11 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
   `/events`, `/history`, `/dashboard.html` respondiendo 200 en :19234)
 
 **Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
-- Tráfico por dispositivo, puertos abiertos, servicios expuestos
-  (cámaras IP, IoT, NAS) — nada de esto empezado
+- ✅ Tráfico "por dispositivo" — acotado a esta PC, ver "Estado
+  actual" (bytes reales de otros dispositivos de la LAN seguiría
+  requiriendo router o ARP spoofing, ambos descartados por ahora)
+- Puertos abiertos / servicios expuestos de otros dispositivos en la
+  LAN (cámaras IP, IoT, NAS) — nada de esto empezado
 - Radar por WiFi: bloqueado en hardware, no en código — comprar un
   ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 

@@ -1304,6 +1304,13 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     }).join('');
   }
 
+  // Agrupado por proceso, no una fila por conexión — "tráfico por
+  // dispositivo" (Pilar 3) resultó no tener bytes reales disponibles sin
+  // admin+ETW (verificado: Windows no expone contadores de red por proceso,
+  // solo E/S de disco combinada). El conteo de conexiones activas por
+  // proceso, ordenado de mayor a menor, es la señal honesta que sí se puede
+  // dar sin privilegios extra — nunca se presenta como "tráfico en MB",
+  // solo como lo que es: cuántas conexiones tiene cada proceso ahora mismo.
   async function procRefreshConnections(){
     if(!window.nexusSys)return;
     const el=document.getElementById('proc-connections');
@@ -1312,11 +1319,25 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     if(cnt)cnt.textContent=conns.length;
     if(!el)return;
     if(!conns.length){el.innerHTML='<div style="padding:10px;opacity:.5">(sin conexiones activas)</div>';return;}
-    el.innerHTML=conns.map(c=>{
-      const remote=c.remoteAddr+':'+c.remotePort;
-      return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px" title="PID ${c.pid} · puerto local ${c.localPort}">
-        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.processName}</span>
-        <span style="opacity:.6;font-size:10px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:130px;white-space:nowrap">${remote}</span>
+    const byProc=new Map();
+    for(const c of conns){
+      if(!byProc.has(c.processName))byProc.set(c.processName,{pids:new Set(),hosts:new Set(),count:0});
+      const g=byProc.get(c.processName);
+      g.pids.add(c.pid);
+      g.hosts.add(c.remoteAddr+':'+c.remotePort);
+      g.count++;
+    }
+    const groups=[...byProc.entries()].sort((a,b)=>b[1].count-a[1].count);
+    el.innerHTML=groups.map(([name,g])=>{
+      const hostsArr=[...g.hosts];
+      const hostsList=hostsArr.slice(0,6).join(', ')+(hostsArr.length>6?' +'+(hostsArr.length-6)+' más':'');
+      const pidLabel=g.pids.size>1?g.pids.size+' procesos':'PID '+[...g.pids][0];
+      return `<div class="exp-row" style="display:flex;flex-direction:column;gap:2px;padding:4px 6px;border-radius:3px" title="${pidLabel}">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">${name}</span>
+          <span style="opacity:.6;font-size:10px;flex-shrink:0">${g.count} ${g.count!==1?'conexiones':'conexión'}</span>
+        </div>
+        <div style="opacity:.55;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${hostsArr.join(', ')}">${hostsList}</div>
       </div>`;
     }).join('');
   }
