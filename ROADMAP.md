@@ -30,7 +30,8 @@ dependencia) o Win32 API directa.
 
 ### 2. OSINT global (expandir lo que ya hay)
 Ya existen: sismos (USGS), clima, cripto, noticias geolocalizadas, vuelos
-(OpenSky), satélites (TLE), incendios (NASA FIRMS), ciclones (GDACS), ISS.
+(OpenSky), satélites (TLE), incendios (NASA FIRMS), ciclones/volcanes/
+inundaciones (GDACS), ISS.
 
 Dirección de crecimiento:
 - Más fuentes por categoría (no solo un feed de noticias por región)
@@ -438,6 +439,46 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   distintos → "2 procesos"), orden por actividad, truncado de hosts,
   singular/plural de "conexión" correcto tras corregir un error de
   acentuación encontrado en la primera verificación ("conexiónes").
+- ✅ **Inundaciones (GDACS, evtype FL) — nuevo tipo de evento en el
+  mapa.** Origen: el usuario reportó que la inundación repentina de
+  Rasuwa, Nepal (26-ago-2026, ~22 muertos, ~400 desaparecidos, GLOF
+  desde Tíbet — verificado vía WebSearch, fuera del conocimiento del
+  modelo) no aparecía en absoluto. Causa raíz: mismo patrón de bug que
+  volcanes — GDACS reporta inundaciones (`FL`) en el mismo feed que
+  ciclones/volcanes, pero el parser solo procesaba `TC`/`VO`,
+  descartando `FL` en silencio. Verificado en vivo contra el feed real
+  antes de escribir nada: 21 alertas de inundación activas ahora
+  mismo, ninguna en Nepal — GDACS es un sistema de modelos
+  hidrológicos automatizados, una GLOF repentina puede no encajar en
+  el patrón que detecta. Esto no es cobertura garantizada de "cualquier
+  desastre", es lo que GDACS reporta; documentado así en el código,
+  no prometido de más.
+
+  A diferencia de TC/VO, `<gdacs:eventname>` casi siempre viene vacío
+  en inundaciones (confirmado en el feed real) — el label cae al país.
+  La `<description>` sí trae víctimas/desplazados en texto libre
+  ("caused N deaths and M displaced"), extraído con regex — la única
+  fuente de esa cifra en todo el feed GDACS, no se estaba usando antes
+  para ningún tipo de evento.
+
+  Soporte completo de tipo `flood` en `dashboard.html` (antes solo
+  tenía el pin genérico que volcán ya reutilizaba): color propio
+  (`#2563EB`, azul — distinto del azul claro de satélites), entrada en
+  la leyenda del mapa, panel 24H PULSE, RECENT EVENTS (con ícono `≈`),
+  alerta crítica (`FLOOD ALERT`), radar HOME, contador en el header
+  del mapa, e insight histórico. Correlación nueva inundación↔tormenta
+  (300km, mismo radio que incendio↔tormenta — llueve fuerte, luego
+  inunda cerca).
+
+  Al verificar en vivo (día real con 21 inundaciones + 13 sismos M4.5+)
+  se encontró un bug real preexistente, no introducido por este
+  cambio: RECENT EVENTS corta a los primeros 12 eventos en el orden en
+  que el backend los concatena (sismos primero), no por importancia —
+  así que un día con 12+ sismos M4.5+ enterraba CUALQUIER volcán/
+  tormenta/inundación sin importar gravedad, aunque el filtro de tipo
+  ya los incluyera. Arreglado con un sort estable (crítico primero)
+  antes del `.slice(12)`. Universal (server.js + dashboard.html) —
+  cruza a `master`.
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
