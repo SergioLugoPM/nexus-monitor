@@ -2542,6 +2542,31 @@ function svgToScreen(vx,vy){
 let _evts=[];
 let _correlations=[];
 
+// ── METADATA COMPARTIDA POR TIPO DE EVENTO ──────────────────────────────────
+// Antes esto vivía duplicado en ~6 lugares (leyenda del mapa, 24H PULSE,
+// RECENT EVENTS, alerta crítica, radar HOME, insight histórico), cada uno
+// con su propia copia de los mismos íconos/colores/labels hardcodeados —
+// encontrado al agregar 'flood': casi se pasa un lugar por alto, y ya
+// habían quedado inconsistentes entre sí (tColors usaba hex fijo para
+// satellite/iss mientras RECENT EVENTS usaba el color de la paleta activa
+// para esos mismos tipos — un tema oscuro/claro/win98 los pintaba distinto
+// según el panel). No cubre TODO: el pin del mapa (radio + forma custom
+// para tormentas) y las plantillas de tooltip (cada tipo usa campos
+// distintos: news→source, ISS→tripulación) se quedan como están, esas no
+// son duplicación pura sino comportamiento distinto por sitio.
+// var (no const) — top scope, ver regla de TDZ en el resumen del proyecto.
+var EVENT_FIXED_COLORS={volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',news:'#84CC16'};
+function eventColor(type,pal){
+  if(EVENT_FIXED_COLORS[type])return EVENT_FIXED_COLORS[type];
+  if(type==='fire')return pal.warn;
+  if(type==='satellite'||type==='iss')return pal.hi;
+  return pal.mid; // quake y cualquier tipo sin color fijo propio
+}
+var EVENT_ICON={quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',flood:'≈',satellite:'◈',iss:'◈'};
+var EVENT_LABEL={quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',flood:'FLOODS',satellite:'SATELLITES'};
+var EVENT_INSIGHT_LABEL={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',flood:'Inundaciones',news:'Volumen de noticias'};
+var EVENT_CRIT={quake:{icon:'⬡',title:'SEISMIC ALERT'},volcano:{icon:'▲',title:'VOLCANIC ALERT'},storm:{icon:'◎',title:'STORM ALERT'},flood:{icon:'≈',title:'FLOOD ALERT'}};
+
 // Draw a subtle orbital arc in the satellite's direction of travel
 function drawSatOrbit(ns, sat, x, y, orbitGroup){
   const degPer5min = (sat.degPerMin || 3.913) * 5;
@@ -2843,9 +2868,8 @@ function renderHistoricalInsightAlert(insight){
     return;
   }
   const c=_pal;
-  const typeLabel={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',flood:'Inundaciones',news:'Volumen de noticias'};
   const lines=insight.insights.map(i=>
-    `<div style="color:${c.warn}">⚠ ${typeLabel[i.type]||i.type}: ${i.todayCount} hoy vs. promedio de ${i.avgPerDay}/día (últimos ${insight.daysOfHistory}d)</div>`
+    `<div style="color:${c.warn}">⚠ ${EVENT_INSIGHT_LABEL[i.type]||i.type}: ${i.todayCount} hoy vs. promedio de ${i.avgPerDay}/día (últimos ${insight.daysOfHistory}d)</div>`
   );
   el.innerHTML=lines.join('');
   el.style.display='block';
@@ -2868,6 +2892,15 @@ function cycleMapTicker(){
 setInterval(cycleMapTicker,4500);setTimeout(cycleMapTicker,1200);
 
 // ── MATRIX ─────────────────────────────────────────────────────────────────
+// Framerate compartido para los canvas siempre-visibles de fondo (Matrix,
+// Neural Core, Nexus Radar) — son efectos ambientales, no necesitan 60fps
+// para verse bien, y esto corre 24/7 en cada monitor compitiendo con lo
+// que sea que el usuario esté haciendo. Medido en vivo con Get-Process
+// antes de este fix: ~300% CPU sostenido (3 núcleos) solo en los procesos
+// de render de Wallpaper Engine, con 2 monitores activos. 24fps es
+// indistinguible de 60fps para movimiento lento como este.
+const BG_ANIM_FRAME_MS = 1000 / 24;
+
 let _animId=null;
 function initMatrix(){
   const cv=document.getElementById('mtx-cv');if(!cv)return;
@@ -2876,8 +2909,12 @@ function initMatrix(){
   cv.width=W;cv.height=H;const ctx=cv.getContext('2d'),cols=Math.floor(W/10),drops=Array.from({length:cols},()=>Math.floor(Math.random()*H/14));
   const chars='アイウエオABCDEF0123456789<>/|{}!@#';
   ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
-  function draw(){ctx.fillStyle='rgba(0,0,0,0.075)';ctx.fillRect(0,0,W,H);ctx.font='10px monospace';for(let i=0;i<drops.length;i++){const x=i*10,y=drops[i]*14;ctx.fillStyle=c.hi;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y);ctx.fillStyle=c.mid;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y-14);if(y>H&&Math.random()>.975)drops[i]=0;drops[i]++;}_animId=requestAnimationFrame(draw);}
-  draw();
+  let _lastMtxTs=0;
+  function draw(ts){
+    if(ts-_lastMtxTs<BG_ANIM_FRAME_MS){_animId=requestAnimationFrame(draw);return;}
+    _lastMtxTs=ts;
+    ctx.fillStyle='rgba(0,0,0,0.075)';ctx.fillRect(0,0,W,H);ctx.font='10px monospace';for(let i=0;i<drops.length;i++){const x=i*10,y=drops[i]*14;ctx.fillStyle=c.hi;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y);ctx.fillStyle=c.mid;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y-14);if(y>H&&Math.random()>.975)drops[i]=0;drops[i]++;}_animId=requestAnimationFrame(draw);}
+  draw(0);
 }
 
 // ── NEWS TICKER ────────────────────────────────────────────────────────────
@@ -2989,27 +3026,22 @@ function renderGSPulseAndEvents(events) {
   events.forEach(e => { if(counts[e.type]!==undefined) counts[e.type]++; });
   const pulseEl = document.getElementById('gs-pulse');
   if (pulseEl) {
-    const icons = {quake:'⬡',fire:'⬡',news:'⬡',volcano:'⬡',storm:'⬡',flood:'⬡',satellite:'⬡'};
-    const colors = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:c.hi};
-    const labels = {quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',flood:'FLOODS',satellite:'SATELLITES'};
     pulseEl.innerHTML = Object.entries(counts).map(([k,v])=>
       `<div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="color:${colors[k]};opacity:.7">${labels[k]}</span>
-        <span style="color:${colors[k]};font-weight:600">${v}</span>
+        <span style="color:${eventColor(k,c)};opacity:.7">${EVENT_LABEL[k]||k}</span>
+        <span style="color:${eventColor(k,c)};font-weight:600">${v}</span>
       </div>`
     ).join('');
   }
   // RECENT EVENTS — last 12 significant events (M4.5+, volcanoes, storms, news)
   const evEl = document.getElementById('gs-events');
   if (evEl) {
-    const typeIcon = {quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',flood:'≈',satellite:'◈',iss:'◈'};
-    const typeColor = {quake:c.mid,fire:c.warn,news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:c.hi,iss:c.hi};
     // isCrit primero (orden estable dentro de cada grupo) — sin esto, un día
     // con 12+ sismos M4.5+ (nada raro) llena el cupo antes de llegar a
     // cualquier volcán/tormenta/inundación, sin importar qué tan grave sea.
     // Encontrado al agregar inundaciones: 21 inundaciones reales quedaban
     // completamente invisibles aquí por 13 sismos menores de ese día.
-    const isCritType = e => (e.type==='quake'&&(e.mag||0)>=6.0)||e.type==='volcano'||e.type==='storm'||e.type==='flood';
+    const isCritType = e => e.type==='quake' ? (e.mag||0)>=6.0 : !!EVENT_CRIT[e.type];
     const significant = events
       .filter(e => {
         if(e.type==='quake') return (e.mag||0)>=4.5;
@@ -3020,8 +3052,8 @@ function renderGSPulseAndEvents(events) {
       .slice(0,12);
     if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; }
     else evEl.innerHTML = significant.map(e=>{
-      const ic = typeIcon[e.type]||'◉';
-      const col = typeColor[e.type]||c.mid;
+      const ic = EVENT_ICON[e.type]||'◉';
+      const col = eventColor(e.type,c);
       const isCrit=isCritType(e);
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
       let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,44)}`
@@ -3473,7 +3505,13 @@ function initSphere(){
   cv.style.width=W+'px';cv.style.height=H+'px';
   spInit(Math.min(W,H)*0.33);
   if(!_spFlipOn){_spFlipOn=true;setInterval(function(){for(var k=0;k<4;k++){var s=_spSyn[Math.floor(Math.random()*_spSyn.length)];if(s)s.on=!s.on;}},80);}
-  function loop(){spDraw(cv);_spAnimId=requestAnimationFrame(loop);}loop();
+  let _spLastTs=0;
+  function loop(ts){
+    if(ts-_spLastTs<BG_ANIM_FRAME_MS){_spAnimId=requestAnimationFrame(loop);return;}
+    _spLastTs=ts;
+    spDraw(cv);_spAnimId=requestAnimationFrame(loop);
+  }
+  loop(0);
 }
 
 // ── INIT ────────────────────────────────────────────────────────────────────
@@ -3674,8 +3712,8 @@ function checkCriticalEvents(events){
 function showCritAlert(ev,key){
   const wrap=document.getElementById('crit-alert-wrap');if(!wrap)return;
   const c=_pal,col=ev.mag>=7?'#E24B4A':c.warn;
-  const icon=ev.type==='quake'?'⬡':ev.type==='volcano'?'▲':ev.type==='flood'?'≈':'◎';
-  const title=ev.type==='quake'?'SEISMIC ALERT':ev.type==='volcano'?'VOLCANIC ALERT':ev.type==='flood'?'FLOOD ALERT':'STORM ALERT';
+  const crit=EVENT_CRIT[ev.type]||EVENT_CRIT.storm;
+  const icon=crit.icon,title=crit.title;
   const barW=Math.min(100,((ev.mag||5)-5)/4*100).toFixed(0);
   wrap.style.display='block';
   wrap.innerHTML=`<div class="crit-alert-card" style="border:1px solid ${col};background:${col}18;">
@@ -3709,7 +3747,6 @@ function initPanelRadar(){
   const hLat=(_homeCoords||{lat:19.43}).lat,hLon=(_homeCoords||{lon:-99.13}).lon;
   let angle=0,blips=[],lastEvtsRef=null;
   const SPD=0.018;
-  const tColors={quake:'#5DCAA5',fire:'#EF9F27',news:'#84CC16',volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',satellite:'#38BDF8',iss:'#F59E0B'};
 
   function nxrXY(ev){
     try{if(ev.lat==null||ev.lon==null)return null;const brg=_nxrGeoB(hLat,hLon,ev.lat,ev.lon);const d=_nxrGeoD(hLat,hLon,ev.lat,ev.lon);const r=Math.min(d/MAX_KM,1)*R*0.93;return[CX+Math.sin(brg)*r,CY-Math.cos(brg)*r];}catch(e){return null;}
@@ -3724,7 +3761,7 @@ function initPanelRadar(){
     if(!el)return;
     const c=currentPalette();
     el.innerHTML=_nxrContacts.map(ct=>{
-      const col=tColors[ct.type]||c.mid;
+      const col=eventColor(ct.type,c);
       const dist=ct.distKm?Math.round(ct.distKm)+'km':'?km';
       const mag=ct.mag?' M'+ct.mag.toFixed(1):'';
       const dir=ct.brg!==undefined?' '+bearingLabel(ct.brg):'';
@@ -3733,6 +3770,7 @@ function initPanelRadar(){
   }
 
   function nxrUpdate(){
+    const c=currentPalette();
     const evts=(typeof _evts!=='undefined'?_evts:[])||[];
     // fetchEvents() replaces _evts with a brand-new array of brand-new
     // objects every poll (~2 min), so identity checks against the OLD array
@@ -3754,7 +3792,7 @@ function initPanelRadar(){
         seen.add(key);
         const existing=blips.find(b=>b.key===key);
         if(existing){existing.ev=ev;existing.x=xy[0];existing.y=xy[1];}
-        else{const d=_nxrGeoD(hLat,hLon,ev.lat||0,ev.lon||0);blips.push({key,ev,x:xy[0],y:xy[1],alpha:.65,age:60,col:tColors[ev.type]||'#1D9E75',size:ev.type==='quake'?Math.max(2,Math.min(6,(ev.mag||4)-1)):3,distKm:d});}
+        else{const d=_nxrGeoD(hLat,hLon,ev.lat||0,ev.lon||0);blips.push({key,ev,x:xy[0],y:xy[1],alpha:.65,age:60,col:eventColor(ev.type,c),size:ev.type==='quake'?Math.max(2,Math.min(6,(ev.mag||4)-1)):3,distKm:d});}
       });
       // Events that dropped out of the feed (quake list rolled over, etc.)
       // stop being tracked — otherwise this set only ever grows.
@@ -3790,8 +3828,11 @@ function initPanelRadar(){
     if(el){const evts=(typeof _evts!=='undefined'?_evts:[])||[];el.textContent=`${evts.length} CONTACTS`;}
   }
 
-  function nxrLoop(){
+  let _nxrLastTs=0;
+  function nxrLoop(ts){
     _nxrRaf=requestAnimationFrame(nxrLoop);
+    if(ts-_nxrLastTs<BG_ANIM_FRAME_MS)return;
+    _nxrLastTs=ts;
     nxrUpdate();
     angle=(angle+SPD)%(Math.PI*2);
     nxrDraw();

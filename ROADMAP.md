@@ -588,6 +588,77 @@ puras) cruza a master; lo atado a teclado real/APIs de Electron (Agent,
 Explorer, Proc, atajos) se queda solo en `electron-shell`. El tab AGENT ya
 está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
+## Optimizaciones (todo el roadmap ya construido, esto es rendimiento/salud)
+
+Origen: con las 3 direcciones de Pilar 2 y Pilar 3 completas, se preguntó
+qué más optimizar. Antes de tocar nada se midió — no se asumió que hiciera
+falta.
+
+- ✅ **CPU del wallpaper en reposo — hallazgo real, no cosmético.** Medido
+  en vivo con `Get-Process` (2 muestras de 15s): **~300% de CPU sostenido**
+  (el equivalente a 3 núcleos completos) solo en los procesos de render de
+  Wallpaper Engine, con 2 monitores activos — esto corre 24/7 compitiendo
+  con lo que sea que el usuario esté haciendo (esta es una PC de juegos,
+  ver lista de juegos instalados). Causa raíz encontrada leyendo el
+  código: 3 canvas **siempre visibles** (Matrix, Neural Core, Nexus
+  Radar — ninguno de los tres vive dentro de un tab que se pueda ocultar)
+  corrían su propio loop de `requestAnimationFrame` a 60fps, sin límite,
+  cada uno multiplicado por monitor. Un wallpaper de fondo no necesita
+  60fps para verse bien — son efectos ambientales, no algo interactivo.
+
+  Fix: constante compartida `BG_ANIM_FRAME_MS` (24fps) con un early-return
+  por timestamp al inicio de cada uno de los 3 loops — se sigue llamando
+  a `requestAnimationFrame` cada frame (así `cancelAnimationFrame` sigue
+  funcionando igual que antes) pero el trabajo real de dibujo se salta
+  hasta que pasa suficiente tiempo. Los mini-juegos (Snake, Invaders) NO
+  se tocaron — esos si importan que respondan a 60fps cuando se están
+  jugando, y ya se cancelan correctamente al cambiar de tab (verificado
+  leyendo el código de `showView()`/`onShowView()`, no era necesario
+  arreglar nada ahí).
+
+  Verificado en vivo instrumentando los propios métodos de canvas
+  (`fillRect`, contador `_spFrame`): bajó de 60fps a ~17-24fps medido
+  real en ambos loops probados. Visualmente sin regresión — captura de
+  pantalla confirma Matrix y Neural Core siguiendo animando normal, solo
+  con menos frecuencia de refresco. Universal (dashboard.html) — cruza a
+  `master`.
+
+- ✅ **Consolidación de tablas de color/ícono/label duplicadas.** El mismo
+  color por tipo de evento vivía copiado en ~6 lugares (leyenda del mapa,
+  panel 24H PULSE, RECENT EVENTS, alerta crítica, radar HOME, insight
+  histórico) — encontrado como riesgo real al agregar `flood` unos
+  commits atrás (casi se pasó un lugar). Al consolidar se encontró que ya
+  habían quedado inconsistentes entre sí sin que nadie lo notara: el
+  radar HOME pintaba sismos/satélites/ISS con hex fijo mientras el resto
+  del dashboard los pintaba con el color de la paleta activa — un tema
+  claro/win98/macos los mostraba distinto según qué panel mirabas. De
+  paso se encontró y eliminó código muerto (`icons` en el panel 24H
+  PULSE, definido pero nunca leído en la plantilla).
+
+  Nuevo bloque compartido: `EVENT_FIXED_COLORS`, `eventColor(type,pal)`,
+  `EVENT_ICON`, `EVENT_LABEL`, `EVENT_INSIGHT_LABEL`, `EVENT_CRIT`. No
+  cubre el pin del mapa (necesita radio/forma custom por tipo) ni las
+  plantillas de tooltip (cada tipo usa campos de texto distintos) — esos
+  dos sitios tienen comportamiento genuinamente distinto por sitio, no
+  duplicación pura, así que se quedaron como estaban a propósito.
+
+  Bug real introducido y corregido en el momento, antes de dar por
+  terminado: al mover `tColors` a `eventColor()`, uno de los dos sitios
+  que lo usaba (`nxrUpdate()`) no tenía la paleta (`c`) en su propio
+  scope — hubiera lanzado `ReferenceError` en producción. Encontrado
+  verificando en vivo con datos reales (93 contactos), no asumiendo que
+  "compilar" bastaba. Universal (dashboard.html) — cruza a `master`.
+
+- ✅ **Purga de `.history/*.jsonl`.** Nunca se borraba nada — crecería sin
+  límite para siempre. Retención de 90 días (de sobra: nada en el código
+  actual consulta más de ~14 días atrás). Corre una vez al arrancar el
+  proceso y cada 24h después. `aviation.jsonl` no está particionado por
+  día como los eventos, así que se filtra línea por línea en vez de
+  borrar el archivo completo. Verificado con archivos sintéticos: un día
+  de 120 atrás se borró, uno de 5 días atrás sobrevivió, y una línea
+  vieja de aviación se filtró del archivo dejando solo la reciente.
+  Universal (server.js) — cruza a `master`.
+
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo.
