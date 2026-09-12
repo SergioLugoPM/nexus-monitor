@@ -479,6 +479,57 @@ antes de ejecutar. Ver detalle completo abajo en "Estado actual".
   ya los incluyera. Arreglado con un sort estable (crítico primero)
   antes del `.slice(12)`. Universal (server.js + dashboard.html) —
   cruza a `master`.
+- ✅ **Correlación vuelos↔algo** — última pregunta de ejemplo del
+  roadmap original sin resolver. No se correlaciona por proximidad
+  geográfica (el muestreo de OpenSky solo guarda 250 vuelos de los
+  miles activos, cruzarlo contra eventos puntuales habría sido casi
+  siempre vacío y poco informativo) sino por comparación temporal:
+  ¿el conteo global de vuelos de AHORA está fuera de lo normal para
+  ESTA hora del día? El tráfico aéreo mundial tiene un ciclo día/noche
+  fuerte por huso horario — comparar contra un promedio plano de días
+  anteriores habría marcado falsos "picos" solo por la hora en que se
+  midió. `buildAviationInsight()` guarda cada lectura junto a su hora
+  UTC (`.history/aviation.jsonl`) y solo compara contra el promedio
+  histórico de esa misma hora (mínimo 3 muestras, umbral ±25% — más
+  conservador que el 2.5x de desastres, el tráfico aéreo por hora es
+  más predecible). Si hay volcán/tormenta/inundación activos en ese
+  momento se listan como contexto, nunca como causa (mismo principio
+  que `checkSolarCoincidence()`).
+
+  Bug real encontrado al conectar esto: `/flights` ya escribía
+  `_aviationCache` directamente con `states.length` (todos los
+  transponders, incluye aviones en tierra) mientras `fetchAviation()`
+  lo derivaba con `totalAirborne` (solo en vuelo) — dos números
+  distintos para "conteo de aviación" según qué ruta escribió el
+  cache último, lo que habría sesgado el historial comparando cosas
+  distintas entre sí. Unificado a `totalAirborne`. Y el registro del
+  historial se puso únicamente en el fetch real de OpenSky (dentro de
+  `/flights`), no en la re-derivación de `fetchAviation()` — esa rama
+  se repite cada 3 min sobre el mismo dato de 20 min sin cambios;
+  grabarla ahí también habría inflado el archivo con el mismo número
+  repetido. Verificado en vivo con historial sintético: detectó
+  correctamente una desviación real de -46% contra el promedio de esa
+  hora. Universal (server.js + dashboard.html) — cruza a `master`.
+- ✅ **Pilar 3 — puertos abiertos / servicios expuestos en la LAN.**
+  Bajo demanda, un dispositivo a la vez (nunca automático en cada
+  refresh de `/lan/devices`) — mismo principio de "visibilidad, no
+  intrusión" del resto del dashboard, y evita disparar heurísticas de
+  antivirus/firewall en esta misma PC por escanear todo en cada ciclo.
+  TCP connect scan puro (`net.connect`), sin npcap ni admin, contra
+  una lista acotada de ~17 puertos relevantes para hogar (cámaras IP,
+  NAS, impresoras, IoT, Plex, Home Assistant) — no es un scanner de
+  propósito general. `PRIVATE_IP_RE` impide escanear cualquier IP que
+  no sea de la propia red privada (verificado: rechaza `8.8.8.8` y la
+  IP virtual de Tailscale de esta PC, que no es RFC1918).
+
+  Nuevo endpoint `GET /lan/scanports?ip=X`. Tab RED: ícono 🔍 por
+  dispositivo, dispara el escaneo y muestra resultado inline debajo
+  de la fila (estado separado de la lista de dispositivos, sobrevive
+  el refresh automático de 30s del tab). Verificado en vivo contra la
+  red real: router (192.168.100.1) → puerto 80 abierto (su panel web),
+  esta PC → 445 (SMB) y 554 (RTSP), dispositivo IoT sin puertos
+  comunes → mensaje correcto de "sin puertos abiertos". ~2.2s por
+  escaneo. Universal (server.js + dashboard.html) — cruza a `master`.
 
 ## Despliegue a Wallpaper Engine (hallazgo importante — leer antes de tocar el mapa/HOME)
 
@@ -511,26 +562,21 @@ Para que un cambio en `dashboard.html`/`server.js` llegue a WE:
 
 **Pilar 1 (sistema local): completo.**
 
-**Pilar 2 (OSINT global): completo — las 3 direcciones que pidió el usuario.**
+**Pilar 2 (OSINT global): 100% completo — incluyendo las preguntas de
+ejemplo del roadmap original.**
 - ✅ Más fuentes de noticias (1ª de 3) — ver "Estado actual"
-- ✅ Correlación de eventos (2ª de 3) — ver "Estado actual". Queda
-  pendiente la otra pregunta de ejemplo del roadmap ("¿el pico de
-  vuelos coincide con algo?") — se dejó fuera del alcance porque
-  aviación hoy es solo un conteo agregado, no por región; ahora que
-  existe persistencia histórica (3ª dirección) esto ya es viable como
-  siguiente paso, no bloqueado
+- ✅ Correlación de eventos (2ª de 3) — ver "Estado actual"
 - ✅ Búsqueda/consulta histórica (3ª de 3) — ver "Estado actual". Ya
   persiste datos (`.history/*.jsonl`), endpoint `GET /history`, alerta
   automática en RECENT EVENTS, y tool `query_history` del Agent. Ya
   desplegado en `master` y en la copia real de WE (verificado en vivo:
   `/events`, `/history`, `/dashboard.html` respondiendo 200 en :19234)
+- ✅ Correlación vuelos↔algo — ver "Estado actual"
 
-**Pilar 3 (red LAN):** mapa de dispositivos completo. Falta:
-- ✅ Tráfico "por dispositivo" — acotado a esta PC, ver "Estado
-  actual" (bytes reales de otros dispositivos de la LAN seguiría
-  requiriendo router o ARP spoofing, ambos descartados por ahora)
-- Puertos abiertos / servicios expuestos de otros dispositivos en la
-  LAN (cámaras IP, IoT, NAS) — nada de esto empezado
+**Pilar 3 (red LAN): mapa de dispositivos + tráfico (esta PC) + puertos
+abiertos, todo completo.** Falta:
+- ✅ Tráfico "por dispositivo" — acotado a esta PC, ver "Estado actual"
+- ✅ Puertos abiertos / servicios expuestos — ver "Estado actual"
 - Radar por WiFi: bloqueado en hardware, no en código — comprar un
   ESP32-S3 (~$8 USD) es el único paso pendiente, ver §3b
 
@@ -544,11 +590,8 @@ está gateado (`window.nexusShell`) para no aparecer roto en WE.
 
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
-- **Correlación vuelos↔algo** — única pregunta de ejemplo del roadmap
-  original sin resolver; ahora viable con `.history/` ya persistiendo
-  datos (antes bloqueada por falta de línea base)
-- **Pilar 3** — tráfico por dispositivo / puertos / servicios expuestos
-- **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo
+- **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo.
+  Es lo único que queda de todo el roadmap original.
 
 ---
 *Documento vivo — actualizar conforme se decida qué construir en cada

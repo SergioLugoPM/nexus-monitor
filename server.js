@@ -5,6 +5,7 @@ const satLib = require('satellite.js');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const net = require('net');
 const https = require('https');
 const _tlsAgent = new https.Agent({ rejectUnauthorized: false }); // for hosts with self-signed/incompatible certs
 const app = express();
@@ -1347,8 +1348,15 @@ app.get('/flights', async (req, res) => {
         nxLog('OpenSky: ' + flights.length + ' flights shown, ' + states.filter(s=>!s[8]).length + ' airborne total', 'ok');
         const result = { flights, totalAirborne: states.filter(s=>!s[8]).length, ts: Date.now() };
         _flightsCache = result; _flightsTs = Date.now();
-        _aviationCache = { count: states.length, timestamp: Date.now() };
+        // Antes cacheaba states.length (todos los transponders, incluye
+        // aviones en tierra) mientras que fetchAviation() más abajo deriva
+        // totalAirborne — dos números distintos para "conteo de aviación"
+        // según qué ruta escribió el cache último. Unificado a totalAirborne
+        // porque buildAviationInsight() compara el mismo número entre
+        // lecturas; mezclar ambos habría producido falsas desviaciones.
+        _aviationCache = { count: result.totalAirborne, timestamp: Date.now() };
         _aviationTs = Date.now();
+        recordAviationSnapshot(result.totalAirborne);
         return result;
       } catch(e) {
         nxLog('ERROR /flights: ' + e.message, 'warn');
@@ -1482,12 +1490,76 @@ app.get('/solarflares', async (req, res) => {
   catch(e) { nxLog('ERROR /solarflares: '+e.message,'error'); res.status(500).json({error:e.message}); }
 });
 
+// ── AVIATION — ¿el tráfico aéreo global está fuera de lo normal? ────────────
+// Pregunta de ejemplo del roadmap original ("¿el pico de vuelos coincide con
+// algo?"), sin resolver hasta que existió persistencia histórica. Comparar el
+// conteo de HOY contra un promedio plano de días anteriores sería engañoso —
+// el tráfico aéreo mundial tiene un ciclo diario fuerte (día/noche por huso
+// horario), así que un mismo conteo real puede verse como "pico" o "caída"
+// según a qué hora se midió. En vez de eso: se guarda cada lectura junto a su
+// hora UTC, y solo se compara contra el promedio histórico de ESA MISMA hora
+// — así el ciclo día/noche no se confunde con una anomalía real.
+const AVIATION_HISTORY_FILE = () => { ensureHistoryDir(); return path.join(HISTORY_DIR, 'aviation.jsonl'); };
+const AVIATION_MIN_SAMPLES = 3;      // mínimo de lecturas históricas en esa hora antes de comparar
+const AVIATION_DEV_THRESHOLD = 0.25; // ±25% — más conservador que el 2.5x de volcán/tormenta/inundación,
+                                      // porque el tráfico aéreo por hora es más estable/predecible que desastres
+
+function recordAviationSnapshot(count) {
+  try {
+    const now = new Date();
+    fs.appendFileSync(AVIATION_HISTORY_FILE(), JSON.stringify({ ts: now.toISOString(), hour: now.getUTCHours(), count }) + '\n', 'utf8');
+  } catch (e) { nxLog('ERROR guardando historial de aviación: ' + e.message, 'warn'); }
+}
+
+function buildAviationInsight(currentCount) {
+  let content;
+  try { content = fs.readFileSync(AVIATION_HISTORY_FILE(), 'utf8'); } catch (e) { return null; }
+  const nowHour = new Date().getUTCHours();
+  const today = new Date().toISOString().slice(0, 10);
+  const sameBucket = [];
+  for (const line of content.split('\n')) {
+    if (!line.trim()) continue;
+    let ev;
+    try { ev = JSON.parse(line); } catch (e) { continue; }
+    if (ev.hour !== nowHour) continue;
+    if (ev.ts.slice(0, 10) === today) continue; // excluir hoy — comparar contra el pasado, no contra sí mismo
+    sameBucket.push(ev.count);
+  }
+  if (sameBucket.length < AVIATION_MIN_SAMPLES) return null;
+
+  const avg = sameBucket.reduce((a, b) => a + b, 0) / sameBucket.length;
+  if (avg <= 0) return null;
+  const deviation = (currentCount - avg) / avg;
+  if (Math.abs(deviation) < AVIATION_DEV_THRESHOLD) return null;
+
+  // ¿Coincide con algo ya trackeado? Solo se reporta como contexto temporal
+  // — igual que checkSolarCoincidence(), nunca como causa. Un conteo global
+  // agregado puede desviarse por mil razones; listar eventos activos no
+  // prueba relación, solo dice qué más estaba pasando al mismo tiempo.
+  const activeHazards = (_eventsCache?.events || [])
+    .filter(e => e.type === 'volcano' || e.type === 'storm' || e.type === 'flood')
+    .map(e => e.label);
+
+  return {
+    currentCount, avgForThisHour: Math.round(avg), hour: nowHour,
+    deviationPct: Math.round(deviation * 100),
+    direction: deviation > 0 ? 'alto' : 'bajo',
+    concurrentHazards: activeHazards.length ? activeHazards.slice(0, 5) : null,
+  };
+}
+
 // ── AVIATION COUNT ────────────────────────────────────────────────────────────
 // Reuses flights cache (populated by /flights) — no extra OpenSky calls
 async function fetchAviation() {
   const now = Date.now();
   if (_aviationCache && now - _aviationTs < TTL_AVIATION) return _aviationCache;
-  // If flights cache is fresh, derive count from it
+  // If flights cache is fresh, derive count from it. No se registra historial
+  // aquí a propósito: esto solo re-deriva del MISMO _flightsCache que ya
+  // registró su snapshot en el handler de /flights cuando de verdad se
+  // consultó OpenSky — TTL_AVIATION (3min) es mucho más corto que
+  // FLIGHTS_TTL (20min), así que esta rama se repite varias veces sobre el
+  // mismo dato sin cambios; grabarlo aquí también habría inflado
+  // aviation.jsonl con el mismo número repetido, sesgando el promedio.
   if (_flightsCache && now - _flightsTs < FLIGHTS_TTL) {
     const count = _flightsCache.totalAirborne || _flightsCache.flights?.length || 0;
     const result = { count, timestamp: now };
@@ -1546,7 +1618,7 @@ app.get('/globalstats', async (req, res) => {
       co2:          co2R.status === 'fulfilled'     ? co2R.value     : { ppm: 424.5, delta: 2.1, year: 2024 },
       moon:         moonPhase(),
       solar:        flaresR.status === 'fulfilled'  ? flaresR.value  : { class: 'B1.0', flux: 1e-7, timestamp: new Date().toISOString() },
-      aviation:     aviationR.status === 'fulfilled' ? { count: aviationR.value.count } : { count: 12000 },
+      aviation:     aviationR.status === 'fulfilled' ? { count: aviationR.value.count, insight: buildAviationInsight(aviationR.value.count) } : { count: 12000, insight: null },
       debris:       debrisR.status === 'fulfilled'  ? debrisR.value  : { count: 27200 },
       seismicEnergyJ: parseFloat(seismicEnergyJ.toExponential(3))
     };
@@ -1717,6 +1789,76 @@ app.get('/lan/devices', async (req, res) => {
   }
   const devices = await _lanInFlight;
   res.json({ devices, cachedAt: _lanCacheTs });
+});
+
+// ── LAN PORT SCAN (Pilar 3 — puertos abiertos / servicios expuestos) ────────
+// Bajo demanda, un dispositivo a la vez — nunca automático en cada refresh
+// de /lan/devices (a diferencia del ping sweep, escanear puertos de TODOS
+// los dispositivos en cada ciclo sería agresivo sin necesidad, y podría
+// disparar heurísticas de antivirus/firewall en esta misma PC). Mismo
+// principio del resto del dashboard: visibilidad de tu propia red, no
+// intrusión — de ahí PRIVATE_IP_RE abajo, que impide usar esto contra
+// cualquier IP pública.
+//
+// TCP connect scan puro (net.connect), sin npcap ni sockets crudos, sin
+// admin. Lista de puertos acotada a lo relevante para un hogar (cámaras
+// IP, NAS, impresoras, IoT) — no es un scanner de propósito general.
+const COMMON_PORTS = [
+  { port: 21,    label: 'FTP' },
+  { port: 22,    label: 'SSH' },
+  { port: 23,    label: 'Telnet (inseguro)' },
+  { port: 80,    label: 'HTTP' },
+  { port: 443,   label: 'HTTPS' },
+  { port: 445,   label: 'SMB / archivos compartidos' },
+  { port: 554,   label: 'RTSP (cámara IP)' },
+  { port: 631,   label: 'IPP (impresora)' },
+  { port: 5000,  label: 'HTTP alt (NAS/Synology)' },
+  { port: 7000,  label: 'AirPlay / Cast' },
+  { port: 8000,  label: 'HTTP alt (cámara/Sonos)' },
+  { port: 8080,  label: 'HTTP alt (panel admin IoT)' },
+  { port: 8123,  label: 'Home Assistant' },
+  { port: 8443,  label: 'HTTPS alt (NAS/cámara)' },
+  { port: 8554,  label: 'RTSP alt (cámara IP)' },
+  { port: 9100,  label: 'Impresora (JetDirect)' },
+  { port: 32400, label: 'Plex Media Server' },
+];
+
+function scanPort(ip, port, timeoutMs) {
+  return new Promise(resolve => {
+    const socket = new net.Socket();
+    let done = false;
+    const finish = open => { if (done) return; done = true; socket.destroy(); resolve(open); };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+    socket.connect(port, ip);
+  });
+}
+
+async function scanDevicePorts(ip) {
+  const CONCURRENCY = 8, TIMEOUT_MS = 700;
+  const found = [];
+  for (let i = 0; i < COMMON_PORTS.length; i += CONCURRENCY) {
+    const batch = COMMON_PORTS.slice(i, i + CONCURRENCY);
+    const opens = await Promise.all(batch.map(p => scanPort(ip, p.port, TIMEOUT_MS).then(open => open ? p : null)));
+    found.push(...opens.filter(Boolean));
+  }
+  return found;
+}
+
+app.get('/lan/scanports', async (req, res) => {
+  const ip = (req.query.ip || '').trim();
+  if (!PRIVATE_IP_RE.test(ip)) return res.status(400).json({ error: 'Solo se permite escanear IPs de tu red privada.' });
+  try {
+    nxLog('Escaneando puertos de ' + ip + '...', 'info');
+    const openPorts = await scanDevicePorts(ip);
+    nxLog('Puertos abiertos en ' + ip + ': ' + (openPorts.map(p => p.port).join(', ') || 'ninguno'), openPorts.length ? 'ok' : 'info');
+    res.json({ ip, openPorts });
+  } catch (e) {
+    nxLog('ERROR /lan/scanports: ' + e.message, 'error');
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── RADAR DE PRESENCIA WiFi (CSI) — requiere hardware ESP32-S3 ──────────────
