@@ -1938,6 +1938,52 @@ app.post('/agent/ask', async (req, res) => {
   }
 });
 
+// ── PURGA DE HISTORIAL VIEJO ────────────────────────────────────────────────
+// .history/*.jsonl (eventos día por día) y .history/aviation.jsonl (lecturas
+// por hora) nunca se borraban solos — crecerían sin límite para siempre.
+// Retención de 90 días: de sobra para todo lo que /history y los insights
+// actuales consultan (nada mira más de ~14 días atrás). Corre una vez al
+// arrancar (por si el proceso estuvo mucho tiempo sin correr) y luego cada
+// 24h — no en cada request, no hay necesidad de purgar más seguido que eso.
+const HISTORY_RETENTION_DAYS = 90;
+
+function purgeOldHistory() {
+  try {
+    ensureHistoryDir();
+    const cutoff = Date.now() - HISTORY_RETENTION_DAYS * 86400000;
+
+    const dayFiles = fs.readdirSync(HISTORY_DIR).filter(f => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f));
+    let removed = 0;
+    for (const f of dayFiles) {
+      const day = f.replace('.jsonl', '');
+      if (new Date(day + 'T00:00:00Z').getTime() < cutoff) {
+        fs.unlinkSync(path.join(HISTORY_DIR, f));
+        removed++;
+      }
+    }
+
+    // aviation.jsonl no está particionado por día (una lectura periódica, no
+    // un evento por país) — se filtra línea por línea en vez de borrar el
+    // archivo completo.
+    const avFile = path.join(HISTORY_DIR, 'aviation.jsonl');
+    if (fs.existsSync(avFile)) {
+      const lines = fs.readFileSync(avFile, 'utf8').split('\n').filter(l => l.trim());
+      const kept = lines.filter(l => {
+        try { return new Date(JSON.parse(l).ts).getTime() >= cutoff; } catch (e) { return false; }
+      });
+      if (kept.length !== lines.length) {
+        fs.writeFileSync(avFile, kept.length ? kept.join('\n') + '\n' : '', 'utf8');
+      }
+    }
+
+    if (removed > 0) nxLog('Purga de historial: ' + removed + ' día(s) viejo(s) (>' + HISTORY_RETENTION_DAYS + 'd) eliminados', 'info');
+  } catch (e) {
+    nxLog('ERROR purgando historial: ' + e.message, 'warn');
+  }
+}
+purgeOldHistory();
+setInterval(purgeOldHistory, 24 * 3600 * 1000);
+
 app.listen(PORT,()=>{
   nxLog('Servidor escuchando en http://localhost:'+PORT,'ok');
   console.log('\n  ┌─────────────────────────────────┐');
