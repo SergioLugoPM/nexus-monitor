@@ -274,7 +274,7 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     <div>
       <div class="sub-lbl">AVIATION</div>
       <div id="gs-aviation" style="font-size:16px;font-weight:500">—</div>
-      <div style="font-size:9px">flights live</div>
+      <div id="gs-aviation-note" style="font-size:9px">flights live</div>
     </div>
   </div>
   <div id="gs-pulse-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px">
@@ -1307,6 +1307,11 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
 (function(){
   const _prev=window.onShowView;
   let _lanTimer=null;
+  // Estado de escaneo de puertos por IP — separado de `devices` porque
+  // lanRefreshDevices() reconstruye #lan-devices completo cada 30s y este
+  // estado debe sobrevivir esos refrescos mientras el panel de resultados
+  // sigue abierto. {status:'scanning'|'done'|'error', ports:[...]}
+  let _lanPortScans={};
   const VENDOR_ICONS=[
     [/apple/i,'🍎'],[/google|android/i,'🤖'],[/samsung/i,'📱'],[/xiaomi/i,'📱'],
     [/amazon/i,'📦'],[/roku/i,'📺'],[/sony/i,'📺'],[/tp-link|netgear|d-link|fiberhome|huawei technologies|zte|arris|technicolor/i,'📡'],
@@ -1345,15 +1350,43 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
       const custom=names[dev.mac];
       const label=custom||dev.hostname||dev.vendor||'Dispositivo desconocido';
       const sub=[dev.ip,!custom&&dev.hostname&&dev.vendor?dev.vendor:null].filter(Boolean).join(' · ');
-      return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:3px;cursor:pointer" ondblclick="lanRename('${dev.mac}')" title="MAC ${dev.mac}">
-        <span style="flex-shrink:0">${dev.isSelf?'🖥️':lanIcon(dev.vendor)}</span>
-        <span style="flex:1;min-width:0;overflow:hidden">
-          <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${dev.isSelf?'font-weight:600':''}">${label}${dev.isSelf?' (esta PC)':''}</div>
-          <div style="font-size:9px;opacity:.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</div>
-        </span>
+      const scan=_lanPortScans[dev.ip];
+      let scanRow='';
+      if(scan){
+        if(scan.status==='scanning') scanRow=`<div style="font-size:9px;opacity:.6;padding:2px 0 0 26px">Escaneando puertos comunes…</div>`;
+        else if(scan.status==='error') scanRow=`<div style="font-size:9px;color:${_pal.warn};padding:2px 0 0 26px">Error al escanear: ${scan.error}</div>`;
+        else if(scan.status==='done'){
+          scanRow=scan.ports.length
+            ? `<div style="font-size:9px;padding:2px 0 0 26px" title="Escaneo pasivo de tu propia red — TCP connect a puertos comunes">${scan.ports.map(p=>`<span style="color:${_pal.warn}">${p.port} ${p.label}</span>`).join(' · ')}</div>`
+            : `<div style="font-size:9px;opacity:.45;padding:2px 0 0 26px">Sin puertos comunes abiertos</div>`;
+        }
+      }
+      return `<div style="padding:1px 0">
+        <div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:3px;cursor:pointer" ondblclick="lanRename('${dev.mac}')" title="MAC ${dev.mac}">
+          <span style="flex-shrink:0">${dev.isSelf?'🖥️':lanIcon(dev.vendor)}</span>
+          <span style="flex:1;min-width:0;overflow:hidden">
+            <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${dev.isSelf?'font-weight:600':''}">${label}${dev.isSelf?' (esta PC)':''}</div>
+            <div style="font-size:9px;opacity:.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</div>
+          </span>
+          <span onclick="event.stopPropagation();lanScanPorts('${dev.ip}')" style="flex-shrink:0;cursor:pointer;opacity:.5;font-size:12px" title="Buscar puertos abiertos (escaneo pasivo, solo tu red)">🔍</span>
+        </div>
+        ${scanRow}
       </div>`;
     }).join('');
   }
+
+  window.lanScanPorts=async function(ip){
+    _lanPortScans[ip]={status:'scanning'};
+    await lanRefreshDevices();
+    try{
+      const r=await(await fetch('http://localhost:19234/lan/scanports?ip='+encodeURIComponent(ip))).json();
+      if(r.error){ _lanPortScans[ip]={status:'error',error:r.error}; }
+      else{ _lanPortScans[ip]={status:'done',ports:r.openPorts||[]}; }
+    }catch(e){
+      _lanPortScans[ip]={status:'error',error:e.message};
+    }
+    await lanRefreshDevices();
+  };
 
   async function lanRefreshRadar(){
     const el=document.getElementById('lan-radar');
@@ -2547,6 +2580,26 @@ function renderGlobalStats(d) {
   if (d.aviation) {
     const avEl = document.getElementById('gs-aviation');
     if (avEl) { avEl.textContent = (d.aviation.count||0).toLocaleString(); avEl.style.color = c.hi; }
+    // "¿el pico de vuelos coincide con algo?" — pregunta de ejemplo del
+    // roadmap original. d.aviation.insight ya viene comparado contra el
+    // promedio histórico de esta MISMA hora UTC (no una hora cualquiera,
+    // el tráfico aéreo tiene ciclo día/noche fuerte). Los eventos
+    // "concurrentes" son solo contexto temporal, nunca una causa afirmada.
+    const noteEl = document.getElementById('gs-aviation-note');
+    if (noteEl) {
+      const ins = d.aviation.insight;
+      if (ins) {
+        noteEl.textContent = `${Math.abs(ins.deviationPct)}% ${ins.direction} vs. prom. ${ins.hour}h UTC`;
+        noteEl.style.color = c.warn;
+        noteEl.title = ins.concurrentHazards
+          ? `Eventos activos ahora (sin relación causal confirmada): ${ins.concurrentHazards.join(', ')}`
+          : 'Sin eventos volcán/tormenta/inundación activos ahora mismo';
+      } else {
+        noteEl.textContent = 'flights live';
+        noteEl.style.color = '';
+        noteEl.title = '';
+      }
+    }
   }
   computeDefcon(d);
   // Style dividers
