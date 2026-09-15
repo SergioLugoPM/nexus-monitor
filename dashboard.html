@@ -86,7 +86,7 @@ body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;
   display: block;
   width: 0;
 }
-body:not(.theme-win98):not(.theme-macos) .lbl, body:not(.theme-win98):not(.theme-macos) .tb-text { text-transform: uppercase; }
+body:not(.theme-win98):not(.theme-macos):not(.theme-macmodern) .lbl, body:not(.theme-win98):not(.theme-macos):not(.theme-macmodern) .tb-text { text-transform: uppercase; }
 /* THEME: WIN98 */
 body.theme-win98, body.theme-win98 * { font-family: "MS Sans Serif", "Tahoma", sans-serif !important; }
 body.theme-win98 .log-line { font-family: "Terminal", "Consolas", monospace !important; }
@@ -145,6 +145,51 @@ body.theme-macos #mtx-cv { filter: none !important; background: black !important
 body.theme-macos::before, body.theme-macos::after, body.theme-macos #crt-overlay, body.theme-macos #crt-line { display: none !important; }
 body.theme-macos #p-map { position: relative; overflow: hidden; }
 body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; pointer-events: none; z-index: 10; }
+/* THEME: MACOS MODERNO (Sonoma/Sequoia — no confundir con .theme-macos, que
+   es Mac OS clásico System 7). Tarjetas translúcidas tipo "vibrancy", SF
+   Pro, esquinas redondeadas, sin el glow neón del tema cyber por defecto. */
+body.theme-macmodern, body.theme-macmodern * { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif !important; }
+body.theme-macmodern .log-line { font-family: "SF Mono", "Menlo", Consolas, monospace !important; }
+body.theme-macmodern { background: radial-gradient(ellipse at top, #2c2c35 0%, #17171b 62%, #0c0c0e 100%) !important; }
+body.theme-macmodern #root { border: none !important; border-radius: 20px !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; }
+body.theme-macmodern #inner { border-radius: 20px !important; background: transparent !important; }
+body.theme-macmodern .pnl {
+  background: rgba(255,255,255,0.055) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  color: #f2f2f5 !important;
+  box-sizing: border-box !important;
+}
+body.theme-macmodern .hdr { border-bottom: 1px solid rgba(255,255,255,0.08) !important; }
+body.theme-macmodern .lbl { color: #98989d !important; font-weight: 600 !important; letter-spacing: .02em !important; text-shadow: none !important; }
+/* Traffic lights macOS reales — círculos llenos, sin glifo visible salvo
+   hover (igual que el sistema real). Reutiliza el mismo .win-btns que
+   win98/macos-clásico, solo que aquí nunca se activan automáticamente en
+   cada tarjeta (un mini title-bar en cada card no encaja con "limpio") —
+   se estilizan por si aparecen en algún panel que sí use .title-bar. */
+body.theme-macmodern .title-bar { background: rgba(255,255,255,0.04) !important; color: #f2f2f5 !important; border-radius: 8px 8px 0 0 !important; padding: 4px 8px !important; margin: -8px -10px 8px -10px !important; display: flex !important; align-items: center; }
+body.theme-macmodern .title-bar .lbl, body.theme-macmodern .title-bar .tb-text { background: transparent !important; margin: 0 !important; padding: 0 !important; }
+body.theme-macmodern .win-btns { display: flex; gap: 6px; margin-right: 8px; }
+body.theme-macmodern .win-btns div { width: 11px; height: 11px; border-radius: 50%; font-size: 0; box-shadow: none; border: none; }
+body.theme-macmodern .win-btns .wb-cls { background: #ff5f57 !important; }
+body.theme-macmodern .win-btns .wb-min { background: #febc2e !important; }
+body.theme-macmodern .win-btns .wb-max { background: #28c840 !important; }
+body.theme-macmodern .vxl, body.theme-macmodern .vlg, body.theme-macmodern .vmd, body.theme-macmodern .vsm, body.theme-macmodern .vxs, body.theme-macmodern .mut, body.theme-macmodern .disk-val, body.theme-macmodern #net-u, body.theme-macmodern #net-d, body.theme-macmodern #crl1, body.theme-macmodern #crl2, body.theme-macmodern #crl3, body.theme-macmodern #fxl, body.theme-macmodern #btc-c, body.theme-macmodern #eth-c, body.theme-macmodern #sol-c { text-shadow: none !important; }
+body.theme-macmodern #ttl, body.theme-macmodern #hostname { text-shadow: none !important; font-weight: 600 !important; }
+body.theme-macmodern #ftr, body.theme-macmodern #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: #98989d !important; text-shadow: none !important; }
+body.theme-macmodern #greeting, body.theme-macmodern #status-l, body.theme-macmodern #bigampm, body.theme-macmodern #bigdate, body.theme-macmodern #bigday, body.theme-macmodern #syshealth { text-shadow: none !important; }
+body.theme-macmodern #bigclock { font-family: -apple-system, "SF Pro Display", sans-serif !important; font-weight: 700 !important; text-shadow: none !important; }
+body.theme-macmodern::before, body.theme-macmodern::after, body.theme-macmodern #crt-overlay, body.theme-macmodern #crt-line { display: none !important; }
+body.theme-macmodern #p-map { position: relative; overflow: hidden; border-radius: 14px; }
+body.theme-macmodern #map-legend rect { fill: rgba(28,28,30,0.72) !important; }
+body.theme-macmodern .btn-mini { border-radius: 6px !important; background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.12) !important; }
+body.theme-macmodern .vtab { border-radius: 6px !important; text-transform: none !important; letter-spacing: .01em !important; }
+body.theme-macmodern .exp-row:hover, body.theme-macmodern .exp-drive:hover { background: rgba(255,255,255,0.08) !important; border-radius: 6px; }
+body.theme-macmodern .crit-alert-card { border-radius: 10px !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
 /* BUTTONS */
 .btn-mini { padding:2px 5px; font-size:9px; border:1px solid rgba(255,255,255,0.2); border-radius:3px; cursor:pointer; background:rgba(0,0,0,0.3); transition:all 0.2s; }
 .btn-mini:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.5); }
@@ -201,7 +246,8 @@ body.theme-macos #wmap-wrap::after { content: ""; position: absolute; top:0; lef
     <div style="display:flex;gap:4px;align-items:center;border-left:1px solid rgba(255,255,255,0.2);padding-left:15px;" id="theme-selector">
        <span class="thm-btn active" onclick="setTheme('cyber')" id="thm-cyber">CYBER</span>
        <span class="thm-btn" onclick="setTheme('win98')" id="thm-win98">WIN98</span>
-       <span class="thm-btn" onclick="setTheme('macos')" id="thm-macos">MAC OS</span>
+       <span class="thm-btn" onclick="setTheme('macos')" id="thm-macos" title="Mac OS clásico (System 7)">CLASSIC</span>
+       <span class="thm-btn" onclick="setTheme('macmodern')" id="thm-macmodern" title="macOS moderno">MACOS</span>
     </div>
     <span id="settings-btn" onclick="openSettings()" title="Settings" style="cursor:pointer;font-size:15px;opacity:.65;padding:0 4px;user-select:none;transition:opacity .2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='.65'">⚙</span>
   </div>
@@ -2845,7 +2891,7 @@ function cycleCoreMode() {
   localStorage.setItem('nexus_core_mode', _coreMode);
 }
 let _currentTheme = localStorage.getItem('nexus_theme') || 'cyber';
-var _themePalDefaults = { cyber: 'green', win98: 'blue', macos: 'amber' };
+var _themePalDefaults = { cyber: 'green', win98: 'blue', macos: 'amber', macmodern: 'blue' };
 function setTheme(t) {
   _currentTheme = t;
   localStorage.setItem('nexus_theme', t);
