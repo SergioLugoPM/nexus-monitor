@@ -206,6 +206,35 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   transform-origin: center;
   transform-box: fill-box;
 }
+/* Map-pin pulse rings: fixed CSS classes (one per literal radius already in use)
+   replace per-pin SMIL <animate> injection so all pulses share a handful of
+   GPU-batchable animations instead of ~168 independent SMIL timelines. */
+@keyframes pulse-r4  { 0%,100% { r: 4;  opacity: .28; } 50% { r: 14;   opacity: 0; } }
+@keyframes pulse-r5  { 0%,100% { r: 5;  opacity: .28; } 50% { r: 17.5; opacity: 0; } }
+@keyframes pulse-r7  { 0%,100% { r: 7;  opacity: .28; } 50% { r: 24.5; opacity: 0; } }
+@keyframes pulse-r8  { 0%,100% { r: 8;  opacity: .28; } 50% { r: 28;   opacity: 0; } }
+@keyframes pulse-r9-iss { 0%,100% { r: 9; opacity: .28; } 50% { r: 31.5; opacity: 0; } }
+.pulse-r4, .pulse-r5, .pulse-r7, .pulse-r8, .pulse-r9-iss {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.pulse-r4 { animation: pulse-r4 2.5s linear infinite; }
+.pulse-r5 { animation: pulse-r5 2.5s linear infinite; }
+.pulse-r7 { animation: pulse-r7 2.5s linear infinite; }
+.pulse-r8 { animation: pulse-r8 2.5s linear infinite; }
+.pulse-r9-iss { animation: pulse-r9-iss 1.8s linear infinite; }
+@keyframes storm-ring-cw  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes storm-ring-ccw { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+.storm-ring1, .storm-ring2, .storm-pulse-8, .storm-pulse-11 {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.storm-ring1 { animation: storm-ring-cw 4s linear infinite; }
+.storm-ring2 { animation: storm-ring-ccw 3s linear infinite; }
+@keyframes storm-pulse-8  { 0%,100% { r: 8;  opacity: .12; } 50% { r: 20;   opacity: 0; } }
+@keyframes storm-pulse-11 { 0%,100% { r: 11; opacity: .12; } 50% { r: 27.5; opacity: 0; } }
+.storm-pulse-8  { animation: storm-pulse-8 2.8s linear infinite; }
+.storm-pulse-11 { animation: storm-pulse-11 2.8s linear infinite; }
 @keyframes aurora-glow {
   0%,100% { box-shadow: 0 0 12px 2px var(--aurora-color, #5DCAA5); }
   50%      { box-shadow: 0 0 28px 6px var(--aurora-color, #5DCAA5); }
@@ -2321,7 +2350,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       ring1.setAttribute('r',stormR); ring1.setAttribute('fill','none');
       ring1.setAttribute('stroke','#8B5CF6'); ring1.setAttribute('stroke-width','1.5');
       ring1.setAttribute('stroke-dasharray','4,3'); ring1.setAttribute('opacity','.85');
-      ring1.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="0 ${x} ${y}" to="360 ${x} ${y}" dur="4s" repeatCount="indefinite"/>`;
+      ring1.classList.add('storm-ring1');
       pinGroup.appendChild(ring1);
       // Inner ring counter-rotate
       const ring2 = document.createElementNS(ns,'circle');
@@ -2329,7 +2358,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       ring2.setAttribute('r',stormR*0.55); ring2.setAttribute('fill','none');
       ring2.setAttribute('stroke','#C4B5FD'); ring2.setAttribute('stroke-width','1');
       ring2.setAttribute('stroke-dasharray','3,4'); ring2.setAttribute('opacity','.7');
-      ring2.innerHTML = `<animateTransform attributeName="transform" type="rotate" from="360 ${x} ${y}" to="0 ${x} ${y}" dur="3s" repeatCount="indefinite"/>`;
+      ring2.classList.add('storm-ring2');
       pinGroup.appendChild(ring2);
       // Center dot
       const center = document.createElementNS(ns,'circle');
@@ -2340,7 +2369,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       const pulse = document.createElementNS(ns,'circle');
       pulse.setAttribute('cx',x); pulse.setAttribute('cy',y);
       pulse.setAttribute('r',stormR); pulse.setAttribute('fill','#8B5CF6'); pulse.setAttribute('opacity','.12');
-      pulse.innerHTML = `<animate attributeName="r" values="${stormR};${stormR*2.5};${stormR}" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".12;0;.12" dur="2.8s" repeatCount="indefinite"/>`;
+      pulse.classList.add(stormR === 11 ? 'storm-pulse-11' : 'storm-pulse-8');
       pinGroup.appendChild(pulse);
     } else if(isFire) {
       const dot=document.createElementNS(ns,'circle');
@@ -2354,7 +2383,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       pulse.setAttribute('r',r);
       pulse.setAttribute('fill',dc);
       pulse.setAttribute('opacity','.28');
-      pulse.innerHTML='<animate attributeName="r" values="'+r+';'+(r*3.5)+';'+r+'" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/><animate attributeName="opacity" values=".28;0;.28" dur="'+(isISS?1.8:2.5)+'s" repeatCount="indefinite"/>';
+      pulse.classList.add(isISS?'pulse-r9-iss':('pulse-r'+r));
       pinGroup.appendChild(pulse);
 
       const dot=document.createElementNS(ns,'circle');
