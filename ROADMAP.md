@@ -659,6 +659,40 @@ falta.
   vieja de aviación se filtró del archivo dejando solo la reciente.
   Universal (server.js) — cruza a `master`.
 
+- ✅ **Animaciones SVG de los pines del mapa — el throttle de canvas no las
+  cubría.** Tras el fix de CPU de canvas de arriba, `webwallpaper64` seguía
+  cerca de sus niveles previos (~100-103% por instancia pesada, casi sin
+  cambio). Hipótesis: el pulso de cada pin del mapa (sismo, satélite, ISS,
+  volcán, inundación, anillos de huracán) se dibuja inyectando `<animate>`/
+  `<animateTransform>` SMIL directamente en el SVG — un mecanismo declarativo
+  separado del `requestAnimationFrame` de JS, así que el throttle de 24fps
+  nunca lo tocó. Confirmado con evidencia dura antes de tocar código:
+  inspección en vivo del DOM con datos reales (98 eventos) — **168
+  animaciones SMIL corriendo, todas con `repeatCount="indefinite"`, sin
+  límite de frecuencia**.
+
+  Fix: reemplazar la inyección de SMIL por un set fijo de clases CSS
+  `@keyframes` (una por cada radio literal ya usado: 4/5/7/8/9, más una
+  variante de 9 para ISS con duración distinta, y dos variantes para el
+  anillo/pulso de huracán) — mismo patrón ya probado por `.eq-pulse`/
+  `seismic-pulse` (animar el atributo `r` de SVG directamente vía keyframes,
+  con `transform-origin:center; transform-box:fill-box` para los anillos que
+  rotan). Se usó un set fijo de clases en vez de una sola clase parametrizada
+  con `var()` a propósito — las custom properties no interpolan suave en
+  keyframes sin registrarlas con `@property`, algo no garantizado en la
+  versión de CEF de este proyecto.
+
+  Verificado en vivo con servidor de prueba y datos reales: el conteo de
+  elementos SMIL (`animate`/`animateTransform`) se queda fijo sin importar
+  cuántos eventos lleguen (antes escalaba a 168 con 98 eventos), mientras
+  que `getComputedStyle` confirma que las nuevas animaciones CSS corren
+  correctamente (`animationPlayState: running`). Las animaciones de
+  trayectoria de satélites (`animateMotion`, siguen un path único por
+  satélite) quedaron fuera de este fix a propósito — son ~20-30 elementos,
+  no se pueden reducir a un set fijo de keyframes sin más trabajo, y el
+  volumen no justifica el riesgo todavía. Universal (dashboard.html) —
+  cruza a `master`.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
