@@ -659,6 +659,28 @@ falta.
   vieja de aviación se filtró del archivo dejando solo la reciente.
   Universal (server.js) — cruza a `master`.
 
+## Temas visuales
+
+Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
+clásico, blanco y negro) se agregó un cuarto tema: **MACOS** — macOS
+moderno (Sonoma/Sequoia), tarjetas translúcidas tipo "vibrancy" con
+`backdrop-filter: blur()`, esquinas redondeadas, fuente del sistema
+(`-apple-system`), sin el glow neón del tema cyber por defecto. Botón
+"MAC OS" original renombrado a "CLASSIC" para no confundirlos.
+
+Cada panel ya se trataba como una mini-ventana en los otros temas
+(win98 muestra 3 botones min/max/cerrar, el clásico muestra 1 caja de
+cierre) — el nuevo tema sigue el mismo patrón con traffic lights reales
+(rojo/amarillo/verde) en cada panel, consistente con cómo macOS de
+verdad decora cada ventana. Paleta de acento por defecto: azul (el
+accent color por defecto de macOS real), pero cualquiera de las 5
+paletas ya existentes (verde/azul/ámbar/morado/rojo) funciona igual —
+mapea de forma natural al selector de "Accent Color" de macOS.
+
+Verificado en vivo: cambio entre los 4 temas sin errores de consola,
+`localStorage` persiste la elección correctamente. Universal
+(dashboard.html) — cruza a `master`.
+
 ## Próximos pasos sugeridos (sin orden fijo — elegir según lo que se quiera)
 
 - **Radar por WiFi** (§3b) — comprar el ESP32-S3, el código ya está listo.
