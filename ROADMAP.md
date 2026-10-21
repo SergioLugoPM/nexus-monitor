@@ -743,6 +743,32 @@ Ideas pendientes con fuente ya verificada: campo de viento animado
 oleaje máximo bajo la huella (Open-Meteo marine), y capas de NHC (ArcGIS) para
 el Atlántico cuando haya tormentas activas (no se pudo probar: no había).
 
+## Neural Core: módulo Ultron
+
+El botón `[ MÓDULO ]` ahora alterna 2 vistas (antes 3): la esfera Jarvis y el
+**cerebro de Ultron**. Se quitaron las ondas de frecuencia y la retícula HUD
+(la retícula es la que se convirtió en el cerebro).
+
+- Referencia: el estudio que animó a Ultron en la película buscó que se
+  sintiera más como código que como biología, con movimiento guiado por flujo
+  de datos. Por eso el cerebro tiene silueta anatómica reconocible (dos
+  hemisferios con fisura, lóbulos temporales, cerebelo, tronco) pero está
+  hecho de nodos y conexiones, no de tejido.
+- Impulsos de datos viajan por las conexiones y, al llegar a un nodo, este
+  dispara y puede encender a sus vecinos (cascada). Nacen según la carga de
+  CPU; cuando el agente está "pensando" entran en ráfaga y se vuelven ámbar.
+- Núcleo cálido tipo Piedra de la Mente, carcasa holográfica (contorno
+  convexo de los hemisferios), plano de escaneo que enciende lo que cruza,
+  base holográfica y direcciones hex junto a los nodos que disparan.
+- Geometría adimensional con semilla fija (mismo cerebro en cada carga) y
+  radios/grosores escalados al tamaño del panel; los textos del HUD se
+  ocultan si el panel mide menos de 190 px de ancho.
+- Costo medido: 0.3-0.5 ms por cuadro, impulsos con tope (48 normal / 80 en
+  ráfaga). Universal (dashboard.html) — cruza a `master`.
+- La preferencia guardada se migró: la clave nueva es `nexus_core_view`; quien
+  tenía el viejo módulo 3 queda en el cerebro, y quien tenía el 2 (ondas, ya
+  inexistente) cae en la esfera.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
