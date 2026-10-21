@@ -743,39 +743,47 @@ Ideas pendientes con fuente ya verificada: campo de viento animado
 oleaje máximo bajo la huella (Open-Meteo marine), y capas de NHC (ArcGIS) para
 el Atlántico cuando haya tormentas activas (no se pudo probar: no había).
 
-## Neural Core: módulos y cerebro de Ultron
+## Neural Core: ondas
 
-El botón `[ MÓDULO ]` alterna 4 vistas: **1** esfera Jarvis, **2** ondas de
-frecuencia, **3** cerebro de Ultron, **4** cerebro dentro de la esfera. La
-retícula HUD original ya no existe (su lugar lo tomó el cerebro); las ondas
-se quitaron un momento y se restauraron idénticas a las originales.
+El Neural Core ya no tiene selector de módulos: queda **solo el módulo de
+ondas**, mejorado. Se quitaron la esfera Jarvis, el cerebro de Ultron, el
+cerebro dentro de la esfera y la retícula HUD (y el botón `[ MÓDULO ]`).
+Quitar la esfera también eliminó un `setInterval` de 80 ms que parpadeaba las
+sinapsis sin parar. Todo el código quitado sigue en git: el cerebro anatómico
+y el módulo combinado están en el commit `42191ae` de `electron-shell`
+(`13ddb57` en `master`).
 
-- Referencia: el estudio que animó a Ultron en la película buscó que se
-  sintiera más como código que como biología, con movimiento guiado por flujo
-  de datos. Por eso el cerebro tiene anatomía correcta pero está hecho de
-  nodos, conexiones e impulsos, no de tejido.
-- **Anatomía** (`ubCortex()` / `ubInit()`): cada hemisferio es un medio
-  elipsoide con cara medial plana, giros y proporción real (ancho ≈ 0.82 del
-  largo; el primer intento salió angosto y se corrigió); cisura de Silvio con
-  el lóbulo temporal debajo, cerebelo con folias horizontales, tronco
-  inclinado y cuerpo calloso con sus fibras. La silueta es la unión del
-  contorno convexo de cada parte (conserva concavidades; las líneas entre
-  partes marcan cisura y lóbulos).
-- **Actividad de código:** impulsos que viajan por las conexiones y se
-  propagan en cascada, flujo de datos corriendo por los giros, bus calloso
-  ámbar (impulsos más rápidos), lectura de actividad por lóbulo (FRN PAR TMP
-  OCC CBL STM, solo si el panel mide ≥320 px o S≥100), direcciones hex junto a
-  los nodos que disparan, plano de escaneo alineado con el cerebro y núcleo
-  cálido tipo Piedra de la Mente. Nacen según la CPU; con el agente
-  "pensando" entran en ráfaga y se vuelven ámbar.
-- **Módulo 4:** la esfera Jarvis (más tenue y sin halos) hace de contenedor
-  del cerebro y cada nodo que dispara proyecta un rayo hasta su superficie.
-- Costo medido (panel 350×230): esfera 0.46 ms, ondas 0.14 ms, cerebro
-  0.66 ms, cerebro+esfera 1.2 ms por cuadro; impulsos con tope (48 / 80 en
-  ráfaga). Universal (dashboard.html) — cruza a `master`.
-- Preferencia guardada: clave `nexus_core_v3`. Migra las dos anteriores
-  (`nexus_core_mode` original y `nexus_core_view` de la versión de 2 módulos);
-  el viejo "módulo 3" (retícula) y el cerebro de 2 módulos caen en el cerebro.
+Qué trae ahora (todo dato real de `/stats`; el original era decorativo):
+
+- **Osciloscopio de 3 canales** (CPU, RAM, GPU). La portadora oscila a una
+  velocidad que depende de la carga y con armónicos más ricos a mayor carga;
+  su **envolvente** (las líneas punteadas) es el **historial real de los
+  últimos 3 minutos**, muestreado cada 2 s. El historial se empieza a llenar
+  al cargar la página, así que los primeros minutos la envolvente es plana.
+- **Analizador con un LED por núcleo** (16 en esta PC), con marca de pico que
+  cae despacio y color por nivel (verde, ámbar, rojo >90%).
+- Lecturas: cada canal con su % (GPU con temperatura), cursor de barrido con
+  marcador sobre cada onda, "MAX Cn x%" y la fila de abajo
+  (`CORES n · HOT n · TOP Cn x%`). `NEURAL LOAD` es el promedio de los tres
+  canales.
+- Cuando el agente "piensa": las ondas se aceleran, el trazo cambia a azul y
+  aparece `AGENT THINKING`. La envolvente real se sigue viendo.
+- El tiempo es real (`Date.now`), no por cuadro: el movimiento no depende de la
+  tasa de refresco. Los valores se deslizan hacia el dato nuevo (llega cada
+  3 s) en vez de saltar.
+- Costo medido (panel 350×230): 0.42 ms por cuadro (0.60 pensando), menos que
+  la esfera (0.46) y el cerebro (0.66). Los textos se ocultan si el panel mide
+  menos de 190 px.
+
+Lecciones de ajuste (verificadas mirando el resultado, no a ojo):
+- Con muestreo cada 3 px un armónico de 7 px de longitud de onda hacía
+  aliasing y la traza salía dentada: muestreo a 2 px y armónicos más largos.
+- Ampliar la captura 2-3x suavizaba y ocultaba que a tamaño nativo la traza
+  salía "peluda" por sumar estelas, resplandor y armónicos fuertes: se dejó
+  una sola estela y se bajó el peso de los armónicos. Revisar siempre a 1:1.
+- Forzar amplitud mínima alta en el estado "pensando" tapaba la envolvente.
+
+Universal (`dashboard.html`) — cruza a `master`.
 
 ## Temas visuales
 
