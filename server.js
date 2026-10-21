@@ -775,6 +775,245 @@ function isValidLandFire(f) {
   return true;
 }
 
+// ══ STORMS — detalle de ciclones tropicales (GDACS) ═══════════════════════
+// Por ciclón activo GDACS entrega una línea de tiempo de boletines (posición,
+// viento en m/s, radios de viento por cuadrante en millas náuticas, población
+// expuesta), la trayectoria pronosticada, el cono de incertidumbre y la franja
+// total afectada. Dos hallazgos verificados en datos reales que condicionan
+// este bloque:
+//  - Los polígonos wind39/58/74coordinates de la línea de tiempo son círculos
+//    perfectos con el radio MÁXIMO (sobreestiman el área ~30%). El campo real
+//    asimétrico sale de los radios por cuadrante: cuatro cuartos de círculo
+//    dan 522,900 km2 contra los 523,461 km2 del polígono por paso de GDACS.
+//  - `severity` del listado es el PICO histórico de la tormenta, no el viento
+//    actual (una depresión a 56 km/h aparecía como 194 km/h).
+const GDACS_API = 'https://www.gdacs.org/gdacsapi/api';
+const STORM_TTL = 20 * 60 * 1000;
+const SAT_TTL   = 10 * 60 * 1000;
+const MS_TO_KT  = 1.943844;
+const NM_TO_KM  = 1.852;
+const MONTHS_EN = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+let _stormsCache = { storms: [], ts: 0 };
+let _stormsInFlight = null;
+const _satCache = new Map();
+
+function stormCategory(kt) {
+  if (kt < 34)  return { code: 'TD', n: 0 };
+  if (kt < 64)  return { code: 'TS', n: 0 };
+  if (kt < 83)  return { code: 'C1', n: 1 };
+  if (kt < 96)  return { code: 'C2', n: 2 };
+  if (kt < 113) return { code: 'C3', n: 3 };
+  if (kt < 137) return { code: 'C4', n: 4 };
+  return { code: 'C5', n: 5 };
+}
+function stormWord(lat, lon) {
+  if (lat < 0) return 'ciclón';
+  if (lon >= 100 && lon <= 180) return 'tifón';
+  if (lon < 0) return 'huracán';
+  return 'ciclón';
+}
+function stormLabel(cat, kt, lat, lon) {
+  if (cat.code === 'TD') return 'Depresión tropical';
+  if (cat.code === 'TS') return 'Tormenta tropical';
+  const w = stormWord(lat, lon);
+  if (w === 'tifón' && kt >= 130) return 'Supertifón cat. ' + cat.n;
+  return w.charAt(0).toUpperCase() + w.slice(1) + ' cat. ' + cat.n;
+}
+function parseAdvisoryTime(s) {
+  const m = /(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}):(\d{2})/.exec(s || '');
+  if (!m || MONTHS_EN[m[2]] === undefined) return null;
+  return Date.UTC(+m[3], MONTHS_EN[m[2]], +m[1], +m[4], +m[5]);
+}
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const r = Math.PI / 180, dp = (lat2 - lat1) * r, dl = (lon2 - lon1) * r;
+  const a = Math.sin(dp / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dl / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
+}
+function bearingDeg(lat1, lon1, lat2, lon2) {
+  const r = Math.PI / 180, dl = (lon2 - lon1) * r;
+  const y = Math.sin(dl) * Math.cos(lat2 * r);
+  const x = Math.cos(lat1 * r) * Math.sin(lat2 * r) - Math.sin(lat1 * r) * Math.cos(lat2 * r) * Math.cos(dl);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+// Reduce cada anillo a ~maxPts puntos y 2 decimales; el cliente cierra con Z.
+function simplifyRings(geom, maxPts) {
+  const polys = !geom ? [] : geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
+  return polys.map(p => p[0]).filter(r => r && r.length > 3).map(ring => {
+    const step = Math.max(1, Math.ceil(ring.length / maxPts));
+    const out = [];
+    for (let i = 0; i < ring.length; i += step) out.push([+ring[i][0].toFixed(2), +ring[i][1].toFixed(2)]);
+    return out;
+  });
+}
+async function gdacsJson(url, ms) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(ms || 20000), headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + url.split('?')[0].split('/').slice(-2).join('/'));
+  return r.json();
+}
+// Radios de viento en km, orden NE SE SW NO, para 34/50/64 nudos.
+function radiiOf(it) {
+  const q = k => ['ne', 'se', 'sw', 'nw'].map(d => Math.round((parseFloat(it['windrad_nm_' + k + 'kt_' + d]) || 0) * NM_TO_KM));
+  return { kt34: q(34), kt50: q(50), kt64: q(64) };
+}
+function satLayerFor(lon) {
+  if (lon >= 75 || lon <= -165) return 'Himawari_AHI_Band13_Clean_Infrared';
+  if (lon <= -120) return 'GOES-West_ABI_Band13_Clean_Infrared';
+  if (lon <= -20)  return 'GOES-East_ABI_Band13_Clean_Infrared';
+  return 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
+}
+
+async function buildStorm(feat) {
+  const p = feat.properties;
+  const id = p.eventid;
+  const detail = await gdacsJson(`${GDACS_API}/events/geteventdata?eventtype=TC&eventid=${id}`);
+  const dp = (detail.features && detail.features[0] && detail.features[0].properties) || detail.properties || detail;
+  const tlUrl = dp.impacts && dp.impacts[0] && dp.impacts[0].resource && dp.impacts[0].resource.timeline;
+  const [tlRes, geoRes] = await Promise.allSettled([
+    tlUrl ? gdacsJson(tlUrl, 30000) : Promise.reject(new Error('sin línea de tiempo')),
+    gdacsJson(p.url.geometry, 30000)
+  ]);
+  const isTrue = v => v === true || v === 'True' || v === 'true';
+  const rawItems = (tlRes.status === 'fulfilled' && tlRes.value.channel && tlRes.value.channel.item) || [];
+  const parsed = rawItems.map(it => ({
+    t: parseAdvisoryTime(it.advisory_datetime),
+    lat: parseFloat(it.latitude), lon: parseFloat(it.longitude),
+    ms: parseFloat(it.wind_speed) || 0, gustMs: parseFloat(it.wind_gusts) || 0,
+    hPa: parseFloat(it.pressure) || 0,
+    actual: isTrue(it.actual), current: isTrue(it.current),
+    pop34: Math.round(parseFloat(it.pop39) || 0), pop64: Math.round(parseFloat(it.pop74) || 0),
+    popSurge: Math.round(parseFloat(it.popstormsurge) || 0),
+    country: (it.country || '').trim(), radii: radiiOf(it)
+  })).filter(x => x.t && isFinite(x.lat) && isFinite(x.lon)).sort((a, b) => a.t - b.t);
+  const actual = parsed.filter(x => x.actual);
+  if (!actual.length) throw new Error('sin boletines reales');
+  const cur = actual[actual.length - 1];
+  const fcst = parsed.filter(x => !x.actual && x.t > cur.t);
+  const kt = Math.round(cur.ms * MS_TO_KT);
+  const cat = stormCategory(kt);
+
+  let move = null;
+  if (actual.length >= 2) {
+    const a = actual[actual.length - 2], dtH = (cur.t - a.t) / 3600000;
+    if (dtH > 0) move = { kmh: Math.round(haversineKm(a.lat, a.lon, cur.lat, cur.lon) / dtH), deg: Math.round(bearingDeg(a.lat, a.lon, cur.lat, cur.lon)) };
+  }
+  const best = key => fcst.reduce((m, x) => x[key] > (m ? m[key] : 0) ? x : m, null);
+  const pk = (x, key) => x ? { pop: x[key], t: Math.round(x.t / 1000), country: x.country } : null;
+
+  const geo = (geoRes.status === 'fulfilled' && geoRes.value.features) || [];
+  const swath = {};
+  for (const f of geo) {
+    const cls = f.properties && f.properties.Class, lbl = f.properties && f.properties.polygonlabel;
+    if (/^Poly_(Green|Orange|Red)$/.test(cls) && /^(60|90|120) km\/h$/.test(lbl)) swath[lbl.split(' ')[0]] = simplifyRings(f.geometry, 110);
+  }
+  const coneF = geo.find(f => f.properties && f.properties.Class === 'Poly_Cones');
+
+  const r34 = Math.max(...cur.radii.kt34, 0);
+  const half = Math.min(14, Math.max(6, (r34 * 2.1) / 111));
+  const bbox = [
+    +Math.max(-180, cur.lon - half).toFixed(3), +Math.max(-85, cur.lat - half).toFixed(3),
+    +Math.min(180, cur.lon + half).toFixed(3),  +Math.min(85, cur.lat + half).toFixed(3)
+  ];
+  return {
+    id, fullName: (p.eventname || '').toUpperCase(), name: (p.eventname || '').toUpperCase().replace(/-\d{2}$/, ''),
+    source: p.source || dp.source || '', alert: p.alertlevel || '', glide: p.glide || '',
+    updated: cur.t, lat: cur.lat, lon: cur.lon,
+    kmh: Math.round(cur.ms * 3.6), kt, gustKmh: Math.round(cur.gustMs * 3.6),
+    peakKmh: Math.round(Math.max(...actual.map(x => x.ms)) * 3.6),
+    hPa: cur.hPa || null, move,
+    cat: cat.code, catN: cat.n, label: stormLabel(cat, kt, cur.lat, cur.lon),
+    radii: cur.radii,
+    track: actual.map(x => [+x.lon.toFixed(2), +x.lat.toFixed(2), Math.round(x.ms * 3.6), Math.round(x.t / 1000)]),
+    forecast: fcst.map(x => {
+      const fkt = Math.round(x.ms * MS_TO_KT);
+      return { t: Math.round(x.t / 1000), lat: x.lat, lon: x.lon, kmh: Math.round(x.ms * 3.6), kt: fkt, cat: stormCategory(fkt).code,
+               country: x.country, pop34: x.pop34, pop64: x.pop64, popSurge: x.popSurge, radii: x.radii };
+    }),
+    cone: coneF ? simplifyRings(coneF.geometry, 90) : [],
+    swath,
+    exposure: {
+      now: { pop34: cur.pop34, pop64: cur.pop64, popSurge: cur.popSurge },
+      peak34: pk(best('pop34'), 'pop34'), peak64: pk(best('pop64'), 'pop64'), peakSurge: pk(best('popSurge'), 'popSurge'),
+      countries: (dp.affectedcountries || []).map(c => c.countryname).filter(Boolean)
+    },
+    sat: { layer: satLayerFor(cur.lon), bbox }
+  };
+}
+
+async function refreshStorms() {
+  if (_stormsInFlight) return _stormsInFlight;
+  _stormsInFlight = (async () => {
+    try {
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+      const from = new Date(Date.now() - 6 * 864e5), to = new Date(Date.now() + 864e5);
+      const list = await gdacsJson(`${GDACS_API}/events/geteventlist/SEARCH?eventlist=TC&fromdate=${fmt(from)}&todate=${fmt(to)}&alertlevel=Green;Orange;Red`);
+      const active = (list.features || []).filter(f => f.properties && String(f.properties.iscurrent) === 'true').slice(0, 8);
+      const results = await Promise.allSettled(active.map(buildStorm));
+      results.forEach((r, i) => { if (r.status === 'rejected') nxLog('Storm ' + active[i].properties.eventname + ': ' + r.reason.message, 'warn'); });
+      const storms = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      if (active.length > 0 && storms.length === 0 && _stormsCache.storms.length) {
+        nxLog('Storms: todas las construcciones fallaron, se conserva la caché previa', 'warn');
+      } else {
+        _stormsCache = { storms, ts: Date.now() };
+        nxLog('Storms (detalle GDACS): ' + storms.length, storms.length ? 'ok' : 'info');
+      }
+    } catch (e) { nxLog('Storms refresh falló: ' + e.message, 'warn'); }
+    finally { _stormsInFlight = null; }
+    return _stormsCache;
+  })();
+  return _stormsInFlight;
+}
+
+function stormEventFrom(st) {
+  return { type:'storm', lat: st.lat, lon: st.lon, label: st.fullName, classification:'TC', classLabel: st.label.toUpperCase(),
+           stormId: st.id, cat: st.cat, windKmh: st.kmh, kt: st.kt,
+           info:`${st.fullName} | ${st.label} | ${st.kmh} km/h (${st.kt} kt)${st.hPa ? ' | ' + st.hPa + ' hPa' : ''}` };
+}
+
+app.get('/storms', async (req, res) => {
+  if (!_stormsCache.ts) await Promise.race([refreshStorms(), new Promise(r => setTimeout(r, 25000))]);
+  res.json({ storms: _stormsCache.storms, ts: _stormsCache.ts });
+});
+
+// Imagen satelital real (NASA GIBS, IR de geoestacionario o VIIRS color) del
+// área de la tormenta. Capa y bbox salen de la caché propia, nunca del cliente.
+async function fetchStormSat(storm) {
+  const c = _satCache.get(storm.id);
+  if (c && Date.now() - c.ts < SAT_TTL) return c;
+  const [w, s, e, n] = storm.sat.bbox;
+  const W = 640, H = Math.max(200, Math.min(900, Math.round(W * (n - s) / (e - w))));
+  const slots = [];
+  if (storm.sat.layer.startsWith('VIIRS')) {
+    for (let i = 0; i < 3; i++) slots.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+  } else {
+    const base = Math.floor((Date.now() - 40 * 60e3) / 600e3) * 600e3;
+    for (let i = 0; i < 10; i++) slots.push(new Date(base - i * 600e3).toISOString().slice(0, 19) + 'Z');
+  }
+  for (const t of slots) {
+    const url = `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${storm.sat.layer}&STYLES=&CRS=EPSG:4326&BBOX=${s},${w},${n},${e}&WIDTH=${W}&HEIGHT=${H}&FORMAT=image/jpeg&TIME=${t}`;
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) continue;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length < 8000) continue;   // sin dato GIBS devuelve ~2 KB en blanco
+      const out = { buf, ts: Date.now(), time: t };
+      _satCache.set(storm.id, out);
+      if (_satCache.size > 6) _satCache.delete(_satCache.keys().next().value);
+      return out;
+    } catch (_) { /* siguiente franja de tiempo */ }
+  }
+  return null;
+}
+app.get('/storms/:id/sat', async (req, res) => {
+  const storm = _stormsCache.storms.find(s => String(s.id) === req.params.id);
+  if (!storm) return res.status(404).json({ error: 'tormenta no encontrada' });
+  const img = await fetchStormSat(storm);
+  if (!img) return res.status(503).json({ error: 'sin imagen satelital reciente' });
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Sat-Time': img.time,
+            'X-Sat-Layer': storm.sat.layer, 'Access-Control-Expose-Headers': 'X-Sat-Time, X-Sat-Layer' });
+  res.send(img.buf);
+});
+
 let _eventsInFlight = null;
 
 app.get('/events', async (req, res) => {
@@ -1220,7 +1459,15 @@ async function _fetchAllEvents() {
       const name = ((content.match(/<gdacs:eventname[^>]*>(.*?)<\/gdacs:eventname>/) || [])[1] || 'CYCLONE').toUpperCase();
       const sev  = (content.match(/<gdacs:severity[^>]*>([^<]*)<\/gdacs:severity>/) || [])[1] || '';
       if (isNaN(lat) || isNaN(lon)) return;
-      events.push({ type:'storm', lat, lon, label: name, classification:'TC', classLabel:'TROPICAL CYCLONE', info:`${name} | ${sev.trim()}` });
+      // Si ya hay detalle (/storms) se usa el viento ACTUAL y la misma
+      // posición que la huella; `sev` de GDACS es el pico histórico.
+      const eid = (content.match(/<gdacs:eventid[^>]*>(\d+)<\/gdacs:eventid>/) || [])[1];
+      const st = eid && _stormsCache.storms.find(s => String(s.id) === eid);
+      if (st) {
+        events.push(stormEventFrom(st));
+      } else {
+        events.push({ type:'storm', lat, lon, label: name, classification:'TC', classLabel:'TROPICAL CYCLONE', info:`${name} | ${sev.trim()}` });
+      }
       cycCount++;
     });
     nxLog('GDACS cyclones: ' + cycCount, cycCount > 0 ? 'ok' : 'info');
@@ -1280,6 +1527,9 @@ async function _fetchAllEvents() {
     nxLog('GDACS floods: ' + floodCount, floodCount > 0 ? 'ok' : 'info');
   } else {
     nxLog('GDACS unavailable: ' + cycloneRes.reason?.message, 'warn');
+    // /storms tiene su propia caché: los pines de tormenta no deben
+    // desaparecer del mapa por una falla (o timeout) del RSS.
+    _stormsCache.storms.forEach(st => events.push(stormEventFrom(st)));
   }
 
   // Seismic energy: E = 10^(1.5*M + 4.8) joules (Gutenberg-Richter)
@@ -2100,6 +2350,7 @@ function purgeOldHistory() {
 purgeOldHistory();
 setInterval(purgeOldHistory, 24 * 3600 * 1000);
 
+refreshStorms(); setInterval(refreshStorms, STORM_TTL);
 app.listen(PORT,()=>{
   nxLog('Servidor escuchando en http://localhost:'+PORT,'ok');
   console.log('\n  ┌─────────────────────────────────┐');
