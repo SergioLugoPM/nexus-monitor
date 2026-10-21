@@ -3577,10 +3577,14 @@ function spInit(R){
   }}
 }
 
-let _coreMode = parseInt(localStorage.getItem('nexus_core_mode') || '0');
+var _coreMode = (function(){
+  var v = localStorage.getItem('nexus_core_view');
+  if (v === null) v = localStorage.getItem('nexus_core_mode') === '2' ? '1' : '0';
+  return v === '1' ? 1 : 0;
+})();
 function cycleCoreMode() {
-  _coreMode = (_coreMode + 1) % 3;
-  localStorage.setItem('nexus_core_mode', _coreMode);
+  _coreMode = (_coreMode + 1) % 2;
+  localStorage.setItem('nexus_core_view', _coreMode);
 }
 let _currentTheme = localStorage.getItem('nexus_theme') || 'cyber';
 var _themePalDefaults = { cyber: 'green', win98: 'blue', macos: 'amber', macmodern: 'blue' };
@@ -3594,6 +3598,221 @@ function setTheme(t) {
   // Apply default palette for this theme
   var defPal = _themePalDefaults[t] || 'green';
   setPalette(defPal);
+}
+
+// ── ULTRON BRAIN — retícula de nodos con forma de cerebro ───────────────────
+// Módulo 2 del Neural Core. Silueta reconocible (dos hemisferios con fisura,
+// lóbulos temporales, cerebelo y tronco) pero construida como código y no
+// como tejido: nodos + conexiones por vecindad, con impulsos de datos que
+// viajan por las aristas y se propagan en cascada. La geometría es
+// adimensional (1 = media longitud del cerebro) y se escala al dibujar, así
+// que no hay que reconstruirla cuando cambia el tamaño del panel.
+var _ubNodes=[],_ubEdges=[],_ubAdj=[],_ubPulses=[],_ubFired=0,_ubRecent=[];
+function ubRng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;var t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function ubInit(){
+  var rnd=ubRng(20150501); // semilla fija: el mismo cerebro en cada carga
+  _ubNodes=[];_ubEdges=[];_ubAdj=[];_ubPulses=[];_ubRecent=[];_ubFired=0;
+  var GOLD=Math.PI*(3-Math.sqrt(5));
+  function addNode(x,y,z,grp){_ubNodes.push({x:x,y:y,z:z,grp:grp,fire:0,sx:0,sy:0,s:1,dz:0});}
+  // Superficie de elipsoide con pliegues (giros): `wr` es la profundidad de los surcos.
+  function shell(cx,cy,cz,rx,ry,rz,n,grp,wr,keep,tpr){
+    for(var i=0;i<n;i++){
+      var cosP=1-2*(i+0.5)/n,sinP=Math.sqrt(1-cosP*cosP),th=GOLD*i;
+      var ux=sinP*Math.cos(th),uy=cosP,uz=sinP*Math.sin(th);
+      if(keep&&!keep(ux,uy,uz))continue;
+      var d=1+wr*Math.sin(6.5*th+3.2*uy)*Math.cos(5*uy+1.7*Math.sin(3*th));
+      // tpr: los hemisferios se afinan hacia atrás (occipital) y abultan al frente (frontal)
+      var tp=tpr?1-0.22*Math.max(0,-uz):1,bu=tpr?1+0.10*Math.max(0,uz):1;
+      var y=uy*ry*d*tp*bu;if(y>0)y*=0.78; // la base del cerebro es más plana que la parte superior
+      addNode(cx+ux*rx*d*tp,cy+y,cz+uz*rz*d,grp);
+    }
+  }
+  // Hemisferios (se descartan los nodos que miran a la fisura central para dejarla visible)
+  shell(-0.40,0,0,0.37,0.60,1.0,86,0,0.07,function(ux){return ux<0.72;},1);
+  shell( 0.40,0,0,0.37,0.60,1.0,86,0,0.07,function(ux){return ux>-0.72;},1);
+  // Lóbulos temporales (le dan al perfil su forma característica)
+  shell(-0.50,0.28,0.12,0.20,0.20,0.46,18,0,0.05,null);
+  shell( 0.50,0.28,0.12,0.20,0.20,0.46,18,0,0.05,null);
+  // Cerebelo: pliegues más finos
+  shell(0,0.40,-0.72,0.34,0.20,0.26,26,1,0.14,null);
+  // Tronco encefálico
+  for(var k=0;k<7;k++){addNode((rnd()-0.5)*0.05,0.30+k*0.085,-0.32-k*0.03,2);if(k===2||k===4){addNode(0.055,0.30+k*0.085,-0.32-k*0.03,2);addNode(-0.055,0.30+k*0.085,-0.32-k*0.03,2);}}
+  // Nodos interiores: dan volumen (se ven a través de la retícula al girar)
+  for(var q=0;q<26;q++){
+    var side=q%2?1:-1,dx=rnd()*2-1,dy=rnd()*2-1,dz=rnd()*2-1,dl=Math.sqrt(dx*dx+dy*dy+dz*dz)||1,rr=0.25+0.45*rnd();
+    addNode(side*0.40+dx/dl*0.37*rr,dy/dl*0.60*rr,dz/dl*1.0*rr,3);
+  }
+  // Conexiones: cada nodo con sus 3 vecinos más cercanos (dentro de un radio máximo)
+  var N=_ubNodes.length,seen={};
+  function link(i,j){var key=i<j?i+'_'+j:j+'_'+i;if(seen[key])return;seen[key]=1;var e=_ubEdges.length;_ubEdges.push({a:i,b:j});_ubAdj[i].push(e);_ubAdj[j].push(e);}
+  for(var i=0;i<N;i++)_ubAdj.push([]);
+  for(var i2=0;i2<N;i2++){
+    var ni=_ubNodes[i2],cand=[];
+    for(var j=0;j<N;j++){if(j===i2)continue;var nj=_ubNodes[j],dd=Math.sqrt((ni.x-nj.x)*(ni.x-nj.x)+(ni.y-nj.y)*(ni.y-nj.y)+(ni.z-nj.z)*(ni.z-nj.z));if(dd<0.40)cand.push([dd,j]);}
+    cand.sort(function(p,r){return p[0]-r[0];});
+    for(var c3=0;c3<Math.min(3,cand.length);c3++)link(i2,cand[c3][1]);
+  }
+  // Puentes entre hemisferios (cuerpo calloso): nodos cercanos a la línea media
+  for(var m=0;m<N;m++){
+    var nm=_ubNodes[m];if(Math.abs(nm.x)>0.22||nm.grp===1||nm.grp===2||rnd()>0.6)continue;
+    var best=-1,bd=0.5;
+    for(var p=0;p<N;p++){var np=_ubNodes[p];if(p===m||np.grp===1||np.grp===2||np.x*nm.x>=0)continue;var dm=Math.sqrt((nm.x-np.x)*(nm.x-np.x)+(nm.y-np.y)*(nm.y-np.y)+(nm.z-np.z)*(nm.z-np.z));if(dm<bd){bd=dm;best=p;}}
+    if(best>=0)link(m,best);
+  }
+}
+// Contorno convexo (cadena monótona) de puntos {x,y}: la "carcasa" holográfica del cerebro
+function ubHull(pts){
+  pts=pts.slice().sort(function(a,b){return a.x-b.x||a.y-b.y;});
+  var cr=function(o,a,b){return (a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);},lo=[],up=[];
+  for(var i=0;i<pts.length;i++){while(lo.length>=2&&cr(lo[lo.length-2],lo[lo.length-1],pts[i])<=0)lo.pop();lo.push(pts[i]);}
+  for(var j=pts.length-1;j>=0;j--){while(up.length>=2&&cr(up[up.length-2],up[up.length-1],pts[j])<=0)up.pop();up.push(pts[j]);}
+  lo.pop();up.pop();return lo.concat(up);
+}
+function ubSpawn(e,dir,cap){
+  if(_ubPulses.length>=cap)return;
+  _ubPulses.push({e:e,dir:dir,t:0,sp:0.06+Math.random()*0.05,warm:Math.random()<0.18});
+}
+function ubDraw(ctx,W,H,c,t){
+  if(!_ubNodes.length)ubInit();
+  var N=_ubNodes.length,busy=_ncAgentBusy?1:0;
+  var S=Math.min(W*0.43,H*0.47),fov=S*4.2,cx=W/2,cy=H*0.43;
+  var u=Math.max(0.6,Math.min(1.3,S/95)),hud=W>=190; // u escala radios/grosores al tamaño del panel; hud oculta textos si no caben
+  var ay=t*(0.65+_ncCpuLoad*0.25+busy*0.5),ax=-0.20+Math.sin(t*0.9)*0.07;
+  var cA=Math.cos(ay),sA=Math.sin(ay),cX=Math.cos(ax),sX=Math.sin(ax);
+  var yScan=Math.sin(t*1.3)*0.62;
+
+  // Núcleo cálido (Piedra de la Mente): luz dentro del cerebro, detrás de la retícula
+  var cs=S*(0.34+0.04*Math.sin(t*5)),cg=ctx.createRadialGradient(cx,cy,0,cx,cy,cs);
+  cg.addColorStop(0,ca(c.warn,0.5+busy*0.2));cg.addColorStop(0.5,ca(c.warn,0.12));cg.addColorStop(1,ca(c.warn,0));
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(cx,cy,cs,0,Math.PI*2);ctx.fill();
+
+  // Base holográfica: anillos y marcas que giran bajo el cerebro
+  var by=cy+S*0.92;
+  [[1.05,0.5,c.mid],[0.78,0.35,c.lo],[0.5,0.3,c.mid]].forEach(function(rg){
+    ctx.beginPath();ctx.ellipse(cx,by,S*rg[0],S*rg[0]*0.2,0,0,Math.PI*2);
+    ctx.strokeStyle=rg[2];ctx.globalAlpha=rg[1];ctx.lineWidth=1;ctx.stroke();
+  });
+  ctx.strokeStyle=c.hi;ctx.lineWidth=1;
+  for(var tk=0;tk<28;tk++){
+    var ta=tk*Math.PI*2/28+t*0.8,tx=Math.cos(ta),ty=Math.sin(ta),major=tk%7===0;
+    ctx.globalAlpha=major?0.8:0.3;
+    ctx.beginPath();ctx.moveTo(cx+tx*S*1.05,by+ty*S*0.21);ctx.lineTo(cx+tx*S*(major?1.14:1.09),by+ty*S*(major?0.228:0.218));ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // Proyección de cada nodo (giro en Y y leve cabeceo en X, con perspectiva)
+  for(var i=0;i<N;i++){
+    var n=_ubNodes[i];
+    var x1=n.x*cA+n.z*sA,z1=-n.x*sA+n.z*cA;
+    var y2=n.y*cX-z1*sX,z2=n.y*sX+z1*cX;
+    var s=fov/(fov+z2*S);
+    n.sx=cx+x1*S*s;n.sy=cy+y2*S*s;n.s=s;n.dz=z2;
+    n.fire*=0.90;
+    if(Math.abs(n.y-yScan)<0.035&&n.fire<0.3)n.fire=0.3; // el plano de escaneo enciende lo que cruza
+  }
+
+  // Carcasa holográfica: contorno de los hemisferios, para que la silueta de cerebro se lea de un vistazo
+  var hp=[];for(var hi=0;hi<N;hi++){if(_ubNodes[hi].grp===0)hp.push({x:_ubNodes[hi].sx,y:_ubNodes[hi].sy});}
+  var hull=ubHull(hp);
+  if(hull.length>2){
+    ctx.beginPath();ctx.moveTo(hull[0].x,hull[0].y);
+    for(var hj=1;hj<hull.length;hj++)ctx.lineTo(hull[hj].x,hull[hj].y);
+    ctx.closePath();ctx.fillStyle=ca(c.mid,0.06);ctx.fill();
+    ctx.strokeStyle=c.hi;ctx.globalAlpha=0.38;ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+  }
+
+  // Conexiones, agrupadas por profundidad (lejos / medio / cerca) para minimizar cambios de estado
+  var buckets=[[],[],[]];
+  for(var e=0;e<_ubEdges.length;e++){
+    var ed=_ubEdges[e],za=_ubNodes[ed.a].dz,zb=_ubNodes[ed.b].dz,zm=(za+zb)*0.5;
+    buckets[zm>0.33?0:zm>-0.33?1:2].push(ed);
+  }
+  var bAlpha=[0.07,0.15,0.27],bWidth=[0.7,0.9,1.1];
+  for(var bi=0;bi<3;bi++){
+    ctx.beginPath();
+    for(var bj=0;bj<buckets[bi].length;bj++){var be=buckets[bi][bj],pa=_ubNodes[be.a],pb=_ubNodes[be.b];ctx.moveTo(pa.sx,pa.sy);ctx.lineTo(pb.sx,pb.sy);}
+    ctx.strokeStyle=c.mid;ctx.globalAlpha=bAlpha[bi];ctx.lineWidth=bWidth[bi];ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // Impulsos: nacen según la carga (y en ráfaga cuando el agente piensa), viajan por una
+  // arista y, al llegar, el nodo dispara y puede encender a sus vecinos (cascada).
+  var cap=busy?80:48,spawnP=0.32+_ncCpuLoad*0.55+busy*0.9;
+  var nSpawn=Math.floor(spawnP)+(Math.random()<spawnP%1?1:0);
+  var focus=(Math.floor(t*0.7)*37)%N; // foco de actividad que se desplaza por el cerebro
+  for(var sp=0;sp<nSpawn;sp++){
+    var adj=_ubAdj[focus];
+    if(adj.length&&Math.random()<0.55)ubSpawn(adj[Math.floor(Math.random()*adj.length)],Math.random()<0.5?1:-1,cap);
+    else ubSpawn(Math.floor(Math.random()*_ubEdges.length),Math.random()<0.5?1:-1,cap);
+  }
+  var pc=busy?0.30:0.14+_ncRamLoad*0.08;
+  for(var pi=_ubPulses.length-1;pi>=0;pi--){
+    var pu=_ubPulses[pi],pe=_ubEdges[pu.e];
+    pu.t+=pu.sp;
+    var from=_ubNodes[pu.dir>0?pe.a:pe.b],to=_ubNodes[pu.dir>0?pe.b:pe.a];
+    var tt=Math.min(pu.t,1),hx=from.sx+(to.sx-from.sx)*tt,hy=from.sy+(to.sy-from.sy)*tt;
+    var t0=Math.max(tt-0.28,0),tx0=from.sx+(to.sx-from.sx)*t0,ty0=from.sy+(to.sy-from.sy)*t0;
+    var hs=(from.s+to.s)*0.5,col=(busy||pu.warm)?c.warn:c.hi;
+    ctx.beginPath();ctx.moveTo(tx0,ty0);ctx.lineTo(hx,hy);
+    ctx.strokeStyle=ca(col,0.6);ctx.lineWidth=1.7*hs*u;ctx.stroke();
+    ctx.beginPath();ctx.arc(hx,hy,3.6*hs*u,0,Math.PI*2);ctx.fillStyle=ca(col,0.18);ctx.fill();
+    ctx.beginPath();ctx.arc(hx,hy,1.6*hs*u,0,Math.PI*2);ctx.fillStyle='#FFFFFF';ctx.globalAlpha=0.95;ctx.fill();ctx.globalAlpha=1;
+    if(pu.t>=1){
+      var ai=pu.dir>0?pe.b:pe.a,an=_ubNodes[ai];
+      an.fire=1;_ubFired=(_ubFired+1)%100000;
+      _ubRecent.push(ai);if(_ubRecent.length>3)_ubRecent.shift();
+      var aj=_ubAdj[ai];
+      for(var k=0;k<aj.length;k++){
+        if(aj[k]===pu.e||Math.random()>pc)continue;
+        ubSpawn(aj[k],_ubEdges[aj[k]].a===ai?1:-1,cap);
+      }
+      _ubPulses.splice(pi,1);
+    }
+  }
+
+  // Nodos
+  for(var ni=0;ni<N;ni++){
+    var nd=_ubNodes[ni],f=nd.fire,r0=(nd.grp===3?1.1:1.5)*nd.s*u,rr=r0*(1+f*1.7);
+    var al=Math.min(1,0.30+(0.5-nd.dz*0.4)*0.5+f*0.7);
+    if(f>0.15){ctx.beginPath();ctx.arc(nd.sx,nd.sy,rr*2.8,0,Math.PI*2);ctx.fillStyle=ca(c.hi,f*0.3);ctx.fill();}
+    ctx.beginPath();ctx.arc(nd.sx,nd.sy,rr,0,Math.PI*2);
+    ctx.fillStyle=f>0.2?c.hi:c.mid;ctx.globalAlpha=al;ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // Plano de escaneo: anillo que recorre el cerebro de arriba abajo
+  ctx.beginPath();
+  for(var ph=0;ph<=40;ph++){
+    var a=ph*Math.PI/20,rx=0.95*Math.cos(a),rz=0.95*Math.sin(a);
+    var sy2=yScan*cX-rz*sX,sz2=yScan*sX+rz*cX,ss=fov/(fov+sz2*S);
+    var px=cx+rx*S*ss,py=cy+sy2*S*ss;
+    if(ph===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.fillStyle=ca(c.hi,0.05);ctx.fill();
+  ctx.strokeStyle=c.hi;ctx.globalAlpha=0.6;ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+
+  // Direcciones hexadecimales flotando junto a los nodos que acaban de disparar
+  ctx.font='7px monospace';ctx.textAlign='left';
+  for(var rc=0;rc<_ubRecent.length;rc++){
+    var rn=_ubNodes[_ubRecent[rc]];if(rn.fire<0.12)continue;
+    ctx.fillStyle=c.hi;ctx.globalAlpha=hud?Math.min(0.9,rn.fire):0;
+    ctx.fillText('0x'+(((_ubRecent[rc]*2654435761)>>>0)%0xFFFF).toString(16).toUpperCase().padStart(4,'0'),rn.sx+6,rn.sy-5);
+  }
+  ctx.globalAlpha=1;
+
+  // Marco HUD y lecturas
+  [[6,6,1,1],[W-6,6,-1,1],[6,H-6,1,-1],[W-6,H-6,-1,-1]].forEach(function(br){
+    ctx.save();ctx.translate(br[0],br[1]);ctx.strokeStyle=c.pin;ctx.lineWidth=1.5;ctx.globalAlpha=0.55;
+    ctx.beginPath();ctx.moveTo(br[2]*10,br[3]*2);ctx.lineTo(br[2]*2,br[3]*2);ctx.lineTo(br[2]*2,br[3]*10);ctx.stroke();
+    ctx.restore();
+  });
+  ctx.font='8px monospace';ctx.textAlign='left';
+  ctx.fillStyle=c.hi;ctx.globalAlpha=hud?0.75:0;ctx.fillText('ULTRON // LATTICE',12,16);
+  ctx.fillStyle=c.mid;ctx.fillText('SCAN '+Math.round((yScan+0.62)/1.24*100)+'%',12,26);
+  ctx.textAlign='right';
+  ctx.fillStyle=c.hi;ctx.fillText('FIRING '+_ubPulses.length,W-12,16);
+  ctx.fillStyle=c.mid;ctx.fillText('ΣSYN '+_ubFired,W-12,26);
+  ctx.globalAlpha=1;ctx.textAlign='left';
 }
 
 function spDraw(cv){
@@ -3716,107 +3935,9 @@ function spDraw(cv){
       ctx.fillStyle=c.hi;ctx.globalAlpha=0.35+p.sc*0.65;ctx.fill();
       ctx.globalAlpha=1;
     });
-  } else if(_coreMode === 1) {
-    // ── FREQUENCY WAVES — amplitude/speed driven by CPU, center by RAM ───────
-    var cy2=H*(0.38+_ncRamLoad*0.12); // RAM shifts wave center vertically
-    var waveAmp=18+_ncCpuLoad*28;     // CPU drives amplitude
-    var waveSpd=0.8+_ncCpuLoad*1.4;   // CPU drives speed
-    var waveCount=_ncCpuLoad>0.65?5:4; // extra harmonic above 65% CPU
-    for(var j=0;j<waveCount;j++){
-      ctx.beginPath();
-      ctx.strokeStyle=j===0?c.hi:j===1?c.warn:j===2?c.mid:j===3?c.lbl:c.pin;
-      ctx.globalAlpha=0.85-j*0.14;ctx.lineWidth=j===0?1.5:1;
-      for(var i=0;i<W;i+=2){
-        var a2=i*0.02+t*(waveSpd+j*0.3);
-        var yy=cy2+Math.sin(a2)*(waveAmp+j*8)*Math.cos(i*0.01+t*0.5);
-        if(i===0)ctx.moveTo(i,yy);else ctx.lineTo(i,yy+Math.sin(i*0.1)*j*3);
-        if(j===0&&i%60===0){
-          var pd=Math.sin(a2)*waveAmp*Math.cos(i*0.01+t*0.5);
-          ctx.save();ctx.fillStyle=c.hi;ctx.globalAlpha=0.9;ctx.beginPath();ctx.arc(i,cy2+pd,2.5,0,Math.PI*2);ctx.fill();ctx.restore();
-        }
-      }
-      ctx.stroke();
-    }
-    ctx.globalAlpha=1;
-    // Vertical scan — speed scales with CPU
-    var scanX=(t*(30+_ncCpuLoad*40))%W;
-    ctx.beginPath();ctx.moveTo(scanX,0);ctx.lineTo(scanX,H);
-    ctx.strokeStyle=c.hi;ctx.globalAlpha=0.7;ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
-    // Freq axis labels
-    ['20','200','2k','10k'].forEach(function(fl,fi){
-      ctx.font='7px monospace';ctx.fillStyle=c.lbl;ctx.globalAlpha=0.35;ctx.textAlign='center';
-      ctx.fillText(fl+'Hz',fi*(W/3)+12,H-2);
-    });
-    ctx.globalAlpha=1;ctx.textAlign='left';
-  } else if(_coreMode === 2) {
-    // ── HUD TARGETING RETICLE ───────────────────────────────
-    var cx2=W/2,cy3=H/2,R2=Math.min(W,H)*0.41;
-    ctx.translate(cx2,cy3);
-    // Background glow
-    var bg=ctx.createRadialGradient(0,0,0,0,0,R2);
-    bg.addColorStop(0,ca(c.pin,0.06));bg.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=bg;ctx.beginPath();ctx.arc(0,0,R2,0,Math.PI*2);ctx.fill();
-    // Outer ring + tick marks — CPU drives rotation speed
-    ctx.save();ctx.rotate(t*(0.05+_ncCpuLoad*0.11));
-    ctx.beginPath();ctx.arc(0,0,R2,0,Math.PI*2);
-    ctx.strokeStyle=c.mid;ctx.lineWidth=1;ctx.globalAlpha=0.4;
-    ctx.setLineDash([2,14]);ctx.stroke();ctx.setLineDash([]);
-    for(var i2=0;i2<24;i2++){
-      var ang2=i2*Math.PI/12;
-      var r1=R2-1,r2=i2%6===0?R2-11:i2%3===0?R2-7:R2-4;
-      ctx.beginPath();ctx.moveTo(Math.cos(ang2)*r1,Math.sin(ang2)*r1);ctx.lineTo(Math.cos(ang2)*r2,Math.sin(ang2)*r2);
-      ctx.strokeStyle=i2%6===0?c.hi:c.mid;ctx.lineWidth=i2%6===0?1.5:0.5;ctx.globalAlpha=i2%6===0?0.9:0.35;ctx.stroke();
-    }
-    ctx.restore();
-    // Middle ring — counter-rotate (RAM speed) + sector sweep proportional to CPU
-    ctx.save();ctx.rotate(-t*(0.15+_ncRamLoad*0.14));
-    ctx.beginPath();ctx.arc(0,0,R2*0.72,0,Math.PI*2);
-    ctx.strokeStyle=c.hi;ctx.lineWidth=2;ctx.globalAlpha=0.55;ctx.stroke();
-    var sA2=t*0.7;
-    var sectorW=0.18+_ncCpuLoad*0.92; // sector arc width 0.18 (idle) → 1.10 (full CPU)
-    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R2*0.72,sA2,sA2+sectorW);ctx.closePath();
-    ctx.fillStyle=ca(c.hi,0.08+_ncCpuLoad*0.1);ctx.fill();
-    ctx.restore();
-    // Inner ring — dashed, warning color; RAM drives speed
-    ctx.save();ctx.rotate(t*(0.30+_ncRamLoad*0.22));
-    ctx.beginPath();ctx.arc(0,0,R2*0.45,0,Math.PI*2);
-    ctx.strokeStyle=c.warn;ctx.lineWidth=1;ctx.globalAlpha=0.6;
-    ctx.setLineDash([5,5]);ctx.stroke();ctx.setLineDash([]);
-    for(var k2=0;k2<3;k2++){
-      var ak2=k2*Math.PI*2/3;
-      ctx.beginPath();ctx.moveTo(Math.cos(ak2)*(R2*0.45+4),Math.sin(ak2)*(R2*0.45+4));
-      ctx.lineTo(Math.cos(ak2)*(R2*0.45+14),Math.sin(ak2)*(R2*0.45+14));
-      ctx.strokeStyle=c.warn;ctx.lineWidth=2;ctx.globalAlpha=0.85;ctx.stroke();
-    }
-    ctx.restore();
-    // Crosshair
-    ctx.strokeStyle=c.hi;ctx.lineWidth=1;ctx.globalAlpha=0.6;
-    [0,Math.PI/2].forEach(function(ang3){
-      ctx.save();ctx.rotate(ang3);
-      ctx.beginPath();ctx.moveTo(-R2*0.15,0);ctx.lineTo(-R2*0.06,0);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(R2*0.06,0);ctx.lineTo(R2*0.15,0);ctx.stroke();
-      ctx.restore();
-    });
-    // Center pulse dot
-    var p3=0.5+Math.sin(t*4)*0.5;
-    ctx.beginPath();ctx.arc(0,0,3+p3*3,0,Math.PI*2);
-    ctx.fillStyle=c.hi;ctx.globalAlpha=0.85;ctx.fill();ctx.globalAlpha=1;
-    ctx.translate(-cx2,-cy3);
-    // Corner HUD brackets
-    [[6,6,1,1],[W-6,6,-1,1],[6,H-6,1,-1],[W-6,H-6,-1,-1]].forEach(function(br){
-      ctx.save();ctx.translate(br[0],br[1]);ctx.strokeStyle=c.pin;ctx.lineWidth=1.5;ctx.globalAlpha=0.55;
-      ctx.beginPath();ctx.moveTo(br[2]*10,br[3]*2);ctx.lineTo(br[2]*2,br[3]*2);ctx.lineTo(br[2]*2,br[3]*10);ctx.stroke();
-      ctx.restore();
-    });
-    // Cardinal readouts — real CPU/RAM data
-    var cpuPct=Math.round(_ncCpuLoad*100),ramPct=Math.round(_ncRamLoad*100);
-    var rdata=[['N','CPU',cpuPct+'%'],[' E','TICK',(_spFrame%9999)+''],['S','RAM',ramPct+'%'],['W','SYN',(_spSyn?_spSyn.length:0)+'']];
-    ctx.font='8px monospace';ctx.globalAlpha=0.65;
-    [[cx2,cy3-R2-16],[cx2+R2+8,cy3],[cx2,cy3+R2+20],[cx2-R2-8,cy3]].forEach(function(pos,pi){
-      ctx.fillStyle=c.hi;ctx.textAlign='center';ctx.fillText(rdata[pi][1],pos[0],pos[1]-5);
-      ctx.fillStyle=c.mid;ctx.fillText(rdata[pi][2],pos[0],pos[1]+6);
-    });
-    ctx.globalAlpha=1;ctx.textAlign='left';
+  } else {
+    // ── ULTRON BRAIN ── ver ubDraw()
+    ubDraw(ctx,W,H,c,t);
   }
 
   // Neural Core telemetry readout (bottom-left corner, all modes)
@@ -3843,10 +3964,8 @@ function spDraw(cv){
      if(_coreMode === 0) {
        var act2=_spSyn.filter(function(s){return s.on;}).length;
        st.innerHTML='<span style="color:'+c.mut+'">SYNAPSES </span><span style="color:'+c.mid+'">'+act2+'/'+_spSyn.length+'</span>&nbsp;<span style="color:'+c.mut+'">NODES </span><span style="color:'+c.hi+'">'+_spNodes.length+'</span>';
-     } else if (_coreMode === 1) {
-       st.innerHTML='<span style="color:'+c.mut+'">FREQ </span><span style="color:'+c.hi+'">'+(400+Math.random()*50).toFixed(0)+' HZ</span>';
      } else {
-       st.innerHTML='<span style="color:'+c.mut+'">SEC-RINGS </span><span style="color:'+c.hi+'">SYNCED</span>';
+       st.innerHTML='<span style="color:'+c.mut+'">NODES </span><span style="color:'+c.hi+'">'+_ubNodes.length+'</span>&nbsp;<span style="color:'+c.mut+'">LINKS </span><span style="color:'+c.mid+'">'+_ubEdges.length+'</span>&nbsp;<span style="color:'+c.mut+'">FIRING </span><span style="color:'+c.hi+'">'+_ubPulses.length+'</span>';
      }
      st.style.color=c.mut;
   }
