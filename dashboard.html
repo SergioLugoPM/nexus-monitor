@@ -2510,8 +2510,8 @@ async function fetchStats(){
     const s=d.uptime,ud=Math.floor(s/86400),uh=Math.floor((s%86400)/3600),um=Math.floor((s%3600)/60);document.getElementById('uptime').textContent=ud+'d '+uh+'h '+um+'m';
     _ncCpuLoad=Math.min(1,d.cpu.load/100);_ncRamLoad=Math.min(1,d.mem.percent/100);
     _ncCores=d.cpu.cores.map(v=>Math.min(1,v/100));
-    _ncGpuLoad=Math.min(1,((d.gpu&&d.gpu.load)||0)/100);_ncGpuTemp=d.gpu&&d.gpu.temp!=null?d.gpu.temp:null;_ncGotStats=true;
-  }catch(e){document.getElementById('cpu-val').textContent='ERR';}
+    _ncGpuLoad=Math.min(1,((d.gpu&&d.gpu.load)||0)/100);_ncGpuTemp=d.gpu&&d.gpu.temp!=null?d.gpu.temp:null;_ncGotStats=true;_ncStatsErr=false;
+  }catch(e){document.getElementById('cpu-val').textContent='ERR';_ncStatsErr=true;}
 }
 async function fetchNetwork(){try{const d=await(await fetch('http://localhost:19234/network')).json();document.getElementById('ipval').textContent=d.ip;document.getElementById('pingval').textContent=d.ping+' ms';}catch(e){}}
 let _nxLogTs=0;
@@ -3549,7 +3549,7 @@ function updateTerminator() {
 var _spAnimId=null,_spFrame=0;
 var _nlActs=null,_nlW=0,_nlH=0;
 let _ncCpuLoad=0.5,_ncRamLoad=0.5,_ncCores=[];
-var _ncGpuLoad=0,_ncGpuTemp=null,_ncGotStats=false; // se llenan en fetchStats()
+var _ncGpuLoad=0,_ncGpuTemp=null,_ncGotStats=false,_ncStatsErr=false; // se llenan en fetchStats()
 let _ncAgentBusy=false; // true while a request is in flight to /agent/ask — spins the core up like Jarvis "thinking"
 
 let _currentTheme = localStorage.getItem('nexus_theme') || 'cyber';
@@ -3599,7 +3599,7 @@ function wvDraw(ctx,W,H,c){
   keys.forEach(function(key){_wv[key]+=(tgt[key]-_wv[key])*0.08;});
   for(i=0;i<cores.length;i++){
     if(_wv.cores[i]===undefined){_wv.cores[i]=cores[i];_wv.peaks[i]=cores[i];}
-    _wv.cores[i]+=(cores[i]-_wv.cores[i])*0.25;
+    _wv.cores[i]+=(cores[i]-_wv.cores[i])*0.12; // desliza ~1 s tras cada muestra (llega cada 3 s) en vez de saltar y quedarse quieto
     _wv.peaks[i]=Math.max(_wv.cores[i],_wv.peaks[i]-0.006);
   }
   // Historial: se empieza a registrar con el primer dato real (antes solo hay ondas planas)
@@ -3613,7 +3613,7 @@ function wvDraw(ctx,W,H,c){
     }
   }
 
-  var m=Math.max(6,Math.round(W*0.03)),hud=W>=190,u=Math.max(0.7,Math.min(1.3,W/300));
+  var m=Math.max(6,Math.round(W*0.03)),hud=W>=190,u=Math.max(0.7,Math.min(1.3,W/300)),lw=Math.max(0.7,0.72*u); // lw: grosor de las trazas (finas)
   var top=hud?24:8,scopeBot=Math.round(H*0.63),barsTop=Math.round(H*0.71),barsBot=H-(hud?15:6);
   var laneH=(scopeBot-top)/3,x0=m,x1=W-m,scopeW=x1-x0,stp=2,cols=Math.floor(scopeW/stp)+1,accent='#38BDF8';
   var lanes=[{k:'cpu',n:'CPU',col:c.hi,kx:0.11},{k:'ram',n:'RAM',col:c.pulse,kx:0.065},{k:'gpu',n:'GPU',col:c.warn,kx:0.14}];
@@ -3631,30 +3631,30 @@ function wvDraw(ctx,W,H,c){
       return cy+car*A*(0.10+0.90*Math.max(e,busy*0.35));
     };
     // línea base
-    ctx.beginPath();ctx.moveTo(x0,cy);ctx.lineTo(x1,cy);ctx.strokeStyle=col;ctx.globalAlpha=0.14;ctx.lineWidth=1;ctx.setLineDash([2,4]);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x0,cy);ctx.lineTo(x1,cy);ctx.strokeStyle=col;ctx.globalAlpha=0.14;ctx.lineWidth=0.7;ctx.setLineDash([2,4]);ctx.stroke();
     // envolvente (historial real de 3 min): tubo punteado alrededor de la onda
     ctx.beginPath();
     for(j=0;j<cols;j++){var eh=A*(0.10+0.90*env[j]);if(j===0)ctx.moveTo(x0,cy-eh);else ctx.lineTo(x0+j*stp,cy-eh);}
     for(j=0;j<cols;j++){var eh2=A*(0.10+0.90*env[j]);if(j===0)ctx.moveTo(x0,cy+eh2);else ctx.lineTo(x0+j*stp,cy+eh2);}
-    ctx.strokeStyle=col;ctx.globalAlpha=0.30;ctx.lineWidth=1;ctx.setLineDash([1,3]);ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=col;ctx.globalAlpha=0.30;ctx.lineWidth=0.7;ctx.setLineDash([1,3]);ctx.stroke();ctx.setLineDash([]);
     // estelas: copias desfasadas que dan sensación de movimiento
     [[-0.35,0.18]].forEach(function(gh){
       ctx.beginPath();
       for(var q=0;q<cols;q++){var gx=x0+q*stp,gy=wy(gx,env[q],gh[0]);if(q===0)ctx.moveTo(gx,gy);else ctx.lineTo(gx,gy);}
-      ctx.strokeStyle=col;ctx.globalAlpha=gh[1];ctx.lineWidth=1;ctx.stroke();
+      ctx.strokeStyle=col;ctx.globalAlpha=gh[1];ctx.lineWidth=0.7;ctx.stroke();
     });
     // onda principal: relleno hasta la línea base, resplandor y trazo nítido
     ctx.beginPath();ctx.moveTo(x0,cy);
     for(j=0;j<cols;j++)ctx.lineTo(x0+j*stp,wy(x0+j*stp,env[j],0));
-    ctx.lineTo(x0+(cols-1)*stp,cy);ctx.closePath();ctx.fillStyle=ca(col,0.10);ctx.globalAlpha=1;ctx.fill();
+    ctx.lineTo(x0+(cols-1)*stp,cy);ctx.closePath();ctx.fillStyle=ca(col,0.07);ctx.globalAlpha=1;ctx.fill();
     ctx.beginPath();
     for(j=0;j<cols;j++){var mx=x0+j*stp,my=wy(mx,env[j],0);if(j===0)ctx.moveTo(mx,my);else ctx.lineTo(mx,my);}
-    ctx.strokeStyle=glow;ctx.globalAlpha=0.20;ctx.lineWidth=3.2*u;ctx.stroke();
-    ctx.strokeStyle=busy?accent:col;ctx.globalAlpha=0.95;ctx.lineWidth=1.3*u;ctx.stroke();
+    ctx.strokeStyle=glow;ctx.globalAlpha=0.12;ctx.lineWidth=lw*2.2;ctx.stroke();
+    ctx.strokeStyle=busy?accent:col;ctx.globalAlpha=0.95;ctx.lineWidth=lw;ctx.stroke();
     // marcador del cursor sobre la onda
     var ci=Math.max(0,Math.min(cols-1,Math.round((cursorX-x0)/stp))),cyy=wy(cursorX,env[ci],0);
-    ctx.beginPath();ctx.arc(cursorX,cyy,4*u,0,Math.PI*2);ctx.fillStyle=ca(glow,0.25);ctx.globalAlpha=1;ctx.fill();
-    ctx.beginPath();ctx.arc(cursorX,cyy,2*u,0,Math.PI*2);ctx.fillStyle='#FFFFFF';ctx.globalAlpha=0.95;ctx.fill();
+    ctx.beginPath();ctx.arc(cursorX,cyy,3*u,0,Math.PI*2);ctx.fillStyle=ca(glow,0.25);ctx.globalAlpha=1;ctx.fill();
+    ctx.beginPath();ctx.arc(cursorX,cyy,1.5*u,0,Math.PI*2);ctx.fillStyle='#FFFFFF';ctx.globalAlpha=0.95;ctx.fill();
     // etiqueta del canal
     if(hud){
       ctx.font='8px monospace';
@@ -3665,19 +3665,29 @@ function wvDraw(ctx,W,H,c){
     }
   }
   ctx.globalAlpha=1;
+  // Sin conexión con el backend desde el principio: se dice claro en vez de mostrar un panel "muerto"
+  if(_ncStatsErr&&!_ncGotStats&&hud){
+    var my0=(top+scopeBot)/2;
+    ctx.textAlign='center';ctx.lineJoin='round';ctx.strokeStyle=ca(c.base,0.9);ctx.lineWidth=3;
+    ctx.font='bold 11px monospace';ctx.fillStyle='#E24B4A';ctx.globalAlpha=0.65+0.35*Math.sin(rt*3);
+    ctx.strokeText('SIN SEÑAL',W/2,my0);ctx.fillText('SIN SEÑAL',W/2,my0);
+    ctx.font='8px monospace';ctx.fillStyle=c.warn;ctx.globalAlpha=0.95;
+    ctx.strokeText('el backend no responde (puerto 19234)',W/2,my0+13);ctx.fillText('el backend no responde (puerto 19234)',W/2,my0+13);
+    ctx.textAlign='left';ctx.globalAlpha=1;
+  }
   // cursor de barrido
-  ctx.beginPath();ctx.moveTo(cursorX,top-2);ctx.lineTo(cursorX,scopeBot+2);ctx.strokeStyle=c.hi;ctx.globalAlpha=0.35;ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+  ctx.beginPath();ctx.moveTo(cursorX,top-2);ctx.lineTo(cursorX,scopeBot+2);ctx.strokeStyle=c.hi;ctx.globalAlpha=0.35;ctx.lineWidth=0.7;ctx.stroke();ctx.globalAlpha=1;
 
   // Analizador: un LED por núcleo, con marca de pico que cae despacio
   var n=cores.length,bw=(x1-x0)/n,gap=Math.max(1,Math.round(bw*0.2)),segH=3,segG=1;
   var maxSegs=Math.max(3,Math.floor((barsBot-barsTop)/(segH+segG)));
   for(i=0;i<n;i++){
-    var ns=Math.round(_wv.cores[i]*maxSegs),bx=x0+i*bw;
-    ctx.fillStyle=c.mid;ctx.globalAlpha=0.07;
+    var ns=Math.max(1,Math.round(_wv.cores[i]*maxSegs)),bx=x0+i*bw; // siempre un LED encendido: un núcleo en reposo sigue existiendo
+    ctx.fillStyle=c.mid;ctx.globalAlpha=0.16;
     for(var d=ns;d<maxSegs;d++)ctx.fillRect(bx,barsBot-(d+1)*(segH+segG)+segG,bw-gap,segH);
     for(var sg=0;sg<ns;sg++){
       var lv=sg/maxSegs;
-      ctx.fillStyle=lv>0.9?'#E24B4A':lv>0.72?c.warn:lv>0.4?c.hi:c.mid;ctx.globalAlpha=0.55+0.4*lv;
+      ctx.fillStyle=lv>0.9?'#E24B4A':lv>0.72?c.warn:lv>0.4?c.hi:c.mid;ctx.globalAlpha=0.75+0.25*lv;
       ctx.fillRect(bx,barsBot-(sg+1)*(segH+segG)+segG,bw-gap,segH);
     }
     var pk=Math.round(_wv.peaks[i]*maxSegs)-1;
@@ -3696,6 +3706,7 @@ function wvDraw(ctx,W,H,c){
     ctx.font='8px monospace';ctx.textAlign='left';ctx.fillStyle=c.hi;ctx.globalAlpha=0.75;ctx.fillText('OSC · 3 CH',x0,14);
     ctx.textAlign='right';
     if(busy){ctx.fillStyle=accent;ctx.globalAlpha=0.55+0.45*Math.sin(rt*6);ctx.fillText('◉ AGENT THINKING',x1,14);}
+    else if(_ncStatsErr){ctx.fillStyle='#E24B4A';ctx.globalAlpha=0.6+0.4*Math.sin(rt*4);ctx.fillText('✕ SIN DATOS',x1,14);}
     else{ctx.fillStyle=c.hi;ctx.globalAlpha=0.45+0.35*Math.sin(rt*2);ctx.fillText('● LIVE',x1,14);}
     ctx.textAlign='left';ctx.globalAlpha=1;
   }
