@@ -743,31 +743,39 @@ Ideas pendientes con fuente ya verificada: campo de viento animado
 oleaje máximo bajo la huella (Open-Meteo marine), y capas de NHC (ArcGIS) para
 el Atlántico cuando haya tormentas activas (no se pudo probar: no había).
 
-## Neural Core: módulo Ultron
+## Neural Core: módulos y cerebro de Ultron
 
-El botón `[ MÓDULO ]` ahora alterna 2 vistas (antes 3): la esfera Jarvis y el
-**cerebro de Ultron**. Se quitaron las ondas de frecuencia y la retícula HUD
-(la retícula es la que se convirtió en el cerebro).
+El botón `[ MÓDULO ]` alterna 4 vistas: **1** esfera Jarvis, **2** ondas de
+frecuencia, **3** cerebro de Ultron, **4** cerebro dentro de la esfera. La
+retícula HUD original ya no existe (su lugar lo tomó el cerebro); las ondas
+se quitaron un momento y se restauraron idénticas a las originales.
 
 - Referencia: el estudio que animó a Ultron en la película buscó que se
   sintiera más como código que como biología, con movimiento guiado por flujo
-  de datos. Por eso el cerebro tiene silueta anatómica reconocible (dos
-  hemisferios con fisura, lóbulos temporales, cerebelo, tronco) pero está
-  hecho de nodos y conexiones, no de tejido.
-- Impulsos de datos viajan por las conexiones y, al llegar a un nodo, este
-  dispara y puede encender a sus vecinos (cascada). Nacen según la carga de
-  CPU; cuando el agente está "pensando" entran en ráfaga y se vuelven ámbar.
-- Núcleo cálido tipo Piedra de la Mente, carcasa holográfica (contorno
-  convexo de los hemisferios), plano de escaneo que enciende lo que cruza,
-  base holográfica y direcciones hex junto a los nodos que disparan.
-- Geometría adimensional con semilla fija (mismo cerebro en cada carga) y
-  radios/grosores escalados al tamaño del panel; los textos del HUD se
-  ocultan si el panel mide menos de 190 px de ancho.
-- Costo medido: 0.3-0.5 ms por cuadro, impulsos con tope (48 normal / 80 en
+  de datos. Por eso el cerebro tiene anatomía correcta pero está hecho de
+  nodos, conexiones e impulsos, no de tejido.
+- **Anatomía** (`ubCortex()` / `ubInit()`): cada hemisferio es un medio
+  elipsoide con cara medial plana, giros y proporción real (ancho ≈ 0.82 del
+  largo; el primer intento salió angosto y se corrigió); cisura de Silvio con
+  el lóbulo temporal debajo, cerebelo con folias horizontales, tronco
+  inclinado y cuerpo calloso con sus fibras. La silueta es la unión del
+  contorno convexo de cada parte (conserva concavidades; las líneas entre
+  partes marcan cisura y lóbulos).
+- **Actividad de código:** impulsos que viajan por las conexiones y se
+  propagan en cascada, flujo de datos corriendo por los giros, bus calloso
+  ámbar (impulsos más rápidos), lectura de actividad por lóbulo (FRN PAR TMP
+  OCC CBL STM, solo si el panel mide ≥320 px o S≥100), direcciones hex junto a
+  los nodos que disparan, plano de escaneo alineado con el cerebro y núcleo
+  cálido tipo Piedra de la Mente. Nacen según la CPU; con el agente
+  "pensando" entran en ráfaga y se vuelven ámbar.
+- **Módulo 4:** la esfera Jarvis (más tenue y sin halos) hace de contenedor
+  del cerebro y cada nodo que dispara proyecta un rayo hasta su superficie.
+- Costo medido (panel 350×230): esfera 0.46 ms, ondas 0.14 ms, cerebro
+  0.66 ms, cerebro+esfera 1.2 ms por cuadro; impulsos con tope (48 / 80 en
   ráfaga). Universal (dashboard.html) — cruza a `master`.
-- La preferencia guardada se migró: la clave nueva es `nexus_core_view`; quien
-  tenía el viejo módulo 3 queda en el cerebro, y quien tenía el 2 (ondas, ya
-  inexistente) cae en la esfera.
+- Preferencia guardada: clave `nexus_core_v3`. Migra las dos anteriores
+  (`nexus_core_mode` original y `nexus_core_view` de la versión de 2 módulos);
+  el viejo "módulo 3" (retícula) y el cerebro de 2 módulos caen en el cerebro.
 
 ## Temas visuales
 
