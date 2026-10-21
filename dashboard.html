@@ -2264,6 +2264,261 @@ var EVENT_LABEL={quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES
 var EVENT_INSIGHT_LABEL={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',flood:'Inundaciones',news:'Volumen de noticias'};
 var EVENT_CRIT={quake:{icon:'⬡',title:'SEISMIC ALERT'},volcano:{icon:'▲',title:'VOLCANIC ALERT'},storm:{icon:'◎',title:'STORM ALERT'},flood:{icon:'≈',title:'FLOOD ALERT'}};
 
+// ── CICLONES TROPICALES: huella a escala real, trayectoria, cono y detalle ──
+// Datos de GET /storms (server.js, GDACS). La huella de viento NO es un
+// círculo: se construye con los radios por cuadrante (NE/SE/SO/NO) de los
+// umbrales 34/50/64 nudos, igual que los boletines oficiales, y se proyecta
+// con ll2xy() — a escala real sobre el mapa. var (no const/let) por la regla
+// de TDZ de top scope.
+var _storms=[];
+var _stormById={};
+var STORM_CAT_COLOR={TD:'#60A5FA',TS:'#34D399',C1:'#FACC15',C2:'#FB923C',C3:'#F87171',C4:'#EC4899',C5:'#C026D3'};
+var STORM_ZONE_COLOR={kt34:'#FACC15',kt50:'#FB923C',kt64:'#EF4444'};
+var STORM_STALE_H=18;
+var _stModalObjUrl=null;
+var _stModalTimer=null;
+
+function stEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];});}
+function stSvg(ns,tag,attrs){const e=document.createElementNS(ns,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function stormAgeH(s){return (Date.now()-s.updated)/3600000;}
+function stormCatOf(kmh){const kt=kmh/1.852;return kt<34?'TD':kt<64?'TS':kt<83?'C1':kt<96?'C2':kt<113?'C3':kt<137?'C4':'C5';}
+function stormDir(deg){return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'][Math.round(deg/22.5)%16];}
+function fmtPop(n){if(!n)return '0';if(n>=1e7)return Math.round(n/1e6)+' M';if(n>=1e6)return (n/1e6).toFixed(1)+' M';if(n>=1e3)return Math.round(n/1e3)+' mil';return String(n);}
+function fmtStDay(t){return new Date(t*1000).toLocaleDateString('es-MX',{day:'numeric',month:'short',timeZone:'UTC'});}
+var ST_COUNTRY_ES={'Philippines':'Filipinas','Japan':'Japón','South Korea':'Corea del Sur','North Korea':'Corea del Norte','Taiwan':'Taiwán','Mexico':'México','México':'México','United States':'Estados Unidos','United States of America':'Estados Unidos','Dominican Republic':'República Dominicana','Haiti':'Haití','Guam':'Guam','Northern Mariana Islands':'Islas Marianas del Norte','French Polynesia':'Polinesia Francesa','New Caledonia':'Nueva Caledonia','Vietnam':'Vietnam','Viet Nam':'Vietnam','Thailand':'Tailandia','Myanmar':'Birmania','India':'India','Bangladesh':'Bangladés','Pakistan':'Pakistán','Sri Lanka':'Sri Lanka','Oman':'Omán','Yemen':'Yemen','Madagascar':'Madagascar','Mozambique':'Mozambique','Mauritius':'Mauricio','Reunion':'Reunión','Australia':'Australia','Fiji':'Fiyi','Vanuatu':'Vanuatu','Solomon Islands':'Islas Salomón','Papua New Guinea':'Papúa Nueva Guinea','Indonesia':'Indonesia','Malaysia':'Malasia','Canada':'Canadá','Belize':'Belice','Bahamas':'Bahamas','Jamaica':'Jamaica','Honduras':'Honduras','Nicaragua':'Nicaragua','Guatemala':'Guatemala','El Salvador':'El Salvador','Costa Rica':'Costa Rica','Puerto Rico':'Puerto Rico','Cuba':'Cuba','Russia':'Rusia','Russian Federation':'Rusia','Micronesia':'Micronesia','Palau':'Palaos','Hong Kong':'Hong Kong','Macao':'Macao','Laos':'Laos','Cambodia':'Camboya'};
+function stCountry(n){return ST_COUNTRY_ES[n]||n;}
+function fmtStAge(h){return h<1?'hace '+Math.round(h*60)+' min':h<48?'hace '+Math.round(h)+' h':'hace '+Math.round(h/24)+' d';}
+
+// Punto a `km` del centro en el rumbo dado. La longitud sale CONTINUA (sin
+// normalizar a ±180) para que un polígono que cruza el meridiano 180 no se
+// parta; ringOffsets() lo repinta al otro lado del mapa.
+function geoDest(lat,lon,brgDeg,km){
+  const d=km/6371,b=brgDeg*Math.PI/180,p1=lat*Math.PI/180;
+  const p2=Math.asin(Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(b));
+  const dl=Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(p1),Math.cos(d)-Math.sin(p1)*Math.sin(p2));
+  return [lon+dl*180/Math.PI,p2*180/Math.PI];
+}
+// radii = km [NE,SE,SO,NO]; cada cuadrante es un cuarto de círculo con su radio.
+function stormFootprint(lat,lon,radii){
+  const ring=[];
+  for(let q=0;q<4;q++){const r=radii[q];for(let b=q*90;b<=q*90+90;b+=6)ring.push(r>0?geoDest(lat,lon,b,r):[lon,lat]);}
+  return ring;
+}
+function unwrapRing(ring){
+  const out=[];let prev=null;
+  ring.forEach(function(p){let lo=p[0];if(prev!==null){while(lo-prev>180)lo-=360;while(prev-lo>180)lo+=360;}out.push([lo,p[1]]);prev=lo;});
+  return out;
+}
+function ringOffsets(ring){
+  let mn=1e9,mx=-1e9;ring.forEach(function(p){if(p[0]<mn)mn=p[0];if(p[0]>mx)mx=p[0];});
+  const o=[0];if(mx>180)o.push(-360);if(mn<-180)o.push(360);return o;
+}
+function ringPath(ring,dLon){
+  let d='';ring.forEach(function(p,i){const xy=ll2xy(p[0]+dLon,p[1]);d+=(i?'L':'M')+xy[0]+','+xy[1];});return d+'Z';
+}
+
+// Capa de zonas (debajo de los pines): franja total afectada, cono de
+// incertidumbre, huella actual por umbral de viento y trayectoria.
+function drawStormZones(g,ns){
+  _storms.forEach(function(s){
+    const stale=stormAgeH(s)>STORM_STALE_H;
+    const zg=stSvg(ns,'g',{'class':'storm-zones','pointer-events':'none',opacity:stale?'.5':'1'});
+    const addRing=function(ring,fill,fo,stroke,so,sw,dash){
+      const un=unwrapRing(ring);
+      ringOffsets(un).forEach(function(off){
+        const p=stSvg(ns,'path',{d:ringPath(un,off),fill:fill,'fill-opacity':fo,stroke:stroke,'stroke-opacity':so,'stroke-width':sw});
+        if(dash)p.setAttribute('stroke-dasharray',dash);
+        zg.appendChild(p);
+      });
+    };
+    (s.swath['60']||[]).forEach(function(r){addRing(r,'#FACC15','.05','#FACC15','.35',1,'6,5');});
+    (s.swath['120']||[]).forEach(function(r){addRing(r,'#EF4444','.07','#EF4444','.4',1,'6,5');});
+    (s.cone||[]).forEach(function(r){addRing(r,'#FFFFFF','.08','#FFFFFF','.4',1,'3,3');});
+    [['kt34','.22'],['kt50','.30'],['kt64','.40']].forEach(function(z){
+      const rr=s.radii[z[0]];
+      if(rr.some(function(v){return v>0;}))addRing(stormFootprint(s.lat,s.lon,rr),STORM_ZONE_COLOR[z[0]],z[1],STORM_ZONE_COLOR[z[0]],'.9',1);
+    });
+    // Trayectoria: tramos pasados coloreados por categoría; pronóstico punteado con fecha.
+    const seg=function(a,b,col,sw,dash,op){
+      [0,-360,360].forEach(function(off){
+        const lo=Math.min(a[0],b[0])+off,hi=Math.max(a[0],b[0])+off;if(hi<-190||lo>190)return;
+        const p1=ll2xy(a[0]+off,a[1]),p2=ll2xy(b[0]+off,b[1]);
+        const l=stSvg(ns,'line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:col,'stroke-width':sw,'stroke-opacity':op,'stroke-linecap':'round'});
+        if(dash)l.setAttribute('stroke-dasharray',dash);
+        zg.appendChild(l);
+      });
+    };
+    const unwrapPts=function(pts){const un=unwrapRing(pts.map(function(p){return [p[0],p[1]];}));return un;};
+    const past=unwrapPts(s.track);
+    for(let i=1;i<past.length;i++)seg(past[i-1],past[i],STORM_CAT_COLOR[stormCatOf(s.track[i][2])],2,null,'.85');
+    const fpts=unwrapPts([[s.lon,s.lat]].concat(s.forecast.map(function(f){return [f.lon,f.lat];})));
+    for(let i=1;i<fpts.length;i++)seg(fpts[i-1],fpts[i],'#FFFFFF',1.5,'5,4','.7');
+    let lastDay='';
+    s.forecast.forEach(function(f,i){
+      const pt=fpts[i+1];
+      [0,-360,360].forEach(function(off){
+        if(pt[0]+off<-190||pt[0]+off>190)return;
+        const xy=ll2xy(pt[0]+off,pt[1]);
+        zg.appendChild(stSvg(ns,'circle',{cx:xy[0],cy:xy[1],r:3.2,fill:STORM_CAT_COLOR[f.cat],stroke:'#fff','stroke-width':.8}));
+        const day=fmtStDay(f.t);
+        if(day!==lastDay){
+          const t=stSvg(ns,'text',{x:xy[0]+5,y:xy[1]-5,'font-size':9,'font-family':'monospace',fill:'#fff','fill-opacity':.85});
+          t.textContent=day;zg.appendChild(t);
+        }
+      });
+      lastDay=fmtStDay(f.t);
+    });
+    g.appendChild(zg);
+  });
+}
+
+function stormTooltipHtml(s,c){
+  const age=stormAgeH(s),ex=s.exposure;
+  const r34=Math.max.apply(null,s.radii.kt34),r64=Math.max.apply(null,s.radii.kt64);
+  const ln=function(col,txt,sz){return '<div style="font-size:'+(sz||10)+'px;color:'+col+'">'+txt+'</div>';};
+  let h='<div style="margin-top:4px;color:'+c.hi+'"><b>'+s.kmh+' km/h</b> ('+s.kt+' kt) sostenidos</div>';
+  h+=ln(c.mut,'Ráfagas '+s.gustKmh+' km/h'+(s.hPa?' · '+s.hPa+' hPa':'')+' · pico '+s.peakKmh+' km/h');
+  if(s.move&&s.move.kmh>0)h+=ln(c.mut,'Se mueve a '+s.move.kmh+' km/h hacia el '+stormDir(s.move.deg)+' ('+s.move.deg+'°)');
+  if(r34>0)h+=ln(c.mut,'Viento ≥63 km/h hasta '+r34+' km del centro'+(r64>0?' · ≥119 km/h hasta '+r64+' km':''));
+  if(ex.now.pop34>0)h+=ln(c.warn,'Ahora: '+fmtPop(ex.now.pop34)+' personas bajo viento de tormenta'+(ex.now.pop64>0?', '+fmtPop(ex.now.pop64)+' bajo viento de huracán':''));
+  if(ex.peak34)h+=ln(c.warn,'Pronóstico: hasta '+fmtPop(ex.peak34.pop)+' bajo viento de tormenta ('+stEsc(stCountry(ex.peak34.country))+', '+fmtStDay(ex.peak34.t)+')');
+  if(ex.peak64)h+=ln(c.warn,'Pronóstico: hasta '+fmtPop(ex.peak64.pop)+' bajo viento de huracán ('+stEsc(stCountry(ex.peak64.country))+', '+fmtStDay(ex.peak64.t)+')');
+  if(age>STORM_STALE_H)h+=ln(c.warn,'⚠ Último boletín '+fmtStAge(age));
+  h+='<div style="margin-top:4px;font-size:9px;color:'+c.warn+';font-weight:bold">Click: detalle e imagen satelital</div>';
+  return h;
+}
+
+// ── Modal de detalle ────────────────────────────────────────────────────────
+function stormOverlaySvg(s,W,H){
+  const b=s.sat.bbox,w=b[0],so=b[1],e=b[2],n=b[3];
+  const px=function(lon,lat){return [(lon-w)/(e-w)*W,(n-lat)/(n-so)*H];};
+  const pt=function(q){return q[0].toFixed(1)+','+q[1].toFixed(1);};
+  const path=function(ring){return ring.map(function(p,i){return (i?'L':'M')+pt(px(p[0],p[1]));}).join('')+'Z';};
+  let o='';
+  (s.cone||[]).forEach(function(r){o+='<path d="'+path(unwrapRing(r))+'" fill="#fff" fill-opacity=".07" stroke="#fff" stroke-opacity=".5" stroke-dasharray="4,4"/>';});
+  [['kt34',.22],['kt50',.30],['kt64',.40]].forEach(function(z){
+    const rr=s.radii[z[0]];
+    if(rr.some(function(v){return v>0;}))o+='<path d="'+path(stormFootprint(s.lat,s.lon,rr))+'" fill="'+STORM_ZONE_COLOR[z[0]]+'" fill-opacity="'+z[1]+'" stroke="'+STORM_ZONE_COLOR[z[0]]+'" stroke-width="1.5"/>';
+  });
+  o+='<polyline points="'+s.track.map(function(p){return pt(px(p[0],p[1]));}).join(' ')+'" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2"/>';
+  const fc=[[s.lon,s.lat]].concat(s.forecast.map(function(f){return [f.lon,f.lat];})).map(function(p){return px(p[0],p[1]);});
+  if(fc.length>1)o+='<polyline points="'+fc.map(pt).join(' ')+'" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="2" stroke-dasharray="6,4"/>';
+  s.forecast.forEach(function(f,i){
+    const q=fc[i+1];
+    o+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4" fill="'+STORM_CAT_COLOR[f.cat]+'" stroke="#fff"/>';
+    o+='<text x="'+(q[0]+7).toFixed(1)+'" y="'+(q[1]-7).toFixed(1)+'" fill="#fff" font-size="12" font-family="monospace" stroke="#000" stroke-width=".4">'+fmtStDay(f.t)+'</text>';
+  });
+  const c0=px(s.lon,s.lat);
+  o+='<circle cx="'+c0[0].toFixed(1)+'" cy="'+c0[1].toFixed(1)+'" r="5" fill="'+(STORM_CAT_COLOR[s.cat]||'#fff')+'" stroke="#fff" stroke-width="2"/>';
+  const pxPerKm=W/((e-w)*111.32*Math.cos(s.lat*Math.PI/180)),barKm=(e-w)*111.32*Math.cos(s.lat*Math.PI/180)>1500?500:200,barPx=barKm*pxPerKm;
+  o+='<line x1="14" y1="'+(H-16)+'" x2="'+(14+barPx).toFixed(1)+'" y2="'+(H-16)+'" stroke="#fff" stroke-width="2"/><text x="14" y="'+(H-22)+'" fill="#fff" font-size="12" font-family="monospace" stroke="#000" stroke-width=".4">'+barKm+' km</text>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%;overflow:hidden">'+o+'</svg>';
+}
+
+function stormChartSvg(s){
+  const W=360,H=118,L=26,R=8,T=8,B=18;
+  const pts=s.track.map(function(p){return {t:p[3],k:p[2],f:false};}).concat(s.forecast.map(function(f){return {t:f.t,k:f.kmh,f:true};}));
+  if(pts.length<2)return '';
+  const t0=pts[0].t,t1=pts[pts.length-1].t,kmax=Math.max(140,Math.max.apply(null,pts.map(function(p){return p.k;}))+20);
+  const X=function(t){return L+(t-t0)/(t1-t0||1)*(W-L-R);},Y=function(k){return T+(1-k/kmax)*(H-T-B);};
+  let o='';
+  [[63,'TS'],[119,'C1'],[178,'C3'],[252,'C5']].forEach(function(z){
+    if(z[0]<kmax)o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(z[0]).toFixed(1)+'" y2="'+Y(z[0]).toFixed(1)+'" stroke="#8b949e" stroke-opacity=".35" stroke-dasharray="3,3"/><text x="'+(L-3)+'" y="'+(Y(z[0])+3).toFixed(1)+'" text-anchor="end" font-size="8" fill="#8b949e">'+z[1]+'</text>';
+  });
+  const past=pts.filter(function(p){return !p.f;}),fut=[past[past.length-1]].concat(pts.filter(function(p){return p.f;}));
+  const poly=function(a){return a.map(function(p){return X(p.t).toFixed(1)+','+Y(p.k).toFixed(1);}).join(' ');};
+  o+='<polyline points="'+poly(past)+'" fill="none" stroke="#58a6ff" stroke-width="2"/>';
+  if(fut.length>1)o+='<polyline points="'+poly(fut)+'" fill="none" stroke="#f0883e" stroke-width="2" stroke-dasharray="5,3"/>';
+  const nx=X(s.updated).toFixed(1);
+  o+='<line x1="'+nx+'" x2="'+nx+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#fff" stroke-opacity=".5"/><text x="'+nx+'" y="'+(H-6)+'" text-anchor="middle" font-size="8" fill="#e6edf3">boletín</text>';
+  o+='<text x="'+L+'" y="'+(H-6)+'" font-size="8" fill="#8b949e">'+fmtStDay(t0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" font-size="8" fill="#8b949e">'+fmtStDay(t1)+'</text>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+o+'</svg>';
+}
+
+function buildStormModalHtml(s){
+  const col=STORM_CAT_COLOR[s.cat]||'#fff',b=s.sat.bbox;
+  const W=640,H=Math.max(200,Math.min(900,Math.round(W*(b[3]-b[1])/(b[2]-b[0]))));
+  const age=stormAgeH(s),alertCol={Red:'#f85149',Orange:'#f0883e',Green:'#3fb950'}[s.alert]||'#8b949e';
+  const lat=Math.abs(s.lat).toFixed(1)+'°'+(s.lat>=0?'N':'S'),lon=Math.abs(s.lon).toFixed(1)+'°'+(s.lon>=0?'E':'O');
+  const kv=function(k,v,sub){return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+(sub||'&nbsp;')+'</div></div>';};
+  const rrow=function(key,label){return '<tr><td>'+label+'</td>'+s.radii[key].map(function(v){return '<td>'+(v>0?v+' km':'—')+'</td>';}).join('')+'</tr>';};
+  const rows=[{lbl:'Ahora',kmh:s.kmh,country:'',p34:s.exposure.now.pop34,p64:s.exposure.now.pop64,sg:s.exposure.now.popSurge}].concat(s.forecast.map(function(f){
+    return {lbl:fmtStDay(f.t)+' '+new Date(f.t*1000).toISOString().slice(11,13)+'Z',kmh:f.kmh,country:f.country,p34:f.pop34,p64:f.pop64,sg:f.popSurge};
+  }));
+  const max34=Math.max.apply(null,rows.map(function(r){return r.p34;})),anySurge=rows.some(function(r){return r.sg>0;});
+  const exRows=rows.map(function(r){
+    return '<tr'+(r.p34>0&&r.p34===max34?' style="font-weight:700"':'')+'><td>'+r.lbl+'</td><td>'+r.kmh+'</td><td>'+stEsc(r.country?stCountry(r.country):'—')+'</td><td>'+fmtPop(r.p34)+'</td><td>'+fmtPop(r.p64)+'</td>'+(anySurge?'<td>'+fmtPop(r.sg)+'</td>':'')+'</tr>';
+  }).join('');
+  const ex=s.exposure;
+  return '<div class="st-head"><span class="st-name" style="color:'+col+'">🌀 '+stEsc(s.fullName)+'</span>'+
+    '<span class="st-chip" style="color:'+col+'">'+stEsc(s.label.toUpperCase())+'</span>'+
+    '<span class="st-chip" style="color:'+alertCol+'">ALERTA GDACS '+stEsc(String(s.alert).toUpperCase())+'</span>'+
+    '<span style="font-size:10px;opacity:.7">Fuente '+stEsc(s.source)+' · boletín '+fmtStAge(age)+'</span>'+
+    '<button class="st-close" onclick="closeStormModal()">✕ CERRAR</button></div>'+
+    (age>STORM_STALE_H?'<div class="st-note" style="color:#f0883e;margin:-6px 0 8px">⚠ El último boletín tiene '+fmtStAge(age).replace('hace ','')+': la tormenta pudo disiparse o cambiar de estado desde entonces.</div>':'')+
+    '<div class="st-grid"><div>'+
+      '<div id="st-sat" class="st-sat" style="height:0;padding-top:'+(H/W*100).toFixed(2)+'%"><img id="st-sat-img" alt="" style="display:none">'+stormOverlaySvg(s,W,H)+'</div>'+
+      '<div id="st-sat-note" class="st-note">Cargando imagen satelital…</div>'+
+      '<div class="st-note"><span style="color:'+STORM_ZONE_COLOR.kt34+'">■</span> ≥63 km/h (34 kt) &nbsp; <span style="color:'+STORM_ZONE_COLOR.kt50+'">■</span> ≥93 km/h (50 kt) &nbsp; <span style="color:'+STORM_ZONE_COLOR.kt64+'">■</span> ≥119 km/h (64 kt) &nbsp; · línea punteada = pronóstico · cono = incertidumbre. Huellas a escala real.</div>'+
+    '</div><div>'+
+      '<div class="st-kv">'+
+        kv('Viento sostenido',s.kmh+' km/h',s.kt+' kt · ráfagas '+s.gustKmh)+
+        kv('Categoría',stEsc(s.cat==='TD'||s.cat==='TS'?s.label:s.cat),s.cat==='TD'||s.cat==='TS'?'':stEsc(s.label))+
+        kv('Presión',s.hPa?s.hPa+' hPa':'—',s.hPa?'':(s.source==='JTWC'?'JTWC no la reporta':'sin dato'))+
+        kv('Movimiento',(s.move&&s.move.kmh>0)?s.move.kmh+' km/h':'—',(s.move&&s.move.kmh>0)?'hacia el '+stormDir(s.move.deg)+' ('+s.move.deg+'°)':'')+
+        kv('Pico de vida',s.peakKmh+' km/h',stormCatOf(s.peakKmh))+
+        kv('Posición',lat,lon)+
+      '</div>'+
+      '<div class="st-sec">Radio del viento por cuadrante</div>'+
+      '<table class="st-tbl"><tr><th></th><th>NE</th><th>SE</th><th>SO</th><th>NO</th></tr>'+rrow('kt34','≥63 km/h')+rrow('kt50','≥93 km/h')+rrow('kt64','≥119 km/h')+'</table>'+
+      '<div class="st-sec">Intensidad (km/h): pasado y pronóstico</div>'+stormChartSvg(s)+
+      '<div class="st-sec">Población expuesta por zona</div>'+
+      '<table class="st-tbl"><tr><th>Momento</th><th>km/h</th><th>País principal</th><th>≥63 km/h</th><th>≥119 km/h</th>'+(anySurge?'<th>Marejada</th>':'')+'</tr>'+exRows+'</table>'+
+      '<div class="st-note">Personas dentro de la huella de viento en cada momento, según el modelo de exposición de GDACS. '+(ex.countries.length?'Países afectados: '+stEsc(ex.countries.map(stCountry).join(', '))+'. ':'')+'Fuentes: GDACS ('+stEsc(s.source)+') e imágenes NASA GIBS.</div>'+
+    '</div></div>';
+}
+
+function closeStormModal(){
+  const m=document.getElementById('storm-modal');if(m){m.style.display='none';m.dataset.id='';}
+  if(_stModalObjUrl){URL.revokeObjectURL(_stModalObjUrl);_stModalObjUrl=null;}
+  if(_stModalTimer){clearTimeout(_stModalTimer);_stModalTimer=null;}
+}
+async function loadStormSat(s){
+  const img=document.getElementById('st-sat-img'),note=document.getElementById('st-sat-note');
+  try{
+    const r=await fetch('http://localhost:19234/storms/'+s.id+'/sat');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const t=r.headers.get('X-Sat-Time')||'',layer=(r.headers.get('X-Sat-Layer')||'').replace(/_/g,' ');
+    const blob=await r.blob();
+    const m=document.getElementById('storm-modal');
+    if(!m||m.dataset.id!==String(s.id))return;
+    if(_stModalObjUrl)URL.revokeObjectURL(_stModalObjUrl);
+    _stModalObjUrl=URL.createObjectURL(blob);
+    img.src=_stModalObjUrl;img.style.display='block';
+    note.textContent='NASA GIBS · '+layer+' · '+t.replace('T',' ').replace(':00Z',' UTC');
+  }catch(e){
+    note.textContent='Sin imagen satelital reciente para esta zona; se muestran las huellas sobre fondo oscuro.';
+  }
+}
+function openStormModal(id){
+  const s=_stormById[id],m=document.getElementById('storm-modal');if(!s||!m)return;
+  closeStormModal();
+  m.dataset.id=String(id);
+  document.getElementById('storm-modal-body').innerHTML=buildStormModalHtml(s);
+  m.style.display='flex';
+  _stModalTimer=setTimeout(closeStormModal,180000);
+  loadStormSat(s);
+}
+async function fetchStorms(){
+  try{
+    const d=await(await fetch('http://localhost:19234/storms')).json();
+    _storms=d.storms||[];_stormById={};_storms.forEach(function(s){_stormById[s.id]=s;});
+    renderEventPins();
+    if(_evts.length)renderGSPulseAndEvents(_evts);
+  }catch(e){}
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeStormModal();});
+
 // Draw a subtle orbital arc in the satellite's direction of travel
 function drawSatOrbit(ns, sat, x, y, orbitGroup){
   const degPer5min = (sat.degPerMin || 3.913) * 5;
@@ -2310,6 +2565,8 @@ var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
 
 function renderEventPins(){
 const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
+  // Zonas de ciclones a escala real: debajo de todo lo demás
+  drawStormZones(g,ns);
   // Separate orbit group (drawn first, under pins)
   const orbitGroup = document.createElementNS(ns,'g');
   orbitGroup.setAttribute('id','sat-orbits');
@@ -2340,7 +2597,15 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     const pinGroup = document.createElementNS(ns, 'g');
     pinGroup.style.cursor = 'pointer';
 
-    if(isStorm){
+    // Con detalle de /storms el tamaño real lo da la huella (drawStormZones);
+    // el pin es solo el ojo, sin los anillos decorativos de tamaño falso.
+    const st = isStorm && ev.stormId ? _stormById[ev.stormId] : null;
+    if(st){
+      const scol = STORM_CAT_COLOR[st.cat] || dc;
+      pinGroup.appendChild(stSvg(ns,'circle',{cx:x,cy:y,r:14,fill:'#000','fill-opacity':0}));
+      pinGroup.appendChild(stSvg(ns,'circle',{cx:x,cy:y,r:7,fill:'none',stroke:scol,'stroke-width':1.5,opacity:.9}));
+      pinGroup.appendChild(stSvg(ns,'circle',{cx:x,cy:y,r:3.2,fill:scol,stroke:'#fff','stroke-width':1}));
+    } else if(isStorm){
       // Storm icon: spiral/hurricane symbol
       const stormClass = ev.classification || 'TS';
       const stormR = stormClass === 'HU' ? 11 : 8;
@@ -2414,10 +2679,10 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       lbl.setAttribute('y',y+4);
       lbl.setAttribute('font-size',(isISS||isNews)?'14':isStorm?'11':'12');
       lbl.setAttribute('font-family','monospace');
-      lbl.setAttribute('fill',tc);
+      lbl.setAttribute('fill',st?(STORM_CAT_COLOR[st.cat]||tc):tc);
       lbl.setAttribute('opacity','.88');
       lbl.setAttribute('font-weight',(isISS||isBig||isStorm)?'bold':'normal');
-      lbl.textContent=ev.label;
+      lbl.textContent=st?(st.name+' · '+st.cat+' '+st.kmh):ev.label;
       pinGroup.appendChild(lbl);
     }
 
@@ -2436,6 +2701,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       if(isFlood) titleHtml = `<strong>🌊 FLOOD: ${ev.label}</strong>`;
       
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
+      if(st) bodyHtml = stormTooltipHtml(st, c);
       if(isNews) {
         bodyHtml += `<div style="margin-top: 4px; font-size: 10px; color: ${c.mut};">Headline: ${ev.title}</div>`;
         bodyHtml += `<div style="margin-top: 4px; font-size: 9px; color: ${c.warn}; font-weight: bold;">Click to read article</div>`;
@@ -2469,6 +2735,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       if(isNews && ev.link) {
         window.open(ev.link, '_blank');
       }
+      if(st) openStormModal(st.id);
     });
 
     g.appendChild(pinGroup);
@@ -2756,14 +3023,18 @@ function renderGSPulseAndEvents(events) {
       const col = eventColor(e.type,c);
       const isCrit=isCritType(e);
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
+      const stm = e.type==='storm' && e.stormId ? _stormById[e.stormId] : null;
       let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,44)}`
               : e.type==='news'  ? (e.title||e.info||'').substring(0,44)
+              : stm ? `${stm.name} ${stm.label} · ${stm.kmh} km/h`
               : (e.info||e.label||'').substring(0,44);
-      if(isCrit) return`<div class="crit-ev-row" style="display:flex;gap:5px;margin-bottom:2px;overflow:hidden;border-left-color:${critCol}">
+      txt = stEsc(txt);
+      const clk = stm ? ` onclick="openStormModal(${stm.id})"` : '';
+      if(isCrit) return`<div class="crit-ev-row${stm?' ev-click':''}"${clk} style="display:flex;gap:5px;margin-bottom:2px;overflow:hidden;border-left-color:${critCol}">
         <span style="color:${critCol};flex-shrink:0;font-weight:bold">${ic}</span>
         <span style="color:${critCol};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="${txt}">${txt}</span>
       </div>`;
-      return`<div style="display:flex;gap:5px;margin-bottom:1px;overflow:hidden">
+      return`<div${stm?' class="ev-click"':''}${clk} style="display:flex;gap:5px;margin-bottom:1px;overflow:hidden">
         <span style="color:${col};flex-shrink:0">${ic}</span>
         <span style="color:${c.lbl};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${txt}">${txt}</span>
       </div>`;
@@ -3289,14 +3560,14 @@ setTheme(_currentTheme);updateTime();
 initWeatherHover();
 setInterval(updateTime,1000);setInterval(fetchStats,3000);setInterval(fetchNetwork,15000);
 setInterval(fetchWeather,300000);setInterval(fetchCrypto,30000);setInterval(fetchNexusLog,10000);
-setInterval(fetchEvents,180000);
+setInterval(fetchEvents,180000);setInterval(fetchStorms,600000);
 setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);setInterval(fetchISSLive,30000);
 setInterval(fetchGlobalStats,120000);
 setInterval(updateTerminator,60000);
 initPanelRadar();fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
 _applyNxPanel();initCritAlert();
 (function(){const hn=document.getElementById('hostname');if(hn&&_settings&&_settings.username)hn.textContent=_settings.username+'@NEXUS';})();
-setTimeout(fetchEvents,800);
+setTimeout(fetchEvents,800);setTimeout(fetchStorms,1500);
 setTimeout(fetchFlights,2000);setTimeout(fetchSpace,3000);setTimeout(fetchISSLive,1500);
 setTimeout(fetchGlobalStats,1000);
 setTimeout(updateTerminator,500);
@@ -3674,6 +3945,46 @@ function initSnake(canvas){
   };
 }
 </script>
+
+<!-- STORM DETAIL MODAL -->
+<style>
+.ev-click { cursor:pointer; }
+#storm-modal { display:none; position:fixed; inset:0; z-index:9998; background:rgba(0,0,0,.72); align-items:center; justify-content:center; }
+#storm-panel { background:#0d1117; border:1px solid #30363d; border-radius:8px; width:94vw; max-width:1100px; max-height:92vh; overflow:auto; padding:16px 20px; font-family:monospace; color:#e6edf3; box-shadow:0 16px 48px rgba(0,0,0,.6); }
+.st-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.st-name { font-size:18px; font-weight:700; letter-spacing:2px; }
+.st-chip { font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid currentColor; letter-spacing:1px; }
+.st-close { margin-left:auto; background:#21262d; color:#8b949e; border:1px solid #30363d; border-radius:4px; padding:4px 10px; cursor:pointer; font-family:monospace; font-size:11px; }
+.st-close:hover { background:#30363d; color:#e6edf3; }
+.st-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; }
+@media (max-width:800px) { .st-grid { grid-template-columns:1fr; } }
+.st-sat { position:relative; width:100%; background:#05080c; border:1px solid #30363d; border-radius:4px; overflow:hidden; }
+.st-sat img { position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; }
+.st-kv { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.st-kv > div { background:#161b22; border:1px solid #30363d; border-radius:4px; padding:6px 8px; }
+.st-kv .k { font-size:9px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
+.st-kv .v { font-size:15px; font-weight:700; margin-top:2px; }
+.st-kv .s { font-size:9px; color:#8b949e; margin-top:1px; }
+.st-sec { font-size:10px; letter-spacing:2px; color:#8b949e; text-transform:uppercase; margin:12px 0 5px; }
+.st-tbl { width:100%; border-collapse:collapse; font-size:11px; }
+.st-tbl th { font-size:9px; letter-spacing:1px; color:#8b949e; font-weight:400; text-align:right; padding:2px 4px; border-bottom:1px solid #30363d; }
+.st-tbl td { padding:3px 4px; text-align:right; border-bottom:1px solid #1c2128; }
+.st-tbl th:first-child, .st-tbl td:first-child { text-align:left; }
+.st-note { font-size:9px; color:#8b949e; margin-top:6px; line-height:1.4; }
+body.theme-win98 #storm-panel { background:#c0c0c0; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; color:black; box-shadow:1px 1px 0 black; }
+body.theme-win98 .st-kv > div { background:white; border:2px inset #808080; border-radius:0; }
+body.theme-win98 .st-close { background:#c0c0c0; color:black; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; }
+body.theme-macos #storm-panel { background:white; border:1px solid black; border-radius:0; color:black; box-shadow:2px 2px 0 black; }
+body.theme-macos .st-kv > div { background:white; border:1px solid black; border-radius:0; }
+body.theme-macos .st-close { background:white; color:black; border:1px solid black; border-radius:0; }
+body.theme-win98 .st-kv .k, body.theme-win98 .st-kv .s, body.theme-win98 .st-sec, body.theme-win98 .st-note, body.theme-win98 .st-tbl th,
+body.theme-macos .st-kv .k, body.theme-macos .st-kv .s, body.theme-macos .st-sec, body.theme-macos .st-note, body.theme-macos .st-tbl th { color:#333; }
+body.theme-win98 .st-tbl td, body.theme-macos .st-tbl td { border-bottom-color:#999; }
+body.theme-macmodern #storm-panel { border-radius:14px; -webkit-backdrop-filter:blur(24px); backdrop-filter:blur(24px); }
+</style>
+<div id="storm-modal" onclick="if(event.target===this)closeStormModal()">
+  <div id="storm-panel"><div id="storm-modal-body"></div></div>
+</div>
 
 <!-- SETTINGS MODAL -->
 <style>
