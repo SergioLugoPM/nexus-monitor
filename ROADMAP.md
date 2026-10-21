@@ -693,6 +693,56 @@ falta.
   volumen no justifica el riesgo todavía. Universal (dashboard.html) —
   cruza a `master`.
 
+## Ciclones tropicales a escala real
+
+Pedido: huracanes con su tamaño real en el mapa, afectación por zonas y más
+información del fenómeno. Antes de construir se investigó qué datos existen
+de verdad (peticiones reales con ciclones activos, no suposiciones).
+
+- ✅ **`GET /storms` + capa en el mapa + detalle.** GDACS (ya era la fuente)
+  entrega por ciclón: boletines con viento en m/s, radios de viento por
+  cuadrante (NE/SE/SO/NO) a 34/50/64 kt en millas náuticas, población
+  expuesta por boletín, trayectoria pronosticada, cono y franja total
+  afectada. Se agregó presión y rumbo cuando existen. Caché de 20 min,
+  refresco en segundo plano, y si GDACS falla se sirve la caché anterior.
+  Universal — cruza a `master`.
+- ✅ **Huella a escala real:** tres zonas (≥63, ≥93, ≥119 km/h) dibujadas con
+  `ll2xy` bajo los pines, más trayectoria pasada coloreada por categoría,
+  pronóstico con fechas, cono y franja afectada. Los anillos decorativos de
+  tamaño fijo se reemplazaron por un marcador pequeño del ojo.
+- ✅ **Detalle al hacer clic** (pin o fila de RECENT EVENTS): imagen satelital
+  real de NASA GIBS con las huellas encima, radios por cuadrante, gráfica de
+  intensidad pasada/pronóstico y tabla de población expuesta por fecha y
+  país. Se cierra solo a los 3 min (en WE no hay forma fiable de hacer clic).
+- ✅ **Herramienta `storm_report` del agente** (solo Electron, nivel 0/1, sin
+  confirmación porque es solo lectura).
+
+Trampas de datos encontradas (verificadas, no obvias):
+- `severity` del listado de GDACS es el **pico histórico**, no el viento
+  actual: TRUDY aparecía a 194 km/h cuando iba a 56. El viento actual sale
+  del último boletín de la línea de tiempo (`wind_speed` está en **m/s**).
+- Los polígonos `wind39/58/74coordinates` de la línea de tiempo son círculos
+  perfectos con el radio máximo: sobreestiman el área ~30%. La huella real
+  se arma con los radios por cuadrante (cuatro cuartos de círculo dan
+  522,900 km² contra 523,461 km² del polígono por paso de GDACS).
+- Presión y rumbo solo vienen en tormentas de NOAA; las de JTWC traen 0.
+  `iscurrent` de GDACS puede ser `true` con boletines de 24-43 h de edad.
+- GIBS devuelve ~2 KB (JPEG en blanco) cuando no hay dato; se usa un umbral
+  de 8 KB para reintentar con la franja de 10 min anterior.
+
+Fuentes probadas y **descartadas** (no repetir la prueba):
+- ReliefWeb v2: 403, exige un `appname` aprobado por ellos.
+- GIBS temperatura del mar (MUR) termina en 2021 e IMERG en oct-2025.
+- NOAA ERDDAP (OISST): timeout de 21 s sin respuesta.
+- RainViewer: funciona pero es radar (solo cerca de costa), sin IR satelital.
+- Open-Meteo: sirve para viento/oleaje regional, **no** para intensidad (su
+  modelo marca 85 km/h en el ojo de un tifón de 296 km/h).
+
+Ideas pendientes con fuente ya verificada: campo de viento animado
+(Open-Meteo multipunto, partículas en canvas con el mismo throttle de 24 fps),
+oleaje máximo bajo la huella (Open-Meteo marine), y capas de NHC (ArcGIS) para
+el Atlántico cuando haya tormentas activas (no se pudo probar: no había).
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7

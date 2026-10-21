@@ -1872,6 +1872,23 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         return JSON.stringify({count:r.count,from:r.from,to:r.to,region:r.region,radiusKm:r.radiusKm,
           events:r.events.slice(0,15).map(e=>({ts:e.ts,type:e.type,label:e.label,mag:e.mag,place:e.place,info:e.info}))});
       }
+      if(toolCall.name==='storm_report'){
+        const q=String((toolCall.input||{}).name||'').toUpperCase().trim();
+        const list=_storms.filter(s=>!q||s.name.includes(q)||s.fullName.includes(q));
+        agentPrint('system','▸ reporte de ciclones: '+list.length+(q?' ('+q+')':''));
+        agentAuditLog(toolCall,question,true,list.length+' ciclones');
+        if(!list.length)return JSON.stringify({message:'No hay ciclones activos'+(q?' con ese nombre':'')+' según GDACS.'});
+        return JSON.stringify(list.map(s=>({
+          nombre:s.fullName,categoria:s.label,vientoKmh:s.kmh,vientoKt:s.kt,rafagasKmh:s.gustKmh,picoVidaKmh:s.peakKmh,
+          presionHpa:s.hPa,movimiento:s.move&&s.move.kmh>0?{kmh:s.move.kmh,haciaGrados:s.move.deg,haciaRumbo:stormDir(s.move.deg)}:null,
+          posicion:{lat:s.lat,lon:s.lon},boletinHaceHoras:Math.round(stormAgeH(s)),fuente:s.source,alertaGdacs:s.alert,
+          radioVientoKm:{'63kmh':Math.max(...s.radii.kt34),'93kmh':Math.max(...s.radii.kt50),'119kmh':Math.max(...s.radii.kt64),cuadrantes_NE_SE_SO_NO_63kmh:s.radii.kt34},
+          expuestosAhora:{bajoVientoDeTormenta:s.exposure.now.pop34,bajoVientoDeHuracan:s.exposure.now.pop64,marejada:s.exposure.now.popSurge},
+          pronostico:s.forecast.map(f=>({fecha:new Date(f.t*1000).toISOString().slice(0,13)+'Z',vientoKmh:f.kmh,pais:stCountry(f.country),
+            expuestosBajoVientoDeTormenta:f.pop34,expuestosBajoVientoDeHuracan:f.pop64})),
+          paisesAfectados:s.exposure.countries.map(stCountry)
+        })));
+      }
       if(toolCall.name==='move_path'){
         const {source,destination}=toolCall.input;
         let guard=window.nexusAgentGuard?await window.nexusAgentGuard.checkPath(source):{blocked:false};

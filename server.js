@@ -2181,6 +2181,15 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'storm_report',
+    description: 'Reporte actual de ciclones tropicales activos (huracanes, tifones, ciclones): categoría y viento actual, presión, movimiento, radio del viento por cuadrante, población expuesta ahora y en el pronóstico (por país y fecha) y países afectados. Solo lectura, sin efecto. Úsala para preguntas como "¿hay huracanes?", "¿a quién le pega el tifón?" o "¿qué tan fuerte es Champi?". Los datos son de GDACS (JTWC/NOAA) y pueden tener horas de antigüedad: menciona la antigüedad del boletín si es mayor a 12 h.',
+    input_schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Nombre del ciclón (ej. "CHAMPI"). Omitir para listar todos los activos.' } },
+      required: [],
+    },
+  },
+  {
     name: 'move_path',
     description: 'Mueve o renombra un archivo o carpeta de una ruta absoluta a otra. Nivel 2: el usuario confirma explícitamente antes de que se ejecute.',
     input_schema: {
