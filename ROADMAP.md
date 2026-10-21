@@ -775,6 +775,26 @@ Qué trae ahora (todo dato real de `/stats`; el original era decorativo):
   la esfera (0.46) y el cerebro (0.66). Los textos se ocultan si el panel mide
   menos de 190 px.
 
+Ajustes del 21-oct tras verlo en uso:
+- Trazas más delgadas (principal 0.72·u ≈ 0.85 px, resplandor y estela más
+  tenues, envolvente y cursor a 0.7 px).
+- Barras de núcleos más visibles: siempre un LED encendido, pista más clara,
+  LEDs más brillantes y deslizamiento más lento (0.12) para que se muevan
+  ~1 s tras cada muestra en vez de saltar y quedarse quietas.
+- **Aviso de conexión:** si `fetchStats` falla se muestra `✕ SIN DATOS` y, si
+  nunca llegó un dato, `SIN SEÑAL · el backend no responde (puerto 19234)`.
+  Motivo: las barras "no hacían nada" porque el backend estaba apagado, y el
+  panel se veía muerto sin explicar por qué. Con el backend arriba los núcleos
+  cambian 7-29 puntos por muestra (medido), así que sí se mueven.
+
+Pendiente conocido, no resuelto: tras reiniciar el PC el backend **no arrancó
+solo**, aunque el acceso directo de Inicio está habilitado y funciona al
+ejecutarlo a mano. Medido el 21-oct: Windows retrasa las apps de la carpeta
+Inicio varios minutos (Peace arrancó a +4:30 del inicio de sesión) y no quedó
+rastro de `server.js`. Descartado: el servidor no se cae sin red (probado con
+proxy roto, 45 s, todos los endpoints responden). Propuesta: tarea programada
+"al iniciar sesión" con reinicio automático (no depende de la cola de Inicio).
+
 Lecciones de ajuste (verificadas mirando el resultado, no a ojo):
 - Con muestreo cada 3 px un armónico de 7 px de longitud de onda hacía
   aliasing y la traza salía dentada: muestreo a 2 px y armónicos más largos.
