@@ -1518,29 +1518,38 @@ const CLOUD_SERVICES = [
 ];
 const IMPACT_RANK = { none: 0, maintenance: 1, minor: 2, major: 3, critical: 4 };
 const STALE_INCIDENT_MS = 7 * 864e5;
+const shortTxt = (t, n) => { const x = String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n - 1) + '…' : x; };
+const COMP_RANK = { major_outage: 3, partial_outage: 2, degraded_performance: 1, under_maintenance: 0 };
 async function readCloud(svc) {
   const base = { id: svc.id, name: svc.name, url: svc.base };
   if (svc.special === 'google') {
     const arr = await wget('https://www.google.com/appsstatus/dashboard/incidents.json', 12000);
     const open = (Array.isArray(arr) ? arr : []).filter(i => !i.end).map(i => ({
       name: (i.service_name || 'Google Workspace') + ': ' + xmlText(String(i.external_desc || '').split('\n').find(l => l && !/^\*\*/.test(l)) || 'incidente'),
-      impact: i.severity === 'high' ? 'major' : 'minor', status: i.status_impact || '', updated: Date.parse(i.modified || i.begin), link: 'https://www.google.com/appsstatus/dashboard/' + (i.uri || '') }));
+      impact: i.severity === 'high' ? 'major' : 'minor', status: i.status_impact || '', updated: Date.parse(i.modified || i.begin), started: Date.parse(i.begin), detail: '', comps: [],
+      link: 'https://www.google.com/appsstatus/dashboard/' + (i.uri || '') }));
     return finishCloud(base, 'none', open, 0);
   }
   const j = await wget(svc.base + '/api/v2/summary.json', 9000);
-  const inc = (j.incidents || []).filter(i => i.status !== 'resolved' && i.status !== 'postmortem')
-    .map(i => ({ name: i.name, impact: i.impact || 'minor', status: i.status, updated: Date.parse(i.updated_at), link: i.shortlink }));
-  const bad = (j.components || []).filter(c => !c.group && c.status !== 'operational').length;
-  return finishCloud(base, (j.status && j.status.indicator) || 'none', inc, bad, j.status && j.status.description);
+  const inc = (j.incidents || []).filter(i => i.status !== 'resolved' && i.status !== 'postmortem').map(i => ({
+    name: i.name, impact: i.impact || 'minor', status: i.status, updated: Date.parse(i.updated_at), started: Date.parse(i.created_at),
+    detail: shortTxt(i.incident_updates && i.incident_updates[0] && i.incident_updates[0].body, 150),
+    comps: (i.components || []).map(c => c.name).slice(0, 4), link: i.shortlink }));
+  // componentes que no están operativos: los más graves primero (Cloudflare lista ~480, la mayoría centros de datos)
+  const comps = (j.components || []).filter(c => !c.group && c.status !== 'operational').map(c => ({ name: c.name, status: c.status }))
+    .sort((a, b) => (COMP_RANK[b.status] || 0) - (COMP_RANK[a.status] || 0));
+  const maint = (j.scheduled_maintenances || []).filter(m => m.status !== 'completed').slice(0, 2)
+    .map(m => ({ name: m.name, status: m.status, start: Date.parse(m.scheduled_for), end: Date.parse(m.scheduled_until), link: m.shortlink }));
+  return finishCloud(base, (j.status && j.status.indicator) || 'none', inc, comps.length, j.status && j.status.description, comps.slice(0, 6), maint);
 }
-function finishCloud(base, indicator, incidents, bad, desc) {
+function finishCloud(base, indicator, incidents, bad, desc, comps, maint) {
   const now = Date.now();
   incidents.forEach(i => { i.stale = !(i.updated > now - STALE_INCIDENT_MS); });
   const fresh = incidents.filter(i => !i.stale);
   let level = fresh.reduce((m, i) => Math.max(m, IMPACT_RANK[i.impact] || 2), 0);
   // sin incidente publicado pero con componentes degradados: leve, no el "major" global de la página
   if (!fresh.length && indicator !== 'none' && bad > 0 && !incidents.length) level = 2;
-  return { ...base, indicator, level: ['none', 'maintenance', 'minor', 'major', 'critical'][level], desc: desc || '', bad, incidents: incidents.slice(0, 4) };
+  return { ...base, indicator, level: ['none', 'maintenance', 'minor', 'major', 'critical'][level], desc: desc || '', bad, incidents: incidents.slice(0, 4), comps: comps || [], maint: maint || [] };
 }
 const getCloud = ttlCache(3 * 60 * 1000, async () => {
   const res = await Promise.allSettled(CLOUD_SERVICES.map(readCloud));
@@ -1938,6 +1947,7 @@ async function _fetchAllEvents() {
         label: 'M' + f.properties.mag.toFixed(1),
         mag:   f.properties.mag,
         place: f.properties.place,
+        ts:    f.properties.time,
         info:  `Depth: ${f.geometry.coordinates[2]}km | ${f.properties.place}`
       });
     });
