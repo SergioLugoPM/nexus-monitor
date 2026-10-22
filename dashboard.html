@@ -4086,6 +4086,7 @@ function windResize(){
   w.W=W;w.H=H;cv.width=W;cv.height=H;
   if(!W||!H)return;
   w.sc=Math.min(W/2000,H/1001);w.ox=(W-2000*w.sc)/2;w.oy=(H-1001*w.sc)/2;
+  cv.style.clipPath=mapOutlineCss(w.sc,w.ox,w.oy);
   const soft=windMode()==='soft',n=Math.max(soft?240:500,Math.min(soft?1000:2200,Math.round(W*H/(soft?1150:520))));
   w.p=[];for(let i=0;i<n;i++){const p={};windSpawn(p);p.age=Math.random()*p.max;w.p.push(p);}
 }
@@ -4143,6 +4144,18 @@ function applyWindSetting(){
   if(typeof syncLayerButtons==='function')syncLayerButtons();
 }
 // OJO: applyPalette -> watchVars -> syncLayerButtons corre al arrancar, ANTES de que _settings tenga valor (var elevada = undefined)
+// Los lienzos de viento y aurora cubren el rectángulo del mapa, pero el mapa es una proyección Robinson: sus bordes
+// laterales se curvan hacia dentro y los polos son segmentos cortos. Sin recorte, las capas se salían por las esquinas,
+// arriba y abajo. El contorno son los meridianos ±180° proyectados con ll2xy (el mismo cálculo de los países).
+// Además se acota al marco del mapa (0..2000 × 0..1001): el contorno del polo sur cae en y=1121, por debajo del marco,
+// y sin acotar las capas se dibujaban en la franja de abajo. Acotar los vértices de este contorno (cóncavo hacia
+// dentro) equivale a intersectarlo con el marco.
+function mapOutlineCss(sc,ox,oy){
+  const pts=[],cl=function(p){return (ox+Math.max(0,Math.min(2000,p[0]))*sc).toFixed(1)+'px '+(oy+Math.max(0,Math.min(1001,p[1]))*sc).toFixed(1)+'px';};
+  for(let la=90;la>=-90;la-=3)pts.push(cl(ll2xy(-180,la)));
+  for(let la=-90;la<=90;la+=3)pts.push(cl(ll2xy(180,la)));
+  return 'polygon('+pts.join(',')+')';
+}
 function windMode(){const S=_settings||{};return S.showWind===false?'off':(S.windMode==='normal'?'normal':'soft');}
 // normal -> tenue -> oculto -> normal. Tenue: ~45 % de las partículas y de la opacidad (saturaba el mapa).
 function cycleWind(){
@@ -4530,6 +4543,7 @@ function auroraDraw(){
   const ctx=a.ctx;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   if(_settings.showAurora===false)return;
   const sc=Math.min(W/2000,H/1001),ox=(W-2000*sc)/2,oy=(H-1001*sc)/2;
+  cv.style.clipPath=mapOutlineCss(sc,ox,oy);
   ctx.setTransform(sc,0,0,sc,ox,oy);
   ctx.beginPath();ctx.rect(0,0,2000,1001);ctx.clip();   // las celdas del polo sur caían por debajo del borde del mapa
   const bands=[[5,'rgba(61,255,138,.16)'],[15,'rgba(61,255,138,.30)'],[30,'rgba(120,255,170,.45)'],[50,'rgba(190,255,150,.58)'],[70,'rgba(255,90,208,.66)']];

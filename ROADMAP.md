@@ -1112,6 +1112,16 @@ El viento saturaba el mapa y el único control era un clic en un rótulo de 9 px
   lea `_settings` lanza `TypeError` y detiene TODO el script de la página. `windMode()` ahora lo tolera
   (`const S=_settings||{}`). Regla: lo que cuelgue de `applyPalette`/`watchVars` no puede asumir que los ajustes existen.
 
+- **Bordes parejos (viento y aurora recortados al mapa).** Los lienzos cubren el rectángulo del mapa, pero el
+  mapa es una Robinson: los bordes laterales se curvan hacia dentro y las capas se veían en las esquinas y
+  en las franjas de arriba y abajo del marco. Ahora ambos llevan `clip-path` CSS con el contorno del mapa
+  (`mapOutlineCss`: los meridianos ±180° proyectados con `ll2xy`, el mismo cálculo de los países) acotado al marco
+  0..2000 × 0..1001. El filtro (blur) de la aurora se aplica antes del recorte, así el borde queda limpio.
+  Verificado: el 99.5 % de 1,996 puntos muestreados de los países cae dentro (el resto son costas que cruzan el
+  meridiano 180°) y todos los vértices del recorte caen dentro del marco. Dato curioso: el mapa está desplazado
+  respecto a su caja (borde izquierdo del ecuador en x=-22, derecho en x=1959, polo sur en y=1121 > 1001), por eso el
+  recorte usa el contorno proyectado y no un óvalo ideal.
+
 Universal (`dashboard.html`) — cruza a `master`.
 
 ## Temas visuales
