@@ -1357,6 +1357,238 @@ app.get('/storms/:id/waves', async (req, res) => {
   res.json(out);
 });
 
+// ── WATCH: clima espacial, sismos del SSN, estado de la nube, internet y tsunamis ──
+// Fuentes verificadas el 21-oct-2026 (ver ROADMAP.md). Todas se piden desde aquí y se
+// cachean: el cliente nunca habla con ellas directamente.
+const WATCH_UA = { 'User-Agent': 'NexusMonitor/1.0' };
+async function wget(url, ms, asText) {
+  const r = await fetch(url, { signal: AbortSignal.timeout(ms || 10000), headers: WATCH_UA });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return asText ? r.text() : r.json();
+}
+function ttlCache(ttl, build, name) {
+  let cache = null, ts = 0, inflight = null;
+  return async function () {
+    if (cache && Date.now() - ts < ttl) return cache;
+    if (!inflight) {
+      inflight = build().then(v => { cache = v; ts = Date.now(); return v; })
+        .catch(e => { nxLog(name + ': ' + e.message, 'warn'); return cache; })
+        .finally(() => { inflight = null; });
+    }
+    return inflight;
+  };
+}
+const xmlText = s => (s || '').replace(/<[^>]*>/g, ' ').replace(/&eacute;/g, 'é').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+// ── Índice Kp ───────────────────────────────────────────────────────────────
+// NOAA cambió el JSON de [[t,kp,...]] a [{time_tag,Kp,...}]; el parser viejo leía arr[i][1]
+// y devolvía kp:null (la etiqueta KP del encabezado dejó de aparecer). Se aceptan los dos.
+function kpRows(arr) {
+  return (arr || []).map(r => Array.isArray(r) ? { t: r[0], kp: parseFloat(r[1]) } : { t: r.time_tag, kp: parseFloat(r.Kp ?? r.kp_index) })
+    .filter(x => Number.isFinite(x.kp));
+}
+async function readKp() {
+  const [r3, r1] = await Promise.allSettled([
+    wget('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', 8000),
+    wget('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json', 8000)
+  ]);
+  const rows = r3.status === 'fulfilled' ? kpRows(r3.value) : [];
+  let now = null;
+  if (r1.status === 'fulfilled' && Array.isArray(r1.value)) {
+    for (let i = r1.value.length - 1; i >= 0; i--) { const v = parseFloat(r1.value[i].estimated_kp); if (Number.isFinite(v)) { now = v; break; } }
+  }
+  const last = rows[rows.length - 1];
+  if (!last && now == null) return null;
+  return { value: now != null ? now : last.kp, official: last ? last.kp : null, time: last ? last.t : null, peak24: rows.length ? Math.max(...rows.slice(-8).map(r => r.kp)) : null,
+           series: rows.slice(-16).map(r => ({ t: r.t, kp: r.kp })), class: '' };
+}
+
+// ── Clima espacial ──────────────────────────────────────────────────────────
+function xrayClass(f) {
+  if (!(f > 0)) return null;
+  const c = f >= 1e-4 ? ['X', 1e-4] : f >= 1e-5 ? ['M', 1e-5] : f >= 1e-6 ? ['C', 1e-6] : f >= 1e-7 ? ['B', 1e-7] : ['A', 1e-8];
+  return c[0] + (f / c[1]).toFixed(1);
+}
+const SW_KINDS = { 'ALERT': 'ALERTA', 'WARNING': 'AVISO', 'WATCH': 'VIGILANCIA', 'SUMMARY': 'RESUMEN', 'CONTINUED ALERT': 'ALERTA CONTINUA', 'EXTENDED WARNING': 'AVISO EXTENDIDO', 'CANCEL WARNING': 'AVISO CANCELADO' };
+function swEs(t) {
+  let m;
+  if ((m = /^Geomagnetic K-index of (\d)(?: expected)?/i.exec(t))) return 'Índice K geomagnético de ' + m[1] + (/expected/i.test(t) ? ' esperado' : '');
+  if ((m = /^Electron 2MeV Integral Flux exceeded (\d+)pfu/i.exec(t))) return 'Flujo de electrones >2 MeV superó ' + m[1] + ' pfu';
+  if ((m = /^X-ray Flux exceeded ([A-Z]\d+)/i.exec(t))) return 'Rayos X superaron ' + m[1];
+  if ((m = /^X-ray Event exceeded ([A-Z]\d+)/i.exec(t))) return 'Evento de rayos X superó ' + m[1];
+  if ((m = /^Type (II|IV) Radio Emission/i.exec(t))) return 'Emisión de radio tipo ' + m[1];
+  if ((m = /^Proton Event 10MeV Integral Flux exceeded (\d+)pfu/i.exec(t))) return 'Protones >10 MeV superaron ' + m[1] + ' pfu';
+  if ((m = /^10cm Radio Burst/i.exec(t))) return 'Ráfaga de radio de 10 cm';
+  if ((m = /^Geomagnetic Storm Category (G\d) (Predicted|Expected|Reached)/i.exec(t))) return 'Tormenta geomagnética ' + m[1] + (/reached/i.test(m[2]) ? ' alcanzada' : ' pronosticada');
+  return t;
+}
+function parseSwAlert(a) {
+  const msg = String(a.message || '').replace(/\r/g, '');
+  const m = /^(CONTINUED ALERT|EXTENDED WARNING|CANCEL WARNING|ALERT|WARNING|WATCH|SUMMARY):\s*(.+)$/m.exec(msg);
+  if (!m) return null;
+  const sc = /NOAA Scale:\s*(\w+)/.exec(msg);
+  return { t: Date.parse(String(a.issue_datetime).replace(' ', 'T') + 'Z'), kind: SW_KINDS[m[1]] || m[1], text: swEs(m[2].trim()), en: m[2].trim(), scale: sc ? sc[1] : null };
+}
+const getSpaceWeather = ttlCache(3 * 60 * 1000, async () => {
+  const S = 'https://services.swpc.noaa.gov/';
+  const [kp, scales, wind, mag, xray, alerts] = await Promise.allSettled([
+    readKp(), wget(S + 'products/noaa-scales.json', 8000), wget(S + 'json/rtsw/rtsw_wind_1m.json', 15000), wget(S + 'json/rtsw/rtsw_mag_1m.json', 15000),
+    wget(S + 'json/goes/primary/xrays-6-hour.json', 12000), wget(S + 'products/alerts.json', 8000)
+  ]);
+  const out = { ts: Date.now() };
+  out.kp = kp.status === 'fulfilled' ? kp.value : null;
+  if (scales.status === 'fulfilled') {
+    const sc = k => { const r = scales.value[k] || {}; return { G: +(r.G && r.G.Scale) || 0, S: +(r.S && r.S.Scale) || 0, R: +(r.R && r.R.Scale) || 0, date: r.DateStamp }; };
+    out.scales = { now: sc('0'), max24: sc('-1'), forecast: ['1', '2', '3'].map(k => { const r = scales.value[k] || {}; return { date: r.DateStamp, G: +(r.G && r.G.Scale) || 0, rMinor: +(r.R && r.R.MinorProb) || 0, rMajor: +(r.R && r.R.MajorProb) || 0, sProb: +(r.S && r.S.Prob) || 0 }; }) };
+  }
+  // Viento solar: fuente primaria (active:true); las series traen decenas de miles de filas, se submuestrea
+  const pick = (rows, field) => {
+    // el archivo mezcla fuentes (ACE/IMAP/SOLAR1) y NO viene ordenado por hora: sin ordenar, "la última fila" era de ayer
+    const arr = Array.isArray(rows) ? rows.filter(r => r[field] != null && r[field] > -9000).sort((a, b) => a.time_tag < b.time_tag ? -1 : a.time_tag > b.time_tag ? 1 : 0) : [];
+    const act = arr.filter(r => r.active === true);
+    return act.length ? act : arr;
+  };
+  if (wind.status === 'fulfilled' || mag.status === 'fulfilled') {
+    const w = wind.status === 'fulfilled' ? pick(wind.value, 'proton_speed') : [], g = mag.status === 'fulfilled' ? pick(mag.value, 'bz_gsm') : [];
+    const lw = w[w.length - 1], lg = g[g.length - 1];
+    const step = (a, n) => a.filter((_, i) => i % n === 0);
+    out.wind = {
+      speed: lw ? Math.round(lw.proton_speed) : null, density: lw ? +(+lw.proton_density).toFixed(1) : null, bz: lg ? +(+lg.bz_gsm).toFixed(1) : null, bt: lg ? +(+lg.bt).toFixed(1) : null,
+      source: (lw || lg || {}).source || null, time: (lw || lg || {}).time_tag || null,
+      speedSeries: step(w.slice(-360), 6).map(r => Math.round(r.proton_speed)), bzSeries: step(g.slice(-360), 6).map(r => +(+r.bz_gsm).toFixed(1))
+    };
+  }
+  if (xray.status === 'fulfilled' && Array.isArray(xray.value)) {
+    const rows = xray.value.filter(r => r.energy === '0.1-0.8nm' && r.flux > 0).sort((a, b) => a.time_tag < b.time_tag ? -1 : a.time_tag > b.time_tag ? 1 : 0);
+    const last = rows[rows.length - 1];
+    if (last) out.xray = { flux: last.flux, cls: xrayClass(last.flux), time: last.time_tag, series: rows.filter((_, i) => i % 5 === 0).slice(-72).map(r => +Math.log10(r.flux).toFixed(2)) };
+  }
+  if (alerts.status === 'fulfilled' && Array.isArray(alerts.value)) out.alerts = alerts.value.map(parseSwAlert).filter(Boolean).slice(0, 8);
+  return out;
+}, 'Clima espacial');
+
+// Óvalo auroral (OVATION): 1° de resolución, se empaqueta como bytes 0-100 en base64 (≈87 KB)
+const getAurora = ttlCache(10 * 60 * 1000, async () => {
+  const j = await wget('https://services.swpc.noaa.gov/json/ovation_aurora_latest.json', 25000);
+  const buf = Buffer.alloc(360 * 181);
+  let peak = 0;
+  for (const c of j.coordinates || []) {
+    const idx = (90 - c[1]) * 360 + (((c[0] % 360) + 360) % 360);
+    const v = Math.max(0, Math.min(100, Math.round(c[2])));
+    if (idx >= 0 && idx < buf.length) { buf[idx] = v; if (v > peak) peak = v; }
+  }
+  return { nx: 360, ny: 181, lat0: 90, peak, obs: j['Observation Time'] || null, forecast: j['Forecast Time'] || null, b64: buf.toString('base64'), ts: Date.now() };
+}, 'Aurora');
+
+// ── Sismos del SSN (UNAM) ───────────────────────────────────────────────────
+// Solo responde por http (por https da timeout). Hora local de México, UTC-6 todo el año desde 2022.
+const getSsn = ttlCache(3 * 60 * 1000, async () => {
+  const xml = await wget('http://www.ssn.unam.mx/rss/ultimos-sismos.xml', 12000, true);
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
+  const out = [];
+  for (const it of items) {
+    const title = xmlText((/<title>([\s\S]*?)<\/title>/.exec(it) || [])[1]);
+    const tm = /^([\d.]+),\s*(.+)$/.exec(title);
+    const desc = (/<description>([\s\S]*?)<\/description>/.exec(it) || [])[1] || '';
+    const dm = /Fecha:\s*(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d):(\d\d)/.exec(desc);
+    const lat = parseFloat((/<geo:lat>([^<]+)</.exec(it) || [])[1]), lon = parseFloat((/<geo:long>([^<]+)</.exec(it) || [])[1]);
+    const depth = parseFloat((/Profundidad:\s*([\d.]+)/.exec(desc) || [])[1]);
+    if (!tm || !dm || !isFinite(lat) || !isFinite(lon)) continue;
+    out.push({ mag: parseFloat(tm[1]), place: tm[2].replace(/\s+/g, ' ').trim(), lat, lon, depth: isFinite(depth) ? depth : null,
+               t: Date.UTC(+dm[1], +dm[2] - 1, +dm[3], +dm[4] + 6, +dm[5], +dm[6]) });
+  }
+  if (!out.length) throw new Error('RSS sin sismos legibles');
+  return { quakes: out, ts: Date.now() };
+}, 'SSN');
+
+// ── Estado de la nube (statuspage + Google Workspace) ───────────────────────
+// Un incidente sin actualizar en 7+ días es "estancado" (Cloudflare tiene uno de septiembre
+// abierto): se muestra pero no cuenta en la insignia del encabezado.
+const CLOUD_SERVICES = [
+  { id: 'github', name: 'GitHub', base: 'https://www.githubstatus.com' },
+  { id: 'vercel', name: 'Vercel', base: 'https://www.vercel-status.com' },
+  { id: 'cloudflare', name: 'Cloudflare', base: 'https://www.cloudflarestatus.com' },
+  { id: 'claude', name: 'Claude', base: 'https://status.claude.com' },
+  { id: 'openai', name: 'OpenAI', base: 'https://status.openai.com' },
+  { id: 'docker', name: 'Docker', base: 'https://www.dockerstatus.com' },
+  { id: 'supabase', name: 'Supabase', base: 'https://status.supabase.com' },
+  { id: 'netlify', name: 'Netlify', base: 'https://www.netlifystatus.com' },
+  { id: 'npm', name: 'npm', base: 'https://status.npmjs.org' },
+  { id: 'google', name: 'Google Workspace', base: 'https://www.google.com/appsstatus/dashboard/', special: 'google' }
+];
+const IMPACT_RANK = { none: 0, maintenance: 1, minor: 2, major: 3, critical: 4 };
+const STALE_INCIDENT_MS = 7 * 864e5;
+async function readCloud(svc) {
+  const base = { id: svc.id, name: svc.name, url: svc.base };
+  if (svc.special === 'google') {
+    const arr = await wget('https://www.google.com/appsstatus/dashboard/incidents.json', 12000);
+    const open = (Array.isArray(arr) ? arr : []).filter(i => !i.end).map(i => ({
+      name: (i.service_name || 'Google Workspace') + ': ' + xmlText(String(i.external_desc || '').split('\n').find(l => l && !/^\*\*/.test(l)) || 'incidente'),
+      impact: i.severity === 'high' ? 'major' : 'minor', status: i.status_impact || '', updated: Date.parse(i.modified || i.begin), link: 'https://www.google.com/appsstatus/dashboard/' + (i.uri || '') }));
+    return finishCloud(base, 'none', open, 0);
+  }
+  const j = await wget(svc.base + '/api/v2/summary.json', 9000);
+  const inc = (j.incidents || []).filter(i => i.status !== 'resolved' && i.status !== 'postmortem')
+    .map(i => ({ name: i.name, impact: i.impact || 'minor', status: i.status, updated: Date.parse(i.updated_at), link: i.shortlink }));
+  const bad = (j.components || []).filter(c => !c.group && c.status !== 'operational').length;
+  return finishCloud(base, (j.status && j.status.indicator) || 'none', inc, bad, j.status && j.status.description);
+}
+function finishCloud(base, indicator, incidents, bad, desc) {
+  const now = Date.now();
+  incidents.forEach(i => { i.stale = !(i.updated > now - STALE_INCIDENT_MS); });
+  const fresh = incidents.filter(i => !i.stale);
+  let level = fresh.reduce((m, i) => Math.max(m, IMPACT_RANK[i.impact] || 2), 0);
+  // sin incidente publicado pero con componentes degradados: leve, no el "major" global de la página
+  if (!fresh.length && indicator !== 'none' && bad > 0 && !incidents.length) level = 2;
+  return { ...base, indicator, level: ['none', 'maintenance', 'minor', 'major', 'critical'][level], desc: desc || '', bad, incidents: incidents.slice(0, 4) };
+}
+const getCloud = ttlCache(3 * 60 * 1000, async () => {
+  const res = await Promise.allSettled(CLOUD_SERVICES.map(readCloud));
+  const services = res.map((r, i) => r.status === 'fulfilled' ? r.value : { id: CLOUD_SERVICES[i].id, name: CLOUD_SERVICES[i].name, url: CLOUD_SERVICES[i].base, level: 'unknown', desc: 'sin respuesta', bad: 0, incidents: [] });
+  return { services, issues: services.filter(s => s.level !== 'none' && s.level !== 'unknown' && s.level !== 'maintenance').length, ts: Date.now() };
+}, 'Estado de la nube');
+
+// ── Cortes de internet por país (IODA, Georgia Tech) ────────────────────────
+// El puntaje "overall" no tiene techo (de 16 a 7.7 millones en un día normal): se entrega tal cual
+// y el cliente lo dibuja en escala logarítmica. Son anomalías de conectividad, no apagones totales.
+const IODA_SRC = { 'bgp': 'BGP', 'ping-slash24': 'PING', 'gtr': 'GOOGLE', 'merit-nt': 'TELESCOPIO' };
+const getInternet = ttlCache(10 * 60 * 1000, async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const j = await wget('https://api.ioda.inetintel.cc.gatech.edu/v2/outages/summary?entityType=country&from=' + (now - 86400) + '&until=' + now + '&limit=100&orderBy=score/desc', 15000);
+  const rows = (j.data || []).map(r => ({
+    code: r.entity.code, name: r.entity.name, score: Math.round(r.scores.overall || 0), events: r.event_cnt || 0,
+    sources: Object.keys(r.scores).filter(k => k !== 'overall').map(k => IODA_SRC[k.split('.')[0]] || k.split('.')[0].toUpperCase())
+  })).sort((a, b) => b.score - a.score);
+  return { countries: rows.slice(0, 14), total: rows.length, mine: ['MX', 'PR', 'US'].map(c => rows.find(r => r.code === c) || { code: c, score: 0, events: 0, sources: [] }), ts: Date.now() };
+}, 'IODA');
+
+// ── Tsunamis (NOAA NTWC y PTWC) ─────────────────────────────────────────────
+// Cada Atom trae solo el último boletín. "Information" no es amenaza: va al listado, no al mapa.
+const getTsunami = ttlCache(5 * 60 * 1000, async () => {
+  const feeds = [['NTWC', 'https://www.tsunami.gov/events/xml/PAAQAtom.xml'], ['PTWC', 'https://www.tsunami.gov/events/xml/PHEBAtom.xml']];
+  const res = await Promise.allSettled(feeds.map(f => wget(f[1], 10000, true)));
+  const out = [];
+  res.forEach((r, i) => {
+    if (r.status !== 'fulfilled') return;
+    for (const m of r.value.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
+      const e = m[1], g = re => (re.exec(e) || [])[1];
+      const cat = xmlText(g(/Category:<\/strong>\s*([^<]+)/)), lat = parseFloat(g(/<geo:lat>([^<]+)</)), lon = parseFloat(g(/<geo:long>([^<]+)</));
+      out.push({ feed: feeds[i][0], category: cat || 'Information', region: xmlText(g(/Affected Region:\s*<\/strong>\s*([^<]+)/) || g(/<title>([\s\S]*?)<\/title>/)),
+                 mag: xmlText(g(/Preliminary Magnitude:\s*<\/strong>\s*([^<]+)/)), t: Date.parse(g(/<updated>([^<]+)</)), lat: isFinite(lat) ? lat : null, lon: isFinite(lon) ? lon : null,
+                 link: g(/<link rel="alternate"[^>]*href="([^"]+)"/) || null });
+    }
+  });
+  out.sort((a, b) => b.t - a.t);
+  return { bulletins: out, active: out.filter(b => !/^information/i.test(b.category) && Date.now() - b.t < 48 * 3600e3), ts: Date.now() };
+}, 'Tsunamis');
+
+app.get('/watch/space', async (req, res) => res.json((await getSpaceWeather()) || { error: 'sin datos' }));
+app.get('/watch/aurora', async (req, res) => { const a = await getAurora(); a ? res.json(a) : res.status(503).json({ error: 'sin datos' }); });
+app.get('/watch/quakes', async (req, res) => { const s = await getSsn(); s ? res.json(s) : res.status(503).json({ error: 'sin datos' }); });
+app.get('/watch/cloud', async (req, res) => { const c = await getCloud(); c ? res.json(c) : res.status(503).json({ error: 'sin datos' }); });
+app.get('/watch/internet', async (req, res) => { const i = await getInternet(); i ? res.json(i) : res.status(503).json({ error: 'sin datos' }); });
+app.get('/watch/tsunami', async (req, res) => { const t = await getTsunami(); t ? res.json(t) : res.status(503).json({ error: 'sin datos' }); });
+
 let _eventsInFlight = null;
 
 app.get('/events', async (req, res) => {
@@ -1413,7 +1645,7 @@ const CORRELATION_PAIRS = [
 function findCorrelations(events) {
   const correlations = [];
   for (const rule of CORRELATION_PAIRS) {
-    const as = events.filter(e => e.type === rule.a);
+    const as = events.filter(e => e.type === rule.a && e.src !== 'SSN');   // sismos chicos del SSN no son "correlación" con un volcán
     const bs = events.filter(e => e.type === rule.b);
     for (const a of as) {
       for (const b of bs) {
@@ -1875,6 +2107,32 @@ async function _fetchAllEvents() {
     _stormsCache.storms.forEach(st => events.push(stormEventFrom(st)));
   }
 
+  // 6. Sismos de México (SSN): magnitudes que USGS no lista; los que USGS ya trae (misma zona y magnitud parecida) se omiten
+  try {
+    const ssn = await getSsn();
+    if (ssn) {
+      const usgs = events.filter(e => e.type === 'quake');
+      let added = 0;
+      ssn.quakes.filter(q => Date.now() - q.t < 24 * 3600e3).forEach(q => {
+        if (usgs.some(u => Math.abs(u.mag - q.mag) < 1 && haversineKm(u.lat, u.lon, q.lat, q.lon) < 120)) return;
+        events.push({ type: 'quake', src: 'SSN', lat: q.lat, lon: q.lon, label: 'M' + q.mag.toFixed(1), mag: q.mag, place: q.place, ts: q.t,
+                      info: 'Prof: ' + (q.depth != null ? q.depth + ' km' : '—') + ' | ' + q.place + ' | SSN' });
+        added++;
+      });
+      nxLog('SSN México: ' + added + ' sismos propios (de ' + ssn.quakes.length + ')', added ? 'ok' : 'info');
+    }
+  } catch (e) { nxLog('SSN México: ' + e.message, 'warn'); }
+
+  // 7. Avisos de tsunami vigentes (Advisory/Watch/Warning de las últimas 48 h; los "Information" no son amenaza)
+  try {
+    const tsu = await getTsunami();
+    ((tsu && tsu.active) || []).forEach(b => {
+      if (b.lat == null) return;
+      events.push({ type: 'tsunami', lat: b.lat, lon: b.lon, label: b.category.toUpperCase(), classLabel: 'TSUNAMI ' + b.category.toUpperCase(), place: b.region,
+                    info: b.category + ' | ' + b.region + (b.mag ? ' | M' + b.mag : '') + ' | ' + b.feed });
+    });
+  } catch (e) { nxLog('Tsunami: ' + e.message, 'warn'); }
+
   // Seismic energy: E = 10^(1.5*M + 4.8) joules (Gutenberg-Richter)
   const seismicEnergyJ = events
     .filter(e => e.type === 'quake' && e.mag != null)
@@ -1970,18 +2228,10 @@ app.get('/space', async (req, res) => {
     const now = Date.now();
     if (_spaceCache && now - _spaceTs < SPACE_TTL) return res.json(_spaceCache);
     const [kpRes, crewRes] = await Promise.allSettled([
-      fetch('https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json', { signal: AbortSignal.timeout(6000) }).then(r => r.json()),
+      readKp(),   // acepta el formato viejo (arreglos) y el actual (objetos); antes devolvía kp:null
       fetch('http://api.open-notify.org/astros.json', { signal: AbortSignal.timeout(5000) }).then(r => r.json())
     ]);
-    let kp = null;
-    if (kpRes.status === 'fulfilled') {
-      const arr = kpRes.value;
-      // arr is [[datetime, kp, observed, class], ...] — last row is most recent
-      for (let i = arr.length - 1; i >= 0; i--) {
-        const v = parseFloat(arr[i][1]);
-        if (!isNaN(v)) { kp = { value: v, class: arr[i][3] || '' }; break; }
-      }
-    }
+    const kp = kpRes.status === 'fulfilled' ? kpRes.value : null;
     let crew = [];
     if (crewRes.status === 'fulfilled') {
       crew = (crewRes.value?.people || []).filter(p => p.craft === 'ISS').map(p => p.name);
