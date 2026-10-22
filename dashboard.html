@@ -2608,7 +2608,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     else if(isNews){dc='#84CC16';tc='#D9F99D';r=5;} // lime (≠ ISS amber)
     else if(isFire){dc='#FF6D00';tc='#FFB74D';r=2;} // deep orange
     else if(ev.type==='tsunami'){dc='#06B6D4';tc='#A5F3FC';r=8;}  // cian
-    if(ev.src==='SSN'){r=(ev.mag||0)>=3.8?5:4;}                     // sismos locales: puntos chicos
+    if(ev.src==='SSN'){r=(ev.mag||0)>=3.8?5:4;dc=MX_QUAKE_COLOR;tc='#FDE68A';}                     // sismos locales: puntos chicos
 
     // Draw satellite orbit trail before the pin
     if(isSat || isISS) drawSatOrbit(ns, ev, x, y, orbitGroup);
@@ -2809,6 +2809,7 @@ async function fetchEvents(){
     checkCriticalEvents(_evts);
     renderSeismicStatsAlert(d.seismicStats);
     renderHistoricalInsightAlert(d.historicalInsight);
+    try{wStripRender();}catch(e){}   // la franja WATCH mezcla sismos de /events
   }catch(e){}
 }
 
@@ -3041,7 +3042,7 @@ function renderGSPulseAndEvents(events) {
     if(!significant.length) { evEl.textContent='no significant events'; evEl.style.color=c.lo; }
     else evEl.innerHTML = significant.map(e=>{
       const ic = EVENT_ICON[e.type]||'◉';
-      const col = eventColor(e.type,c);
+      const col = e.src==='SSN'?MX_QUAKE_COLOR:eventColor(e.type,c);
       const isCrit=isCritType(e);
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
       const stm = e.type==='storm' && e.stormId ? _stormById[e.stormId] : null;
@@ -3848,19 +3849,38 @@ function wsPlace(p){
 // menos una por bloque) y solo si aun así no cabe se descartan bloques enteros, de abajo hacia arriba.
 function wsFit(el){
   if(el.clientHeight<=20)return;
-  let guard=40;
-  while(el.scrollHeight>el.clientHeight+1&&guard-->0){
-    const secs=[].slice.call(el.children);let done=false;
-    for(let i=secs.length-1;i>0&&!done;i--){const rows=secs[i].querySelectorAll('.ws-row');if(rows.length>1){rows[rows.length-1].remove();done=true;}}
-    if(done)continue;
-    if(el.children.length>1){el.removeChild(el.lastElementChild);continue;}
-    break;
+  const over=function(){return el.scrollHeight>el.clientHeight+1;};
+  if(!over())return;
+  // 1) lo opcional: texto de la última actualización de cada incidente
+  [].forEach.call(el.querySelectorAll('.cl-det'),function(n){n.style.display='none';});
+  if(!over())return;
+  // 2) componentes afectados y mantenimientos
+  [].forEach.call(el.querySelectorAll('.cl-aff'),function(n){n.style.display='none';});
+  // 3) filas del bloque más alto, respetando un mínimo por bloque; el clima espacial no se toca.
+  //    Primera pasada: todos los servicios con problemas y 3 sismos. Si aun así no cabe, 1 servicio y 1 sismo.
+  const svcs=function(sc){return sc.querySelectorAll('.cl-svc').length||1;};
+  for(let pass=0;pass<2&&over();pass++){
+    let guard=80;
+    while(over()&&guard-->0){
+      const secs=[].slice.call(el.children).slice(1);
+      let pick=null,ph=0;
+      secs.forEach(function(sc){
+        const k=sc.getAttribute('data-k')||'';
+        const min=/SISMOS/.test(k)?(pass?1:3):/NUBE/.test(k)?(pass?1:svcs(sc)):1;
+        if(sc.children.length-1>min&&sc.offsetHeight>ph){pick=sc;ph=sc.offsetHeight;}
+      });
+      if(!pick)break;
+      pick.removeChild(pick.lastElementChild);
+    }
   }
+  // 4) último recurso: bloques enteros, de abajo hacia arriba
+  let g2=10;
+  while(over()&&g2-->0&&el.children.length>2)el.removeChild(el.lastElementChild);
 }
 function wStripRender(){
   const el=document.getElementById('wstrip-body');if(!el)return;
   const c=_pal,sp=_watch.space,cl=_watch.cloud,q=_watch.quakes,tu=_watch.tsunami,nt=_watch.internet;
-  const sec=function(k,r,body){return '<div class="ws-sec"><div class="ws-k"><span>'+k+'</span><span>'+(r||'')+'</span></div>'+body+'</div>';};
+  const sec=function(k,r,body){return '<div class="ws-sec" data-k="'+k+'"><div class="ws-k"'+(k?'':' style="display:none"')+'><span>'+k+'</span><span>'+(r||'')+'</span></div>'+body+'</div>';};
   const wait='<div class="ws-row" style="opacity:.6">Cargando…</div>';
   const parts=[];
   // 1. clima espacial
@@ -3882,22 +3902,25 @@ function wStripRender(){
   if(tact.length)av+='<div class="ws-row" style="color:'+wTsuCol(tact[0].category,c)+'"><span class="x">🌊 '+stEsc(String(tact[0].category).toUpperCase())+' · '+stEsc(tact[0].region)+'</span></div>';
   const bits=[];
   if(tu&&!tact.length)bits.push('<span style="color:'+c.mid+';flex-shrink:0">🌊 sin avisos</span>');
-  if(cl){
-    const bad=cl.services.filter(function(s){return s.level!=='none'&&s.level!=='unknown'&&s.level!=='maintenance';});
-    const ok=cl.services.filter(function(s){return s.level==='none';}).length;
-    bits.push('<span class="x" style="color:'+(bad.length?c.warn:c.mid)+'" title="'+(bad.length?'Con incidencias: '+stEsc(bad.map(function(s){return s.name;}).join(', ')):'Todos los servicios operativos')+'">☁ '+(bad.length?'⚠ '+stEsc(bad.map(function(s){return s.name;}).join(', ')):ok+'/'+cl.services.length)+'</span>');
-  }
   if(nt)bits.push('<span style="flex-shrink:0"><span style="color:'+c.mut+'">NET</span> '+nt.mine.map(function(m){return '<span style="color:'+(m.score>0?c.warn:c.mid)+'">'+m.code+(m.score>0?'⚠':'✓')+'</span>';}).join(' ')+'</span>');
   if(bits.length)av+='<div class="ws-row" style="gap:10px">'+bits.join('')+'</div>';
-  parts.push(sec('AVISOS','',av||wait));
-  // 3. sismos de México
-  if(q){
-    const hLat=_homeCoords.lat,hLon=_homeCoords.lon;
-    parts.push(sec('SISMOS MÉXICO · SSN',q.quakes.length+' en 24 h',q.quakes.slice(0,3).map(function(x){
-      const col=x.mag>=5?'#E24B4A':x.mag>=4?c.warn:c.lbl;
-      return '<div class="ws-row" title="'+stEsc(x.place)+' · '+Math.round(_nxrGeoD(hLat,hLon,x.lat,x.lon))+' km de casa"><b style="color:'+col+'">'+x.mag.toFixed(1)+'</b><span class="x">'+stEsc(wsPlace(x.place))+'</span><span class="t">'+wAgo(x.t).replace('hace ','')+'</span></div>';
+  parts.push(sec('',  '', av||wait));
+  // 3. nube, con desglose por servicio
+  if(cl){
+    const nbad=cl.services.filter(function(s){return s.level!=='none'&&s.level!=='unknown'&&s.level!=='maintenance';}).length,nok=cl.services.filter(function(s){return s.level==='none';}).length;
+    parts.push(sec('ESTADO DE LA NUBE',(nbad?'<span style="color:'+c.warn+'">'+nbad+' con incidencias</span> · ':'')+nok+'/'+cl.services.length+' OK',wCloudHtml(cl,c)));
+  }else parts.push(sec('ESTADO DE LA NUBE','',wait));
+  // 4. sismos de las últimas 24 h: mundo (USGS, M4.5+) y México (SSN, en amarillo), mezclados por hora
+  const isMx=function(e){return e.src==='SSN'||/m[eé]xico/i.test(e.place||'');};
+  const qs=(typeof _evts!=='undefined'?_evts:[]).filter(function(e){return e.type==='quake'&&e.ts&&Date.now()-e.ts<864e5;}).sort(function(a,b){return b.ts-a.ts;});
+  if(qs.length){
+    const nmx=qs.filter(isMx).length;
+    parts.push(sec('SISMOS · 24 H','<span style="color:'+MX_QUAKE_COLOR+'">■ México '+nmx+'</span>  <span style="color:'+c.hi+'">■ mundo '+(qs.length-nmx)+'</span>',qs.slice(0,10).map(function(e){
+      const mx=isMx(e),mag=e.mag||0,mc=mag>=6?'#E24B4A':mag>=5?'#F0883E':(mx?MX_QUAKE_COLOR:c.hi);
+      const place=e.src==='SSN'?wsPlace(e.place):(e.place||'');
+      return '<div class="ws-row" title="'+stEsc(e.place||'')+(e.info?' · '+stEsc(e.info):'')+'"><b style="color:'+mc+';flex-shrink:0;width:24px">'+mag.toFixed(1)+'</b><span class="x" style="color:'+(mx?MX_QUAKE_COLOR:c.lbl)+'">'+stEsc(place)+'</span><span class="t">'+wAgo(e.ts).replace('hace ','')+'</span></div>';
     }).join('')));
-  }else parts.push(sec('SISMOS MÉXICO · SSN','',wait));
+  }else parts.push(sec('SISMOS · 24 H','',wait));
   el.innerHTML=parts.join('');
   wsFit(el);
 }
@@ -3966,19 +3989,46 @@ function wRenderSsn(){
 }
 
 // ── Estado de la nube ───────────────────────────────────────────────────────
+var MX_QUAKE_COLOR='#FACC15';   // sismos de México (SSN): amarillo en el mapa y en las listas
+var CL_STATUS={none:'OPERATIVO',unknown:'SIN RESPUESTA',maintenance:'MANTENIMIENTO',minor:'DEGRADADO',major:'FALLA PARCIAL',critical:'FALLA GRAVE'};
+var CL_COMP={degraded_performance:'degradado',partial_outage:'interrupción parcial',major_outage:'interrupción total',under_maintenance:'en mantenimiento'};
+var CL_INC={investigating:'investigando',identified:'identificado',monitoring:'en monitoreo',update:'actualización',scheduled:'programado',in_progress:'en curso',verifying:'verificando'};
+var CL_IMPACT={minor:'leve',major:'mayor',critical:'crítico',maintenance:'mantenimiento',none:''};
+function wCloudCol(l,c){return l==='none'?c.mid:l==='unknown'?c.lo:(l==='minor'||l==='maintenance')?c.warn:'#E24B4A';}
+// Servicios con problemas primero y completos (incidentes con su estado, edad y texto, componentes afectados,
+// mantenimientos); los operativos, al final, en una fila de puntos.
+function wCloudHtml(d,c){
+  const sev={critical:4,major:3,minor:2,maintenance:1,unknown:.5,none:0};
+  const sorted=d.services.slice().sort(function(a,b){return (sev[b.level]||0)-(sev[a.level]||0);});
+  const bad=sorted.filter(function(s){return s.level!=='none';}),ok=sorted.filter(function(s){return s.level==='none';});
+  let h='';
+  bad.forEach(function(s){
+    const col=wCloudCol(s.level,c);
+    h+='<div class="cl-svc"><div class="ws-row"><span class="w-dot" style="background:'+col+';box-shadow:0 0 5px '+col+'"></span><b style="color:'+c.hi+'">'+stEsc(s.name)+'</b><span class="t" style="margin-left:auto;color:'+col+';font-size:9.5px;font-weight:700">'+CL_STATUS[s.level]+'</span></div>';
+    (s.incidents||[]).slice(0,2).forEach(function(i){
+      const ic=(i.impact==='critical'||i.impact==='major')?'#E24B4A':c.warn;
+      const meta=[CL_IMPACT[i.impact],CL_INC[i.status]||i.status,i.updated?wAgo(i.updated).replace('hace ',''):''].filter(Boolean).join(' · ');
+      h+='<div class="ws-row cl-inc" style="'+(i.stale?'opacity:.45':'')+'" title="'+stEsc(i.name)+(i.stale?' (sin actualizar, posible incidente estancado)':'')+'"><span style="color:'+ic+'">'+(i.stale?'○':'●')+'</span><span class="x">'+stEsc(i.name)+'</span><span class="t">'+stEsc(meta)+'</span></div>'+
+         (i.detail&&!i.stale?'<div class="cl-det" title="'+stEsc(i.detail)+'">'+stEsc(i.detail)+'</div>':'');
+    });
+    if(s.comps&&s.comps.length){
+      const rest=Math.max(s.bad-Math.min(3,s.comps.length),0);
+      h+='<div class="cl-meta cl-aff" title="'+stEsc(s.comps.map(function(x){return x.name+' ('+(CL_COMP[x.status]||x.status)+')';}).join(', '))+'">afectado: '+s.comps.slice(0,3).map(function(x){return stEsc(x.name)+' ('+(CL_COMP[x.status]||stEsc(x.status))+')';}).join(', ')+(rest>0?' +'+rest+' más':'')+'</div>';
+    }
+    (s.maint||[]).forEach(function(m){
+      h+='<div class="cl-meta cl-aff">⚙ '+(m.status==='in_progress'?'mantenimiento en curso: ':'mantenimiento programado: ')+stEsc(m.name)+' · '+new Date(m.start).toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})+'</div>';
+    });
+    h+='</div>';
+  });
+  if(ok.length)h+='<div class="ws-dots" style="margin-top:3px">'+ok.map(function(s){return '<span class="ws-dot" style="color:'+c.mut+'"><i style="background:'+c.mid+'"></i>'+stEsc(s.name)+'</span>';}).join('')+'</div>';
+  return h;
+}
 function wRenderCloud(){
   const el=document.getElementById('wc-cloud-body'),sub=document.getElementById('wc-cloud-sub');if(!el)return;
   const d=_watch.cloud,c=_pal;
   if(!d){el.innerHTML=wEmpty('cloud','los servicios');return;}
   if(sub)sub.textContent=d.issues?d.issues+' con incidencias':'todo operativo';
-  const NAME={none:'OPERATIVO',unknown:'SIN RESPUESTA',maintenance:'MANTENIMIENTO',minor:'DEGRADADO',major:'FALLA PARCIAL',critical:'FALLA GRAVE'};
-  el.innerHTML='<div class="w-svcs">'+d.services.map(function(s){
-    const col=s.level==='none'?c.mid:s.level==='unknown'?c.lo:(s.level==='minor'||s.level==='maintenance')?c.warn:'#E24B4A';
-    const inc=(s.incidents||[]).slice(0,2).map(function(i){
-      return '<div class="w-inc" style="'+(i.stale?'opacity:.45':'')+'" title="'+stEsc(i.name)+(i.stale?' (sin actualizar hace '+Math.round((Date.now()-i.updated)/864e5)+' días)':'')+'">'+(i.stale?'· viejo: ':'· ')+stEsc(i.name)+'</div>';
-    }).join('');
-    return '<div class="w-svc"><div class="w-row"><span class="w-dot" style="background:'+col+';box-shadow:0 0 5px '+col+'"></span><b style="color:'+c.hi+'">'+stEsc(s.name)+'</b><span class="t" style="margin-left:auto;color:'+col+'">'+NAME[s.level]+'</span></div>'+inc+'</div>';
-  }).join('')+'</div>';
+  el.innerHTML=wCloudHtml(d,c);
 }
 
 // ── Cortes de internet (IODA) ───────────────────────────────────────────────
@@ -4780,6 +4830,11 @@ function initSnake(canvas){
 .ws-row { display:flex; gap:6px; align-items:baseline; overflow:hidden; white-space:nowrap; color:var(--wfg,#38B891); }
 .ws-row .x { overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
 .ws-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); font-size:9px; }
+.cl-svc { padding:2px 0 3px; }
+.cl-inc { padding-left:14px; }
+.cl-inc .x { flex:1; min-width:0; }
+.cl-meta { font-size:9px; color:var(--wmu,#1D9E75); padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cl-det { font-size:9px; color:var(--wfg,#38B891); opacity:.75; padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ws-chip { border:1px solid; border-radius:3px; padding:0 5px; font-weight:700; font-size:10px; }
 .ws-dots { display:flex; flex-wrap:wrap; gap:1px 9px; }
 .ws-dot { display:inline-flex; align-items:center; gap:4px; font-size:9.5px; }
