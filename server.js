@@ -1598,6 +1598,47 @@ app.get('/watch/cloud', async (req, res) => { const c = await getCloud(); c ? re
 app.get('/watch/internet', async (req, res) => { const i = await getInternet(); i ? res.json(i) : res.status(503).json({ error: 'sin datos' }); });
 app.get('/watch/tsunami', async (req, res) => { const t = await getTsunami(); t ? res.json(t) : res.status(503).json({ error: 'sin datos' }); });
 
+// ── ¿Escritorio libre? (para que los paneles solo pasen al frente cuando no hay ventanas encima) ──
+// Wallpaper Engine corre la página dentro de un navegador y desde ahí NO se ven las ventanas del
+// sistema: lo mide el backend con desktop_probe.ps1 (solo lectura: EnumWindows). Compilar el C# cuesta
+// ~0.7 s de CPU, así que el proceso NO vive siempre: arranca con la primera consulta a /desktop y se apaga
+// solo tras DESK_IDLE_MS sin consultas. Si el backend muere, el proceso detecta a su padre ausente y sale.
+const DESK_PROBE = path.join(__dirname, 'desktop_probe.ps1');
+const DESK_IDLE_MS = 45000;
+let _deskProc = null, _deskLast = null, _deskReq = 0, _deskFail = 0;
+function startDeskProbe() {
+  if (_deskProc || process.platform !== 'win32' || !fs.existsSync(DESK_PROBE)) return;
+  const { spawn } = require('child_process');
+  let buf = '';
+  const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', DESK_PROBE, '-ParentPid', String(process.pid)], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  _deskProc = p;
+  p.stdout.on('data', d => {
+    buf += d;
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      try { _deskLast = { ...JSON.parse(line), ts: Date.now() }; _deskFail = 0; } catch (_) { /* línea parcial */ }
+    }
+  });
+  p.stderr.on('data', d => nxLog('Escritorio: ' + String(d).trim().slice(0, 160), 'warn'));
+  p.on('exit', () => { if (_deskProc === p) _deskProc = null; if (!p._stopped) _deskFail++; });
+  p.on('error', e => { nxLog('Escritorio: ' + e.message, 'warn'); if (_deskProc === p) _deskProc = null; _deskFail++; });
+}
+function stopDeskProbe() { if (_deskProc) { _deskProc._stopped = true; try { _deskProc.kill(); } catch (_) {} _deskProc = null; } }
+setInterval(() => { if (_deskProc && Date.now() - _deskReq > DESK_IDLE_MS) stopDeskProbe(); }, 15000).unref();
+process.on('exit', stopDeskProbe);
+app.get('/desktop', async (req, res) => {
+  _deskReq = Date.now();
+  if (_deskFail >= 3) return res.json({ supported: false, free: null });
+  if (!_deskProc) startDeskProbe();
+  // la primera muestra tarda ~1 s (compilación del C#)
+  for (let i = 0; i < 40 && (!_deskLast || Date.now() - _deskLast.ts > 6000); i++) await new Promise(r => setTimeout(r, 150));
+  if (!_deskLast || Date.now() - _deskLast.ts > 6000) return res.json({ supported: !!_deskProc, free: null });
+  // la propia ventana del shell de Nexus no cuenta como "ventana encima"
+  const wins = (_deskLast.wins || []).filter(w => !/NEXUS MONITOR/i.test(w.t));
+  res.json({ supported: true, free: wins.length === 0, n: wins.length, titles: wins.slice(0, 6).map(w => w.t), screen: [_deskLast.w, _deskLast.h], age: Date.now() - _deskLast.ts });
+});
+
 let _eventsInFlight = null;
 
 app.get('/events', async (req, res) => {
