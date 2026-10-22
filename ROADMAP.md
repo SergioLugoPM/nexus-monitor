@@ -983,6 +983,38 @@ mapa, aviso crítico de tsunami y las insignias KP / ☁ / 🌊 del pie.
 
 Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
+## Columna izquierda unificada: STORAGE + RED + franja WATCH (22-oct-2026)
+
+Los paneles CPU, MEMORY y GPU de la columna izquierda duplicaban al Neural Core (mismo
+`/stats`: CPU, RAM, GPU, 16 núcleos). Se quitaron; el Neural Core queda como único instrumento
+de CPU/RAM/GPU/núcleos y la columna pasó a:
+
+- **STORAGE**: los 4 discos en cuadrícula 2×2 con el espacio **libre** (C: 145 GB, D: 139,
+  E: 105, F: 107). La barra muestra el % usado y cambia de color desde 80 % (ámbar) y 90 %
+  (rojo); el detalle usado/total está en el tooltip. Antes eran 4 paneles de ~38 px cada uno.
+- **NETWORK**: etiqueta y cifras de subida/bajada en una sola fila; gráfica de 30 px.
+- **WATCH** (franja, clic abre la pestaña): clima espacial (G/S/R, Kp con barras de 48 h,
+  viento solar, rayos X), una fila de avisos (tsunami · nube · internet MX/PR/US) y el último
+  sismo del SSN. Se alimenta en segundo plano cada 3 min (el servidor cachea).
+- **Neural Core**: la etiqueta del canal RAM ahora dice `RAM 47%  17.4/31.4 GB` (lo único que
+  tenía el panel viejo y no el osciloscopio). Uptime y procesos ya estaban en el pie.
+
+Detalles y trampas:
+- `updateTime()` leía `cpu-val`, `ram-v` y `gpu-t` **del DOM** para armar la línea "CPU · RAM · GPU"
+  y el indicador "SYSTEMS OK": quitar los paneles sin más rompía ese código cada segundo. Ahora
+  `fetchStats` llena la global `_st` y ambas funciones la leen. `applyPalette` también
+  tocaba `bt-cpu`/`bf-gpu`/`gpu-t` sin comprobar null.
+- Se descartó el panel de temperatura de CPU: `/stats` devuelve `cpu.temp: null` en esta PC
+  (Windows no la expone sin un driver extra) y ese campo siempre estuvo oculto.
+- El panel viejo dibujaba solo 8 de los 16 núcleos (`for(i<8)` con `cores[i%cl]`).
+- La altura de la columna depende de la pantalla (337 px a 2000×837). La franja se recorta sola:
+  `wsFit()` quita primero filas de abajo hacia arriba (mínimo una por bloque) y solo si aun así
+  no cabe descarta bloques enteros. Con 337 px caben los tres bloques con una fila cada uno.
+- Sin tocar: el panel MATRIX (decorativo, el más grande de la pantalla). Si se quiere recuperar
+  más espacio, ahí hay más que en cualquier otro sitio.
+
+Universal (`dashboard.html`) — cruza a `master`.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
