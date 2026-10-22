@@ -1675,6 +1675,16 @@ app.get('/watch/air', async (req, res) => {
   a ? res.json(a) : res.status(503).json({ error: 'sin datos de aire' });
 });
 
+// ── Diagnóstico: la página (en WE no se puede abrir la consola) manda cada minuto su estado de spotlight ──
+// GET /debug/client devuelve el último latido: visibilidad de la página, tamaño, modo, panel destacado y el
+// registro de los últimos disparadores y por qué se dieron o no (cooldown, ventanas encima...).
+let _clientPing = null;
+app.get('/debug/ping', (req, res) => {
+  try { const d = String(req.query.d || '').slice(0, 6000); _clientPing = { ts: Date.now(), ...JSON.parse(d) }; } catch (_) { /* latido ilegible */ }
+  res.json({ ok: true });
+});
+app.get('/debug/client', (req, res) => res.json(_clientPing ? { ..._clientPing, ageSec: Math.round((Date.now() - _clientPing.ts) / 1000) } : null));
+
 let _eventsInFlight = null;
 
 app.get('/events', async (req, res) => {

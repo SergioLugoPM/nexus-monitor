@@ -3499,7 +3499,7 @@ window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mr
 
 // ── SETTINGS ────────────────────────────────────────────────────────────────
 var SETTINGS_KEY = 'nexus_settings';
-var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true, seismicMinMX:3, showAurora:true, spotMode:'auto' };
+var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true, seismicMinMX:3, showAurora:true, spotMode:'auto', spotPulse:true };
 var _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
 
 function saveSettings() {
@@ -3521,6 +3521,7 @@ function openSettings() {
   document.getElementById('cfg-seismic-mx-val').textContent = 'M' + _settings.seismicMinMX;
   document.getElementById('cfg-aurora').checked = _settings.showAurora !== false;
   document.getElementById('cfg-spot').value = _settings.spotMode || 'auto';
+  document.getElementById('cfg-pulse').checked = _settings.spotPulse !== false;
   fetch('/config').then(function(r){return r.json();}).then(function(c){
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
@@ -3549,7 +3550,8 @@ function applySettings() {
   _settings.showWind = document.getElementById('cfg-wind').checked;applyWindSetting();
   _settings.seismicMinMX = parseFloat(document.getElementById('cfg-seismic-mx').value);
   _settings.showAurora = document.getElementById('cfg-aurora').checked;applyAuroraSetting();
-  _settings.spotMode = document.getElementById('cfg-spot').value;if(_settings.spotMode==='off')spotEnd();
+  _settings.spotMode = document.getElementById('cfg-spot').value;
+  _settings.spotPulse = document.getElementById('cfg-pulse').checked;if(_settings.spotMode==='off')spotEnd();
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
@@ -4170,7 +4172,7 @@ watchInit();
 // se le pregunta al backend (/desktop, ver desktop_probe.ps1). Se amplía con transform: no cambia el layout, así
 // que el resto de la pantalla no se reacomoda. Mientras dura se levanta el overflow de las columnas y se atenúan
 // los demás paneles. Modos (⚙): auto = solo con el escritorio libre · always · off.
-var _spot={cur:null,timer:null,poll:null,cool:{},seen:{},base:false,hot:{cpu:0,gpu:0,net:0},busyPrev:false,wb:{},lastKp:0,lastG:0,lastCloud:{},lastNet:false,lastTsu:false};
+var _spot={cur:null,timer:null,poll:null,cool:{},seen:{},lastAny:Date.now()-(8*60000-90000),shown:{},log:[],base:false,hot:{cpu:0,gpu:0,net:0},busyPrev:false,wb:{},lastKp:0,lastG:0,lastCloud:{},lastNet:false,lastTsu:false};
 function spotMode(){return _settings.spotMode||'auto';}
 async function spotDeskFree(){
   const m=spotMode();
@@ -4209,6 +4211,7 @@ function spotStart(o){
   void el.offsetWidth;                       // la transición parte de la escala 1
   el.classList.add('spot');
   _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key,onEnd:o.onEnd};
+  _spot.lastAny=Date.now();_spot.shown[o.panel]=Date.now();
   if(o.onStart){try{o.onStart();}catch(e){}}
   _spot.timer=setTimeout(spotEnd,o.ms||22000);
   // si aparece una ventana encima, se acaba al instante
@@ -4218,16 +4221,58 @@ function spotStart(o){
 function spotTrigger(o){
   if(spotMode()==='off')return;
   const now=Date.now(),cur=_spot.cur;
-  if((_spot.cool[o.key]||0)>now)return;
-  if(cur&&cur.panel!==o.panel&&cur.pri>=(o.pri||0))return;          // ya hay uno igual o más importante al frente
+  if((_spot.cool[o.key]||0)>now){spotLog(o.key,'enfriamiento');return;}
+  if(cur&&cur.panel!==o.panel&&cur.pri>=(o.pri||0)){spotLog(o.key,'ya hay uno de mayor prioridad al frente');return;}
   _spot.cool[o.key]=now+(o.cool||600000);
   if(cur&&cur.panel===o.panel){                                      // mismo panel: se alarga y se actualiza la etiqueta
     clearTimeout(_spot.timer);_spot.timer=setTimeout(spotEnd,o.ms||22000);
     const tg=document.getElementById(o.panel).querySelector('.spot-tag');if(tg)tg.textContent=o.reason;
     return;
   }
-  spotDeskFree().then(function(ok){if(ok)spotStart(o);});
+  spotDeskFree().then(function(ok){spotLog(o.key,ok?'inicia':'bloqueado: hay ventanas encima o /desktop no responde');if(ok)spotStart(o);else if(/^amb-/.test(o.key))_spot.lastAny=Date.now()-SPOT_T.ambientMs+180000;});   // si el pulso se bloquea, reintenta en 3 min
 }
+// ── Umbrales (en un solo sitio, para afinarlos) ─────────────────────────────
+var SPOT_T={cpu:75,gpu:80,net:8,mxMag:4.0,mxKm:800,wMag:5.5,kp:4,rainNear:40,rainApproach:120,ambientMs:8*60000};
+function spotLog(k,r){_spot.log.push({t:new Date().toTimeString().slice(0,8),k:k,r:r});if(_spot.log.length>20)_spot.log.shift();}
+// ── Pulso en reposo ─────────────────────────────────────────────────────────
+// Con el escritorio libre la PC suele estar quieta (CPU/GPU/red no se mueven) y los eventos del mundo son raros,
+// así que sin esto el spotlight casi nunca se vería. Si pasan ~8 min sin ningún destaque, el panel que lleva más
+// tiempo sin mostrarse pasa al frente 14 s con un dato vivo. Desactivable en ⚙ ("Pulso en reposo").
+var AMB_PANELS=['p-watch','p-sphere','p-wth','p-nxlog','p-gs'];
+function spotAmbientReason(id){
+  const now=Date.now();
+  if(id==='p-watch'){
+    const q=(_evts||[]).filter(function(e){return e.type==='quake'&&e.ts&&now-e.ts<3*3600e3;}).sort(function(a,b){return b.ts-a.ts;})[0];
+    if(q)return 'ÚLTIMO SISMO · M'+(q.mag||0).toFixed(1)+' · '+wAgo(q.ts);
+    if(_watch.cloud&&_watch.cloud.issues)return 'NUBE · '+_watch.cloud.issues+' CON INCIDENCIAS';
+    return 'CLIMA ESPACIAL'+(_watch.space&&_watch.space.kp?' · Kp '+(+_watch.space.kp.value).toFixed(1):'');
+  }
+  if(id==='p-sphere')return 'NEURAL CORE'+(isNaN(_st.cpu)?'':' · CPU '+_st.cpu+'%');
+  if(id==='p-wth')return 'CLIMA'+(_weatherData&&_weatherData.temp!=null?' · '+_weatherData.temp+'°':'')+(_air?' · AQI '+Math.round(_air.aqi):'');
+  if(id==='p-nxlog')return _rain&&_rain.near&&_rain.cells>=3?'RADAR · LLUVIA A '+Math.round(_rain.near.km)+' km':'RADAR · SIN LLUVIA EN 300 km';
+  return 'EVENTOS · '+(_evts||[]).filter(function(e){return ['storm','volcano','flood','tsunami'].indexOf(e.type)>=0;}).length+' ACTIVOS';
+}
+function spotAmbient(){
+  if(spotMode()==='off'||_settings.spotPulse===false||_spot.cur)return;
+  if(Date.now()-_spot.lastAny<SPOT_T.ambientMs)return;
+  const id=AMB_PANELS.slice().sort(function(a,b){return (_spot.shown[a]||0)-(_spot.shown[b]||0);})[0];
+  const o={panel:id,key:'amb-'+id,reason:spotAmbientReason(id),pri:5,ms:14000,cool:1000};
+  if(id==='p-nxlog')o.onStart=spotRadarStart,o.onEnd=spotRadarEnd;
+  spotTrigger(o);
+}
+// al destacar el radar se pasa a CLIMA mientras dure y se vuelve al modo anterior (sin guardarlo como preferencia)
+function spotRadarStart(){if(_nxPanelMode!=='wx'){_spot.rainPrev=_nxPanelMode;_nxPanelMode='wx';_applyNxPanel();}else _spot.rainPrev=null;}
+function spotRadarEnd(){if(_spot.rainPrev){_nxPanelMode=_spot.rainPrev;_spot.rainPrev=null;_applyNxPanel();}}
+// ── Latido de diagnóstico (GET /debug/client en el backend) ─────────────────
+function spotPing(){
+  try{
+    const d={v:3,mode:spotMode(),pulse:_settings.spotPulse!==false,vis:document.visibilityState,w:innerWidth,h:innerHeight,cur:_spot.cur&&_spot.cur.panel||null,
+      lastAmbientAgoMin:Math.round((Date.now()-_spot.lastAny)/60000),log:_spot.log.slice(-8)};
+    fetch('http://localhost:19234/debug/ping?d='+encodeURIComponent(JSON.stringify(d))).catch(function(){});
+  }catch(e){}
+}
+setInterval(spotAmbient,60000);
+setTimeout(spotPing,4000);setInterval(spotPing,60000);
 // Prueba desde ⚙: recorre tres paneles sin mirar las ventanas
 function spotTest(){
   const seq=[['p-watch','PRUEBA · WATCH'],['p-sphere','PRUEBA · NEURAL CORE'],['p-gs','PRUEBA · EVENTOS']];
@@ -4236,9 +4281,9 @@ function spotTest(){
 // ── Disparadores ────────────────────────────────────────────────────────────
 function spotScanStats(d){
   const h=_spot.hot;
-  h.cpu=d.cpu.load>=85?h.cpu+1:0;
-  h.gpu=(d.gpu&&d.gpu.load>=90)?h.gpu+1:0;
-  const net=Math.max(d.net.upload||0,d.net.download||0);h.net=net>=15?h.net+1:0;
+  h.cpu=d.cpu.load>=SPOT_T.cpu?h.cpu+1:0;
+  h.gpu=(d.gpu&&d.gpu.load>=SPOT_T.gpu)?h.gpu+1:0;
+  const net=Math.max(d.net.upload||0,d.net.download||0);h.net=net>=SPOT_T.net?h.net+1:0;
   if(h.cpu===2)spotTrigger({panel:'p-sphere',key:'hw-cpu',reason:'CPU '+d.cpu.load+'%',pri:40,ms:22000,cool:240000});
   if(h.gpu===2)spotTrigger({panel:'p-sphere',key:'hw-gpu',reason:'GPU '+d.gpu.load+'%',pri:40,ms:22000,cool:240000});
   if(h.net===2)spotTrigger({panel:'p-net',key:'net',reason:'RED '+net.toFixed(0)+' MB/s',pri:30,ms:18000,cool:240000});
@@ -4255,8 +4300,8 @@ function spotScanEvents(evts){
     const km=_nxrGeoD(hLat,hLon,e.lat,e.lon),mag=e.mag||0,recent=e.ts&&Date.now()-e.ts<45*60000;
     if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4'});
     else if(e.type==='quake'){
-      if(recent&&e.src==='SSN'&&mag>=4.5&&km<500)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR});
-      else if(recent&&mag>=6.5)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A'});
+      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR});
+      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A'});
     }
     else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6'});
     else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000});
@@ -4267,7 +4312,7 @@ function spotScanWatch(key){
   const W=_watch,first=!_spot.wb[key];_spot.wb[key]=true;
   if(key==='space'&&W.space){
     const kp=W.space.kp?W.space.kp.value:0,G=W.space.scales?W.space.scales.now.G:0;
-    if(!first&&((kp>=5&&_spot.lastKp<5)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:'TORMENTA GEOMAGNÉTICA · Kp '+(+kp).toFixed(1),pri:60,ms:26000,cool:1800000,color:'#F0883E'});
+    if(!first&&((kp>=SPOT_T.kp&&_spot.lastKp<SPOT_T.kp)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:(G>=1?'TORMENTA GEOMAGNÉTICA':'ACTIVIDAD GEOMAGNÉTICA')+' · Kp '+(+kp).toFixed(1),pri:G>=1?60:40,ms:26000,cool:1800000,color:'#F0883E'});
     _spot.lastKp=kp;_spot.lastG=G;
   }else if(key==='cloud'&&W.cloud){
     W.cloud.services.forEach(function(sv){
@@ -4393,13 +4438,12 @@ function spotScanRain(r){
   if(!r||!r.near||r.cells<3)return;
   const km=Math.round(r.near.km),hasPrev=r.prevNear&&r.prevCells>=3,approaching=hasPrev&&r.near.km<r.prevNear.km-8;
   let reason=null,pri=0;
-  if(km<=25){reason='LLUVIA '+(km<8?'SOBRE LA ZONA':'A '+km+' km '+wxDir(r.near.brg));pri=65;}
-  else if(km<=80&&approaching){reason='LLUVIA SE ACERCA · '+km+' km '+wxDir(r.near.brg);pri=60;}
+  if(km<=SPOT_T.rainNear){reason='LLUVIA '+(km<8?'SOBRE LA ZONA':'A '+km+' km '+wxDir(r.near.brg));pri=65;}
+  else if(km<=SPOT_T.rainApproach&&approaching){reason='LLUVIA SE ACERCA · '+km+' km '+wxDir(r.near.brg);pri=60;}
   if(!reason)return;
   // al destacar el radar se cambia a CLIMA mientras dure y se vuelve al modo que estaba (sin guardarlo como preferencia)
   spotTrigger({panel:'p-nxlog',key:'rain',reason:reason,pri:pri,ms:28000,cool:2700000,color:'#38BDF8',
-    onStart:function(){if(_nxPanelMode!=='wx'){_spot.rainPrev=_nxPanelMode;_nxPanelMode='wx';_applyNxPanel();}else _spot.rainPrev=null;},
-    onEnd:function(){if(_spot.rainPrev){_nxPanelMode=_spot.rainPrev;_spot.rainPrev=null;_applyNxPanel();}}});
+    onStart:spotRadarStart,onEnd:spotRadarEnd});
 }
 setTimeout(fetchAir,5000);setInterval(fetchAir,15*60*1000);
 setTimeout(rainScan,9000);setInterval(rainScan,5*60*1000);
@@ -5251,6 +5295,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
         <option value="always">Siempre</option>
         <option value="off">Nunca</option>
       </select>
+      <div class="cfg-toggle-row" style="margin-top:6px"><span>✨ Pulso en reposo (un panel al frente cada ~8 min si no pasa nada)</span><input type="checkbox" id="cfg-pulse"></div>
       <div style="font-size:10px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (Neural Core), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
     </div>
     <div class="cfg-actions">
