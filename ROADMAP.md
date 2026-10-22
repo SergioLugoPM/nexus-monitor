@@ -1076,6 +1076,29 @@ Universal (`server.js` + `dashboard.html` + `desktop_probe.ps1`) — cruza a `ma
 
 Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
+## Spotlight: por qué "no se movía nada" y qué se cambió (22-oct-2026, noche)
+
+Primer reporte tras desplegar el spotlight: "no vi ningún movimiento". Diagnóstico: WE se reabrió a las 23:19,
+DESPUÉS del despliegue (23:10), así que sí cargó el código nuevo. Con los datos reales de ese rato no se cumplía
+ningún umbral (lluvia a 51 km alejándose, AQI 41, Kp 3.3, mayor sismo cercano M4.0). Y el escritorio libre
+coincide casi siempre con una PC en reposo: CPU, GPU y red no se mueven, y los eventos del mundo son raros. El
+mecanismo funcionaba pero casi nunca tenía motivo. Cambios:
+
+- **Umbrales más sensibles, en un solo sitio** (`SPOT_T` en dashboard.html): CPU 75 %, GPU 80 %, red 8 MB/s, sismo
+  de México M4.0 a < 800 km, sismo mundial M5.5, Kp >= 4 ("ACTIVIDAD GEOMAGNÉTICA"; con G1 sigue siendo
+  "TORMENTA"), lluvia a < 40 km o a < 120 km acercándose.
+- **Pulso en reposo** (`spotAmbient`, ajuste "Pulso en reposo" en ⚙, activado por defecto): si pasan ~8 min sin
+  ningún destaque, el panel que lleva más tiempo sin mostrarse (WATCH, Neural Core, clima, radar, eventos) pasa al
+  frente 14 s con un dato vivo ("ÚLTIMO SISMO · M4.2 · hace 24 min", "NEURAL CORE · CPU 36%", "CLIMA · 11° · AQI 41",
+  "RADAR · LLUVIA A 57 km", "EVENTOS · 17 ACTIVOS"). El primero llega ~90 s después de abrir la página. Respeta el
+  escritorio libre; si lo bloquea una ventana, reintenta en 3 min. Con el radar cambia a CLIMA mientras dure.
+- **Latido de diagnóstico**: dentro de Wallpaper Engine no se puede abrir la consola, así que la página manda cada
+  minuto su estado a `GET /debug/ping` y se lee con `GET /debug/client`: visibilidad de la página (`vis`, si WE la
+  pausó), tamaño, modo, panel destacado, minutos desde el último destaque y un registro de los últimos disparadores
+  con el motivo ("inicia", "bloqueado: hay ventanas encima", "enfriamiento", "ya hay uno de mayor prioridad").
+- Verificado: en modo auto con el escritorio realmente libre (`/desktop` -> `n:0`) el pulso arrancó solo, y la
+  rotación recorrió los cinco paneles con su razón.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
