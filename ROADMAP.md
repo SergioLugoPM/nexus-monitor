@@ -787,13 +787,12 @@ Ajustes del 21-oct tras verlo en uso:
   panel se veía muerto sin explicar por qué. Con el backend arriba los núcleos
   cambian 7-29 puntos por muestra (medido), así que sí se mueven.
 
-Pendiente conocido, no resuelto: tras reiniciar el PC el backend **no arrancó
-solo**, aunque el acceso directo de Inicio está habilitado y funciona al
-ejecutarlo a mano. Medido el 21-oct: Windows retrasa las apps de la carpeta
-Inicio varios minutos (Peace arrancó a +4:30 del inicio de sesión) y no quedó
-rastro de `server.js`. Descartado: el servidor no se cae sin red (probado con
-proxy roto, 45 s, todos los endpoints responden). Propuesta: tarea programada
-"al iniciar sesión" con reinicio automático (no depende de la cola de Inicio).
+Arranque del backend (resuelto el 21-oct, ver "Arranque y supervisión del
+backend" más abajo): tras reiniciar el PC el backend no arrancó solo aunque el
+acceso directo de Inicio estaba habilitado. Windows retrasa las apps de la
+carpeta Inicio varios minutos (Peace arrancó a +4:30) y no quedó rastro de
+`server.js`. Descartado: el servidor no se cae sin red (probado con proxy
+roto, 45 s, todos los endpoints responden).
 
 Lecciones de ajuste (verificadas mirando el resultado, no a ojo):
 - Con muestreo cada 3 px un armónico de 7 px de longitud de onda hacía
@@ -804,6 +803,65 @@ Lecciones de ajuste (verificadas mirando el resultado, no a ojo):
 - Forzar amplitud mínima alta en el estado "pensando" tapaba la envolvente.
 
 Universal (`dashboard.html`) — cruza a `master`.
+
+## Arranque y supervisión del backend
+
+Dos reinicios seguidos dejaron el Nexus sin datos porque el acceso directo de
+la carpeta Inicio no lanzó el servidor a tiempo. Ahora lo arranca una **tarea
+programada** (`NexusMonitorBackend`, "al iniciar sesión", usuario actual, sin
+privilegios elevados, sin límite de tiempo, una sola instancia) que ejecuta
+`NEXUS_WATCHDOG.vbs`, un supervisor oculto:
+
+- Lanza `node server.js` y, si el proceso muere, lo relanza a los 4 s (a los
+  30 s si muere antes de 10 s, para no martillar con un error de arranque).
+- Antes de lanzar comprueba por HTTP si el puerto 19234 ya responde: si otra
+  copia del backend lo tiene (p. ej. la del acceso directo de Inicio, que se
+  dejó habilitado como respaldo), espera y no duplica nada.
+- Deja traza en `watchdog.log` (se recorta a 100 KB, ignorado por git).
+- Probado: tarea lanzada a mano → arranca; proceso matado → vuelve en ~7 s.
+  Lo que no se pudo probar sin cerrar sesión es el disparador de inicio de
+  sesión en sí: se confirma en el siguiente reinicio (`watchdog.log` tendrá
+  "watchdog iniciado" con la hora del inicio de sesión).
+- Para actualizar el backend basta matar `node.exe` de `server.js`: el
+  supervisor lo relanza con el código nuevo. Para quitarlo:
+  `Unregister-ScheduledTask NexusMonitorBackend`.
+- El supervisor corre desde la carpeta de trabajo, así que `NEXUS_WATCHDOG.vbs`
+  está en las dos ramas (`master` y `electron-shell`): cambiar de rama no puede
+  hacer que desaparezca el archivo al que apunta la tarea.
+
+## Radar de lluvia (tercer modo del panel NEXUS RADAR)
+
+El botón del panel ahora rota **RADAR → CLIMA → LOG**. El modo CLIMA muestra
+radar meteorológico real alrededor de la casa (±300 km de ancho):
+
+- **Radar:** RainViewer (gratis, 12 cuadros de 10 min = ~2 h de historia, sin
+  pronóstico: su `nowcast` viene vacío). El zoom máximo gratuito es 7 y z8
+  devuelve una imagen "Zoom Level Not Supported" con 200 OK, así que se usa z6
+  (2 mosaicos por cuadro). El cliente los pide directo (CORS abierto).
+- **Fondo:** IR de NASA GIBS (GOES-East en México) en Web Mercator
+  (`/wx/sat`), la misma proyección de los mosaicos, por eso quedan alineados:
+  comprobado moviendo la casa a una zona con tormentas, los ecos del radar
+  caen sobre los núcleos fríos de la IR. Va en gris tintado con el tema para
+  que el radar resalte; un clic en el panel alterna IR a color.
+- **Lectura automática:** se leen los píxeles de los mosaicos (celdas de 4×4 px
+  con ≥5 px de eco) para decir "LLUVIA A 115 km SE · % DEL ÁREA" y, solo con
+  ≥3 celdas en ambos instantes, "ACERCÁNDOSE / ALEJÁNDOSE" comparando con 30 min
+  antes. Con motas sueltas la tendencia era ruido.
+- Endpoints nuevos: `GET /wx` (índice de cuadros, caché 2 min; valida host y
+  rutas) y `GET /wx/sat?lat=&lon=` (IR con la caja en el encabezado `X-Bbox`).
+- Costo medido: 0.5 ms por cuadro dibujado, un cuadro cada 0.65 s solo mientras
+  el modo está visible (los temporizadores se detienen al salir del modo).
+
+Error previo encontrado de paso: `_applyNxPanel()` se llamaba al arrancar antes
+de que `_nxPanelMode` tuviera valor, así que el panel **siempre abría en LOG**
+con el radar oculto, sin importar lo guardado. Ahora se aplica al final del
+módulo, con todo ya definido.
+
+Datos de la zona al 21-oct: casi todo el día seco sobre el Valle de México (eco
+< 1 % del área), así que lo normal será ver "SIN PRECIPITACIÓN EN EL ÁREA" fuera
+de la temporada de lluvias.
+
+Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
 ## Temas visuales
 
