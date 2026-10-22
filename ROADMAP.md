@@ -914,7 +914,7 @@ Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
 ## Qué más se puede monitorear (verificado desde esta PC, 21-oct-2026)
 
-Responden bien (candidatas, ordenadas por utilidad para Sergio):
+Responden bien (3 a 7 ya construidas en la pestaña WATCH; pendientes 1 sitios propios y 2 calidad del aire):
 1. **Sitios propios/clientes** (sin fuente externa): HTTP, latencia, días de
    certificado TLS y, dado el incidente owlabc, detección de cambios inesperados en
    la portada. Lista en `nexus.config.json`.
@@ -937,6 +937,49 @@ No sirven (no volver a probarlas): Smithsonian GVP volcanes (403, también con o
 User-Agent), Yahoo Finance (429), Stooq (404), lluvia global NASA IMERG en GIBS (solo
 promedios diarios, no tiempo casi real), Blitzortung (websocket de la comunidad).
 Necesitan clave o hardware: barcos AIS (aisstream.io, clave gratis), radar WiFi (ESP32).
+
+Universal (`server.js` + `dashboard.html`) — cruza a `master`.
+
+## WATCH: clima espacial, nube, sismos SSN, internet y tsunamis (22-oct-2026)
+
+Pestaña nueva **WATCH** (Alt+W; clic en la pestaña o en las insignias del pie). Lo que importa
+para un fondo de pantalla se ve fuera de ella: pines de sismos del SSN y capa de aurora en el
+mapa, aviso crítico de tsunami y las insignias KP / ☁ / 🌊 del pie.
+
+- **Clima espacial** (`/watch/space`): escalas NOAA G/S/R, Kp (ahora = estimado de 1 min,
+  más actual que el bloque oficial de 3 h; barras de 48 h), viento solar (velocidad, densidad,
+  Bz/Bt con sparkline), rayos X GOES y los últimos avisos traducidos al español.
+  **Arreglado de paso:** `/space` devolvía `kp:null` porque NOAA cambió el JSON del Kp de
+  arreglos (`[t,kp,...]`) a objetos (`{time_tag,Kp}`); la etiqueta KP del encabezado no salía
+  aunque hubiera tormenta. `readKp()` acepta los dos formatos. El archivo `rtsw_wind_1m.json`
+  (2.5 MB) mezcla fuentes (ACE/IMAP/SOLAR1) y NO viene ordenado por hora: sin ordenar, "la
+  última fila" era de ayer. Se usa la fuente primaria (`active:true`) y se ordena.
+- **Aurora** (`/watch/aurora`): óvalo OVATION a 1°, 87 KB en base64 (bytes 0-100). Lienzo
+  estático `#aurora-cv` sobre el mapa (sin bucle; se redibuja cada 10 min, al redimensionar o
+  al volver a MAP), recortado al viewBox y con `blur(2px)` en CSS (GPU). Sin el recorte, el
+  óvalo del polo sur se salía por debajo del mapa.
+- **Sismos del SSN** (`/watch/quakes` + `/events`): RSS por **http**, 15 sismos con hora local
+  de México (UTC-6 fijo). Entran a `/events` como `quake` con `src:'SSN'`; si USGS ya trae uno
+  a <120 km y magnitud parecida, se omite. Umbral propio en ⚙ (`seismicMinMX`, por defecto
+  M3.0); etiqueta en el mapa solo desde M4. No cuentan en los contadores globales ni en las
+  correlaciones con volcanes.
+- **Estado de la nube** (`/watch/cloud`): statuspage `summary.json` de GitHub, Vercel,
+  Cloudflare, Claude, OpenAI, Docker, Supabase, Netlify, npm + Google Workspace
+  (`incidents.json`, sin `end` = vigente). Lista en `CLOUD_SERVICES` de server.js. El nivel sale
+  del impacto de los incidentes frescos, no del `indicator` global (Cloudflare marca "major"
+  por unos centros de datos y su incidente real es "minor"). Un incidente sin actualizar en 7+
+  días es "estancado": se muestra atenuado y no cuenta en la insignia. Descartados: Stripe
+  (`/current` congelado en 2024) y Neon (404).
+- **Internet por país** (`/watch/internet`, IODA de Georgia Tech): el puntaje "overall" no
+  tiene techo (de 16 a 7.7 millones en un día normal): se dibuja en escala logarítmica y se
+  muestran las señales que lo disparan (BGP, PING, GOOGLE). Son anomalías de conectividad, no
+  apagones totales. Fila "TU REGIÓN" para MX / PR / US.
+- **Tsunamis** (`/watch/tsunami`): Atom de NOAA NTWC y PTWC, que traen solo el último
+  boletín. "Information" no es amenaza (solo listado); Advisory/Watch/Warning de las últimas
+  48 h entran a `/events` como `tsunami`, disparan el aviso crítico y la insignia 🌊.
+- Probado en vivo el 21-oct: G1 en curso (Kp 5 a las 23:59 UTC), Cloudflare "minor" con un
+  incidente fresco y otro de septiembre, Netlify "minor", 15 sismos SSN (el más cercano a casa
+  a 278 km), sin anomalías de internet en MX/PR/US, sin tsunami activo.
 
 Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
