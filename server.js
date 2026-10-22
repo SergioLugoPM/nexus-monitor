@@ -967,6 +967,12 @@ async function refreshStorms() {
       const results = await Promise.allSettled(active.map(buildStorm));
       results.forEach((r, i) => { if (r.status === 'rejected') nxLog('Storm ' + active[i].properties.eventname + ': ' + r.reason.message, 'warn'); });
       const storms = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      // un ciclón que falló por algo transitorio conserva su versión anterior en vez de desaparecer del mapa
+      results.forEach((r, i) => {
+        if (r.status !== 'rejected' || /sin boletines reales/.test(r.reason.message)) return;
+        const prev = _stormsCache.storms.find(s => String(s.id) === String(active[i].properties.eventid));
+        if (prev) storms.push(prev);
+      });
       // "sin boletines reales" es permanente (aún sin datos); lo demás (timeouts, HTTP) es transitorio
       const transient = results.filter(r => r.status === 'rejected' && !/sin boletines reales/.test(r.reason.message)).length;
       if (active.length > 0 && storms.length === 0 && transient > 0) {
