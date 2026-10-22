@@ -1099,6 +1099,21 @@ mecanismo funcionaba pero casi nunca tenía motivo. Cambios:
 - Verificado: en modo auto con el escritorio realmente libre (`/desktop` -> `n:0`) el pulso arrancó solo, y la
   rotación recorrió los cinco paneles con su razón.
 
+## Capas del mapa: viento en tres niveles y botones visibles (22-oct-2026)
+
+El viento saturaba el mapa y el único control era un clic en un rótulo de 9 px al pie (y reactivarlo exigía ⚙).
+- **Botones en el encabezado del mapa**: `VIENTO ●/◐/○` (normal / tenue / oculto, un clic cambia al siguiente)
+  y `AURORA ●/○`. Reflejan el estado, siguen al tema y guardan la elección. El rótulo del mapa hace lo mismo.
+- **Nivel tenue** (ahora el predeterminado; `windMode` en los ajustes): ~45 % de las partículas (297 contra 657
+  en un mapa de 664×308) y 45 % de la opacidad (0.135 / 0.25 / 0.41 contra 0.30 / 0.55 / 0.90).
+- En ⚙ el interruptor del viento pasó a un selector Tenue / Normal / Oculto.
+- Trampa encontrada al probar: `applyPalette` corre al arrancar (vía `setTheme`), ANTES de que `_settings` tenga
+  valor (es una `var` elevada: existe pero vale `undefined`). Cualquier función enganchada a `applyPalette` que
+  lea `_settings` lanza `TypeError` y detiene TODO el script de la página. `windMode()` ahora lo tolera
+  (`const S=_settings||{}`). Regla: lo que cuelgue de `applyPalette`/`watchVars` no puede asumir que los ajustes existen.
+
+Universal (`dashboard.html`) — cruza a `master`.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
