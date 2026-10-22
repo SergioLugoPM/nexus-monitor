@@ -1015,6 +1015,43 @@ Detalles y trampas:
 
 Universal (`dashboard.html`) — cruza a `master`.
 
+## Spotlight: paneles al frente cuando hay actividad (22-oct-2026)
+
+Un panel con actividad relevante en tiempo real se amplía (x1.8 como máximo, hacia donde hay sitio) y pasa al
+frente unos 20-30 s, con una etiqueta que dice por qué ("CPU 92%", "SISMO MX M4.8 · 220 km", "TSUNAMI WARNING").
+Los demás paneles se atenúan mientras tanto. Clic sobre el panel lo devuelve a su sitio.
+
+- **Solo con el escritorio libre.** Wallpaper Engine corre la página dentro de un navegador y desde ahí NO se
+  ven las ventanas del sistema, así que lo mide el backend: `GET /desktop` (server.js) usa `desktop_probe.ps1`,
+  un muestreador de SOLO LECTURA (EnumWindows + GetWindowRect como `out RECT` de 4 enteros; no escribe ninguna
+  estructura ni toca configuración, ver la nota de la sesión mac). Cuenta ventanas de aplicación visibles, no
+  minimizadas, no "cloaked" (otros escritorios virtuales), sin dueño, con título y de al menos 120×120 px sobre
+  la pantalla principal; ignora la barra de tareas, el escritorio y la ventana "NEXUS MONITOR" del shell.
+  Verificado: en esta PC (3440×1440) detecta la ventana de Claude y descarta Chrome/ChatGPT/Terminal minimizados.
+- **El sondeo no vive siempre.** Compilar el C# cuesta ~0.7 s de CPU: el proceso PowerShell arranca con la
+  primera consulta a /desktop (0.9 s), responde en 6 ms después y el servidor lo apaga tras 45 s sin consultas.
+  Si el backend muere, el proceso detecta que su padre ya no existe y sale (0 huérfanos tras matar el servidor).
+  Tras 3 fallos seguidos /desktop devuelve `supported:false` y el modo "auto" no destaca nada.
+- **Modos en ⚙:** "Solo con el escritorio libre" (por defecto), "Siempre", "Nunca", y un enlace "Probar ahora"
+  que recorre WATCH, Neural Core y Eventos sin mirar las ventanas.
+- **Qué lo dispara** (`spotScanStats/Events/Watch`): CPU >= 85 % o GPU >= 90 % en 2 muestras seguidas y el agente
+  pensando (Neural Core); descarga/subida >= 15 MB/s en 2 muestras (red); tsunami vigente, sismo de México
+  >= M4.5 a menos de 500 km de casa, sismo mundial >= M6.5, tormenta geomagnética (Kp >= 5 o G >= 1), servicio de
+  la nube con falla mayor/crítica y anomalía de internet en MX/PR/US (franja WATCH); tormenta, volcán o
+  inundación nuevos (panel de eventos). Prioridades: tsunami 100 > sismo MX 80 > sismo mundial 70 > Kp 60 > nube
+  55 > tormenta 50 > agente 45 > hardware 40 > volcán/inundación 35 > red 30. Uno de menor prioridad no desplaza
+  a uno mayor; el mismo disparador no se repite antes de su enfriamiento (3 a 30 min, según el tipo).
+- **Mientras dura**, si aparece una ventana encima en modo auto (se consulta cada 2.5 s) termina al instante.
+- El primer pase de datos solo memoriza lo que ya existía (no destaca todo lo vigente al abrir la página);
+  el tsunami vigente es la excepción.
+- Se amplía con `transform: scale()`, así que NO cambia el layout (el recorte de la franja WATCH y los
+  lienzos no se enteran). Hay que levantar el `overflow:hidden` de las columnas mientras dura
+  (`body.spot-on`) y dar al panel un fondo opaco. Los lienzos (Neural Core) se ven algo suaves al ampliarse.
+- Pendiente: lluvia cerca de casa (hoy el radar de lluvia solo carga datos con el modo CLIMA visible, así que
+  no puede disparar en segundo plano), y ampliar más contenido (no solo el tamaño) cuando un panel se destaca.
+
+Universal (`server.js` + `dashboard.html` + `desktop_probe.ps1`) — cruza a `master`.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7

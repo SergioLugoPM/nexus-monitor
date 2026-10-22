@@ -2525,6 +2525,7 @@ async function fetchStats(){
     _ncCpuLoad=Math.min(1,d.cpu.load/100);_ncRamLoad=Math.min(1,d.mem.percent/100);
     _ncCores=d.cpu.cores.map(v=>Math.min(1,v/100));
     _ncGpuLoad=Math.min(1,((d.gpu&&d.gpu.load)||0)/100);_ncGpuTemp=d.gpu&&d.gpu.temp!=null?d.gpu.temp:null;_ncGotStats=true;_ncStatsErr=false;
+    try{spotScanStats(d);}catch(e){}
   }catch(e){_st.cpu=NaN;_ncStatsErr=true;}
 }
 async function fetchNetwork(){try{const d=await(await fetch('http://localhost:19234/network')).json();document.getElementById('ipval').textContent=d.ip;document.getElementById('pingval').textContent=d.ping+' ms';}catch(e){}}
@@ -3202,6 +3203,7 @@ async function fetchEvents(){
     renderSeismicStatsAlert(d.seismicStats);
     renderHistoricalInsightAlert(d.historicalInsight);
     try{wStripRender();}catch(e){}   // la franja WATCH mezcla sismos de /events
+    try{spotScanEvents(_evts);}catch(e){}
   }catch(e){}
 }
 
@@ -3888,7 +3890,7 @@ window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mr
 
 // ── SETTINGS ────────────────────────────────────────────────────────────────
 var SETTINGS_KEY = 'nexus_settings';
-var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true, seismicMinMX:3, showAurora:true };
+var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true, seismicMinMX:3, showAurora:true, spotMode:'auto' };
 var _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
 
 function saveSettings() {
@@ -3909,6 +3911,7 @@ function openSettings() {
   document.getElementById('cfg-seismic-mx').value = _settings.seismicMinMX;
   document.getElementById('cfg-seismic-mx-val').textContent = 'M' + _settings.seismicMinMX;
   document.getElementById('cfg-aurora').checked = _settings.showAurora !== false;
+  document.getElementById('cfg-spot').value = _settings.spotMode || 'auto';
   fetch('/config').then(function(r){return r.json();}).then(function(c){
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
@@ -3937,6 +3940,7 @@ function applySettings() {
   _settings.showWind = document.getElementById('cfg-wind').checked;applyWindSetting();
   _settings.seismicMinMX = parseFloat(document.getElementById('cfg-seismic-mx').value);
   _settings.showAurora = document.getElementById('cfg-aurora').checked;applyAuroraSetting();
+  _settings.spotMode = document.getElementById('cfg-spot').value;if(_settings.spotMode==='off')spotEnd();
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
@@ -4228,6 +4232,7 @@ function watchRender(key){
   else if(key==='internet')wRenderNet();
   else if(key==='tsunami'){wRenderTsu();watchBadges();}
   wStripRender();
+  try{spotScanWatch(key);}catch(e){}
 }
 // ── Franja WATCH de la columna izquierda (siempre visible; clic abre la pestaña) ──
 var WS_SHORT={github:'GitHub',vercel:'Vercel',cloudflare:'Cloudflare',claude:'Claude',openai:'OpenAI',docker:'Docker',supabase:'Supabase',netlify:'Netlify',npm:'npm',google:'Google'};
@@ -4539,6 +4544,125 @@ function watchInit(){
 }
 watchInit();
 
+// ── SPOTLIGHT ───────────────────────────────────────────────────────────────
+// Un panel con actividad relevante en tiempo real pasa al frente y se amplía unos segundos, SOLO si no hay
+// ventanas encima del escritorio. Wallpaper Engine no deja a la página ver las ventanas del sistema, así que
+// se le pregunta al backend (/desktop, ver desktop_probe.ps1). Se amplía con transform: no cambia el layout, así
+// que el resto de la pantalla no se reacomoda. Mientras dura se levanta el overflow de las columnas y se atenúan
+// los demás paneles. Modos (⚙): auto = solo con el escritorio libre · always · off.
+var _spot={cur:null,timer:null,poll:null,cool:{},seen:{},base:false,hot:{cpu:0,gpu:0,net:0},busyPrev:false,wb:{},lastKp:0,lastG:0,lastCloud:{},lastNet:false,lastTsu:false};
+function spotMode(){return _settings.spotMode||'auto';}
+async function spotDeskFree(){
+  const m=spotMode();
+  if(m==='always')return true;
+  if(m==='off')return false;
+  try{
+    const ctl=new AbortController(),t=setTimeout(function(){ctl.abort();},7000);
+    const d=await(await fetch('http://localhost:19234/desktop',{signal:ctl.signal})).json();
+    clearTimeout(t);return d.free===true;
+  }catch(e){return false;}
+}
+function spotEnd(){
+  const cur=_spot.cur;if(!cur)return;
+  clearTimeout(_spot.timer);clearInterval(_spot.poll);_spot.timer=_spot.poll=null;
+  const el=document.getElementById(cur.panel);
+  if(el){el.classList.remove('spot');el.style.background='';el.style.removeProperty('--spot-s');const tg=el.querySelector('.spot-tag');if(tg)tg.remove();}
+  _spot.cur=null;
+  document.body.classList.remove('spot-on');
+  setTimeout(function(){if(el&&!(_spot.cur&&_spot.cur.panel===cur.panel))el.style.transformOrigin='';},800);   // el origen se suelta cuando termina la animación de vuelta
+}
+function spotStart(o){
+  const el=document.getElementById(o.panel);if(!el)return;
+  if(_spot.cur)spotEnd();
+  const r=el.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,cx=r.left+r.width/2,cy=r.top+r.height/2;
+  // crece hacia donde hay sitio: el origen es el borde más cercano al borde de la pantalla
+  const ox=cx<vw*.33?'left':cx>vw*.67?'right':'center',oy=cy<vh*.33?'top':cy>vh*.67?'bottom':'center';
+  const aw=ox==='left'?vw-r.left-14:ox==='right'?r.right-14:Math.min(cx,vw-cx)*2-28;
+  const ah=oy==='top'?vh-r.top-64:oy==='bottom'?r.bottom-14:Math.min(cy,vh-cy)*2-28;
+  const sc=Math.max(1.15,Math.min(o.scale||1.8,aw/r.width,ah/r.height));
+  const root=document.documentElement.style;
+  root.setProperty('--spot-bg',_pal.base);root.setProperty('--spot-glow',ca(_pal.hi,.45));
+  el.style.transformOrigin=ox+' '+oy;el.style.setProperty('--spot-s',sc.toFixed(3));el.style.background=_pal.base;
+  const tag=document.createElement('div');tag.className='spot-tag';tag.style.color=o.color||_pal.hi;tag.textContent=o.reason;el.appendChild(tag);
+  document.body.classList.add('spot-on');
+  void el.offsetWidth;                       // la transición parte de la escala 1
+  el.classList.add('spot');
+  _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key};
+  _spot.timer=setTimeout(spotEnd,o.ms||22000);
+  // si aparece una ventana encima, se acaba al instante
+  if(spotMode()==='auto'&&!o.force)_spot.poll=setInterval(async function(){if(!(await spotDeskFree()))spotEnd();},2500);
+  el.addEventListener('click',spotEnd,{once:true});
+}
+function spotTrigger(o){
+  if(spotMode()==='off')return;
+  const now=Date.now(),cur=_spot.cur;
+  if((_spot.cool[o.key]||0)>now)return;
+  if(cur&&cur.panel!==o.panel&&cur.pri>=(o.pri||0))return;          // ya hay uno igual o más importante al frente
+  _spot.cool[o.key]=now+(o.cool||600000);
+  if(cur&&cur.panel===o.panel){                                      // mismo panel: se alarga y se actualiza la etiqueta
+    clearTimeout(_spot.timer);_spot.timer=setTimeout(spotEnd,o.ms||22000);
+    const tg=document.getElementById(o.panel).querySelector('.spot-tag');if(tg)tg.textContent=o.reason;
+    return;
+  }
+  spotDeskFree().then(function(ok){if(ok)spotStart(o);});
+}
+// Prueba desde ⚙: recorre tres paneles sin mirar las ventanas
+function spotTest(){
+  const seq=[['p-watch','PRUEBA · WATCH'],['p-sphere','PRUEBA · NEURAL CORE'],['p-gs','PRUEBA · EVENTOS']];
+  seq.forEach(function(p,i){setTimeout(function(){spotStart({panel:p[0],reason:p[1],ms:5200,force:true,key:'test'});},i*6000);});
+}
+// ── Disparadores ────────────────────────────────────────────────────────────
+function spotScanStats(d){
+  const h=_spot.hot;
+  h.cpu=d.cpu.load>=85?h.cpu+1:0;
+  h.gpu=(d.gpu&&d.gpu.load>=90)?h.gpu+1:0;
+  const net=Math.max(d.net.upload||0,d.net.download||0);h.net=net>=15?h.net+1:0;
+  if(h.cpu===2)spotTrigger({panel:'p-sphere',key:'hw-cpu',reason:'CPU '+d.cpu.load+'%',pri:40,ms:22000,cool:240000});
+  if(h.gpu===2)spotTrigger({panel:'p-sphere',key:'hw-gpu',reason:'GPU '+d.gpu.load+'%',pri:40,ms:22000,cool:240000});
+  if(h.net===2)spotTrigger({panel:'p-net',key:'net',reason:'RED '+net.toFixed(0)+' MB/s',pri:30,ms:18000,cool:240000});
+  if(_ncAgentBusy&&!_spot.busyPrev)spotTrigger({panel:'p-sphere',key:'agent',reason:'AGENTE PENSANDO',pri:45,ms:25000,cool:60000});
+  _spot.busyPrev=_ncAgentBusy;
+}
+function spotScanEvents(evts){
+  const first=!_spot.base,hLat=_homeCoords.lat,hLon=_homeCoords.lon;
+  (evts||[]).forEach(function(e){
+    if(['quake','storm','volcano','flood','tsunami'].indexOf(e.type)<0)return;
+    const key=e.type+'|'+Math.round(e.lat)+','+Math.round(e.lon)+'|'+(e.label||'');
+    if(_spot.seen[key])return;_spot.seen[key]=1;
+    if(first&&e.type!=='tsunami')return;                              // el primer pase solo memoriza lo que ya existía
+    const km=_nxrGeoD(hLat,hLon,e.lat,e.lon),mag=e.mag||0,recent=e.ts&&Date.now()-e.ts<45*60000;
+    if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4'});
+    else if(e.type==='quake'){
+      if(recent&&e.src==='SSN'&&mag>=4.5&&km<500)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR});
+      else if(recent&&mag>=6.5)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A'});
+    }
+    else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6'});
+    else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000});
+  });
+  _spot.base=true;
+}
+function spotScanWatch(key){
+  const W=_watch,first=!_spot.wb[key];_spot.wb[key]=true;
+  if(key==='space'&&W.space){
+    const kp=W.space.kp?W.space.kp.value:0,G=W.space.scales?W.space.scales.now.G:0;
+    if(!first&&((kp>=5&&_spot.lastKp<5)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:'TORMENTA GEOMAGNÉTICA · Kp '+(+kp).toFixed(1),pri:60,ms:26000,cool:1800000,color:'#F0883E'});
+    _spot.lastKp=kp;_spot.lastG=G;
+  }else if(key==='cloud'&&W.cloud){
+    W.cloud.services.forEach(function(sv){
+      const sev=(sv.level==='major'||sv.level==='critical'),was=_spot.lastCloud[sv.id];
+      if(!first&&sev&&!was)spotTrigger({panel:'p-watch',key:'cloud-'+sv.id,reason:sv.name.toUpperCase()+' · FALLA',pri:55,ms:26000,cool:1800000,color:'#E24B4A'});
+      _spot.lastCloud[sv.id]=sev;
+    });
+  }else if(key==='internet'&&W.internet){
+    const bad=W.internet.mine.some(function(m){return m.score>0;});
+    if(!first&&bad&&!_spot.lastNet)spotTrigger({panel:'p-watch',key:'net-region',reason:'INTERNET · ANOMALÍA EN TU REGIÓN',pri:45,ms:24000,cool:1800000,color:'#F0883E'});
+    _spot.lastNet=bad;
+  }else if(key==='tsunami'&&W.tsunami){
+    const act=(W.tsunami.active||[]).length>0;
+    if(act&&!_spot.lastTsu)spotTrigger({panel:'p-watch',key:'tsu-active',reason:'TSUNAMI · '+String(W.tsunami.active[0].category).toUpperCase(),pri:100,ms:30000,cool:1800000,color:'#06B6D4'});
+    _spot.lastTsu=act;
+  }
+}
 // ── PANEL TOGGLE (Radar ↔ Lluvia ↔ Log) ─────────────────────────────────────
 var NXP_MODES=['radar','wx','log'];
 var _nxPanelMode=localStorage.getItem('nexus_nxpanel')||'radar';
@@ -5205,6 +5329,13 @@ function initSnake(canvas){
 #wx-icons .ci { position:absolute; line-height:0; }
 #wind-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:2; }
 #wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
+/* ── Spotlight: un panel con actividad relevante pasa al frente y se amplía un rato ── */
+.pnl { transition:transform .55s cubic-bezier(.2,.8,.2,1), box-shadow .55s, opacity .55s; }
+body.spot-on #inner, body.spot-on .col, body.spot-on .col-m, body.spot-on .grid > div, body.spot-on .grid > div > div { overflow:visible !important; }
+body.spot-on .pnl:not(.spot) { opacity:.55; }
+.pnl.spot { position:relative; z-index:60; transform:scale(var(--spot-s,1.8)); box-shadow:0 0 0 1px var(--whi,#5DCAA5), 0 0 26px 4px var(--spot-glow,rgba(93,202,165,.45)), 0 20px 60px rgba(0,0,0,.75); }
+.spot-tag { position:absolute; top:-9px; right:12px; padding:1px 8px; border-radius:3px; font-size:10px; font-weight:700; letter-spacing:1.5px; background:var(--spot-bg,#050e09); border:1px solid currentColor; z-index:2; pointer-events:none; animation:spot-pulse 1.4s ease-in-out infinite; }
+@keyframes spot-pulse { 0%,100% { opacity:1; } 50% { opacity:.55; } }
 /* ── Columna izquierda compacta: STORAGE y franja WATCH ── */
 .dk { display:flex; align-items:center; gap:5px; font-size:10.5px; line-height:1.75; min-width:0; }
 .dk-n { width:17px; flex-shrink:0; }
@@ -5367,6 +5498,15 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
       <div class="cfg-toggle-row"><span>🌬 Wind layer (GFS)</span><input type="checkbox" id="cfg-wind"></div>
       <div class="cfg-toggle-row"><span>🌌 Aurora oval (NOAA)</span><input type="checkbox" id="cfg-aurora"></div>
+    </div>
+    <div class="cfg-row">
+      <label>Paneles al frente con actividad relevante</label>
+      <select id="cfg-spot" style="width:100%;background:transparent;color:inherit;border:1px solid;border-radius:3px;padding:4px;font-family:inherit;font-size:12px">
+        <option value="auto">Solo con el escritorio libre (sin ventanas encima)</option>
+        <option value="always">Siempre</option>
+        <option value="off">Nunca</option>
+      </select>
+      <div style="font-size:10px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (Neural Core), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
     </div>
     <div class="cfg-actions">
       <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
