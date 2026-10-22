@@ -390,7 +390,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   <div class="pnl grow" id="p-map">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;">
       <div class="lbl" id="l-map" style="margin-bottom:0;">GLOBAL VIEW</div>
-      <span id="eq-count" style="font-size:10px;letter-spacing:1px;"></span>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
     </div>
     <div id="view-tabs">
       <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
@@ -406,7 +406,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
       <div id="crit-alert-wrap" style="display:none;position:absolute;top:8px;left:8px;z-index:20;width:230px;pointer-events:auto"></div>
-      <div id="map-tooltip"></div><canvas id="aurora-cv"></canvas><canvas id="wind-cv"></canvas><div id="wind-lbl" onclick="toggleWind()" title="Clic: ocultar la capa de viento (se reactiva en ⚙)"></div>
+      <div id="map-tooltip"></div><canvas id="aurora-cv"></canvas><canvas id="wind-cv"></canvas><div id="wind-lbl" onclick="toggleWind()" title="Clic: cambia la intensidad del viento (normal, tenue, oculto). También en el encabezado del mapa y en ⚙"></div>
       <svg id="wmap" viewBox="0 0 2000 1001" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;height:100%;">
       <rect id="map-bg" width="2000" height="1001" rx="3"/>
       <line id="ml1" x1="0" y1="500" x2="2000" y2="500" stroke-width="1" opacity=".35"/>
@@ -3516,7 +3516,7 @@ function openSettings() {
   document.getElementById('cfg-flights').checked = _settings.showFlights;
   document.getElementById('cfg-fires').checked = _settings.showFires;
   document.getElementById('cfg-news').checked = _settings.showNews;
-  document.getElementById('cfg-wind').checked = _settings.showWind !== false;
+  document.getElementById('cfg-wind').value = windMode();
   document.getElementById('cfg-seismic-mx').value = _settings.seismicMinMX;
   document.getElementById('cfg-seismic-mx-val').textContent = 'M' + _settings.seismicMinMX;
   document.getElementById('cfg-aurora').checked = _settings.showAurora !== false;
@@ -3547,7 +3547,7 @@ function applySettings() {
   _settings.showFlights = document.getElementById('cfg-flights').checked;
   _settings.showFires = document.getElementById('cfg-fires').checked;
   _settings.showNews = document.getElementById('cfg-news').checked;
-  _settings.showWind = document.getElementById('cfg-wind').checked;applyWindSetting();
+  _settings.windMode = document.getElementById('cfg-wind').value;_settings.showWind = _settings.windMode !== 'off';applyWindSetting();
   _settings.seismicMinMX = parseFloat(document.getElementById('cfg-seismic-mx').value);
   _settings.showAurora = document.getElementById('cfg-aurora').checked;applyAuroraSetting();
   _settings.spotMode = document.getElementById('cfg-spot').value;
@@ -3694,12 +3694,13 @@ function windResize(){
   w.W=W;w.H=H;cv.width=W;cv.height=H;
   if(!W||!H)return;
   w.sc=Math.min(W/2000,H/1001);w.ox=(W-2000*w.sc)/2;w.oy=(H-1001*w.sc)/2;
-  const n=Math.max(500,Math.min(2200,Math.round(W*H/520)));
+  const soft=windMode()==='soft',n=Math.max(soft?240:500,Math.min(soft?1000:2200,Math.round(W*H/(soft?1150:520))));
   w.p=[];for(let i=0;i<n;i++){const p={};windSpawn(p);p.age=Math.random()*p.max;w.p.push(p);}
 }
 function windFrame(){
   const w=_wind,ctx=w.ctx,c=_pal;
-  if(w.pal!==c){w.pal=c;w.cols=[ca(c.hi,.30),ca(c.hi,.55),ca(c.pulse,.9)];}
+  const soft=windMode()==='soft';
+  if(w.pal!==c||w.soft!==soft){w.pal=c;w.soft=soft;const k=soft?.45:1;w.cols=[ca(c.hi,.30*k),ca(c.hi,.55*k),ca(c.pulse,.9*k)];}
   ctx.setTransform(1,0,0,1,0,0);
   ctx.globalCompositeOperation='destination-out';ctx.fillStyle='rgba(0,0,0,.09)';ctx.fillRect(0,0,w.W,w.H);
   ctx.globalCompositeOperation='source-over';
@@ -3738,17 +3739,40 @@ function windLoop(ts){
 function windLabel(){
   const el=document.getElementById('wind-lbl');if(!el)return;
   const t=_wind.time?new Date(_wind.time):null;
-  el.textContent='VIENTO 10 m · GFS'+(t?' '+t.toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'UTC'})+'Z':'')+' · clic: ocultar';
+  el.textContent='VIENTO 10 m · GFS'+(t?' '+t.toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'UTC'})+'Z':'')+(windMode()==='normal'?' · clic: más tenue':' · clic: ocultar');
   el.style.color=_pal.mut;
 }
 function applyWindSetting(){
-  const w=_wind,on=_settings.showWind!==false;
+  const w=_wind,on=windMode()!=='off';
   w.on=on;
   if(w.cv)w.cv.style.display=on?'block':'none';
   const el=document.getElementById('wind-lbl');if(el)el.style.display=on&&w.u?'block':'none';
   if(on&&w.cv){windResize();}else if(w.ctx){w.ctx.setTransform(1,0,0,1,0,0);w.ctx.clearRect(0,0,w.W,w.H);}
+  if(typeof syncLayerButtons==='function')syncLayerButtons();
 }
-function toggleWind(){_settings.showWind=false;saveSettings();applyWindSetting();}
+// OJO: applyPalette -> watchVars -> syncLayerButtons corre al arrancar, ANTES de que _settings tenga valor (var elevada = undefined)
+function windMode(){const S=_settings||{};return S.showWind===false?'off':(S.windMode==='normal'?'normal':'soft');}
+// normal -> tenue -> oculto -> normal. Tenue: ~45 % de las partículas y de la opacidad (saturaba el mapa).
+function cycleWind(){
+  const m=windMode(),next=m==='normal'?'soft':m==='soft'?'off':'normal';
+  _settings.windMode=next;_settings.showWind=next!=='off';saveSettings();applyWindSetting();
+}
+function toggleWind(){cycleWind();}   // el rótulo del mapa hace lo mismo
+function toggleAurora(){_settings.showAurora=(_settings.showAurora===false);saveSettings();applyAuroraSetting();}
+function syncLayerButtons(){
+  const c=_pal,wm=windMode(),au=(_settings||{}).showAurora!==false;
+  const bw=document.getElementById('lyr-wind'),ba=document.getElementById('lyr-aur');
+  if(bw){
+    bw.textContent='VIENTO '+(wm==='normal'?'●':wm==='soft'?'◐':'○');
+    bw.style.color=wm==='off'?c.mut:c.hi;bw.style.opacity=wm==='off'?'.55':'1';
+    bw.title='Viento (GFS, 10 m): '+(wm==='normal'?'normal':wm==='soft'?'tenue':'oculto')+' · clic: '+(wm==='normal'?'más tenue':wm==='soft'?'ocultar':'mostrar');
+  }
+  if(ba){
+    ba.textContent='AURORA '+(au?'●':'○');
+    ba.style.color=au?c.hi:c.mut;ba.style.opacity=au?'1':'.55';
+    ba.title='Óvalo auroral (NOAA): '+(au?'visible':'oculto')+' · clic: '+(au?'ocultar':'mostrar');
+  }
+}
 async function fetchWind(){
   try{
     const r=await fetch('http://localhost:19234/wind');
@@ -3816,7 +3840,7 @@ var _watch={space:null,quakes:null,cloud:null,internet:null,tsunami:null,errors:
 var WATCH_API='http://localhost:19234/watch/';
 function watchVars(c){
   const s=document.documentElement.style;
-  s.setProperty('--wbc',c.lo);s.setProperty('--wfg',c.lbl);s.setProperty('--wmu',c.mut);s.setProperty('--whi',c.hi);s.setProperty('--wdeep',c.deep);
+  s.setProperty('--wbc',c.lo);s.setProperty('--wfg',c.lbl);s.setProperty('--wmu',c.mut);s.setProperty('--whi',c.hi);s.setProperty('--wdeep',c.deep);if(typeof syncLayerButtons==='function')syncLayerButtons();
   if(typeof airRender==='function'){try{airRender();wRenderAir();}catch(e){}}
 }
 function wAgo(ms){
@@ -4141,7 +4165,7 @@ async function fetchAurora(){
     _aur.bytes=u;_aur.obs=d.obs;_aur.drawn='';auroraDraw();
   }catch(e){setTimeout(fetchAurora,60000);}
 }
-function applyAuroraSetting(){_aur.drawn='';auroraDraw();}
+function applyAuroraSetting(){_aur.drawn='';auroraDraw();if(typeof syncLayerButtons==='function')syncLayerButtons();}
 
 // ── Ciclo de vida ───────────────────────────────────────────────────────────
 function watchLoadAll(){
@@ -5285,7 +5309,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <div class="cfg-toggle-row"><span>✈ Live Flights</span><input type="checkbox" id="cfg-flights"></div>
       <div class="cfg-toggle-row"><span>🔥 Wildfires (FIRMS)</span><input type="checkbox" id="cfg-fires"></div>
       <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
-      <div class="cfg-toggle-row"><span>🌬 Wind layer (GFS)</span><input type="checkbox" id="cfg-wind"></div>
+      <div class="cfg-toggle-row"><span>🌬 Viento (GFS)</span><select id="cfg-wind" style="background:transparent;color:inherit;border:1px solid;border-radius:3px;padding:2px 4px;font-family:inherit;font-size:12px"><option value="soft">Tenue</option><option value="normal">Normal</option><option value="off">Oculto</option></select></div>
       <div class="cfg-toggle-row"><span>🌌 Aurora oval (NOAA)</span><input type="checkbox" id="cfg-aurora"></div>
     </div>
     <div class="cfg-row">
