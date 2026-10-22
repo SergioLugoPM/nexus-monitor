@@ -1143,6 +1143,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         <div class="w-card"><div class="w-h"><b>SISMOS DE MÉXICO · SSN</b><i id="wc-ssn-sub"></i></div><div id="wc-ssn-body"></div></div>
         <div class="w-card"><div class="w-h"><b>INTERNET POR PAÍS</b><i id="wc-net-sub"></i></div><div id="wc-net-body"></div></div>
         <div class="w-card"><div class="w-h"><b>TSUNAMIS</b><i id="wc-tsu-sub"></i></div><div id="wc-tsu-body"></div></div>
+        <div class="w-card"><div class="w-h"><b>CALIDAD DEL AIRE</b><i id="wc-air-sub"></i></div><div id="wc-air-body"></div></div>
       </div>
     </div>
     <div class="view-pane" id="view-explorer" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
@@ -2152,7 +2153,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 
 <!-- COL D: RIGHT -->
 <div class="col">
-  <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div class="w-icon" id="w-icon"></div><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div class="wrow"><span class="wsi" id="wi-hum"></span><span id="w-hum">--%</span></div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div class="wrow"><span class="wsi" id="wi-wnd"></span><span id="w-wnd">--</span></div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div class="wrow"><span class="wsi" id="wi-uv"></span><span id="w-uv">--</span></div></div></div></div>
+  <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div class="w-icon" id="w-icon"></div><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div class="wrow"><span class="wsi" id="wi-hum"></span><span id="w-hum">--%</span></div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div class="wrow"><span class="wsi" id="wi-wnd"></span><span id="w-wnd">--</span></div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div class="wrow"><span class="wsi" id="wi-uv"></span><span id="w-uv">--</span></div></div></div><div class="wair" id="w-air" style="display:none"></div></div>
   <div class="pnl" id="p-cry"><div class="lbl" id="l-cry">CRYPTO · FX</div>
     <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="btc-c" style="font-size:12px;text-align:right;">--%</span></div>
     <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="eth-c" style="font-size:12px;text-align:right;">--%</span></div>
@@ -4037,6 +4038,11 @@ function wxStatIcon(type,val,px){
       // base tenue + rayas brillantes que corren hacia el rizo (de izquierda a derecha)
       return '<path class="ol" style="opacity:.3" d="'+d+'"/><path class="fl am a-flow" style="animation-duration:'+dur+'s;animation-delay:-'+(i*.4).toFixed(1)+'s" d="'+d+'"/>';
     }).join('');
+  }else if(type==='air'){
+    const col=val<=50?'var(--wa)':val<=100?'#E8D94C':val<=150?'#F0883E':'#E24B4A';
+    const pts=[[5,7],[11,5],[17,8],[8,12],[14,11],[19,14],[6,17],[12,16]].slice(0,val<=50?3:val<=100?5:val<=150?7:8);
+    g=['M3 9h12','M5 13h15','M3 17h10'].map(function(d,i){return '<path class="am a-drift'+(i%2?'2':'')+'" d="'+d+'" fill="none" stroke="'+col+'" stroke-opacity=".45" stroke-width="1.6" stroke-linecap="round"/>';}).join('')+
+      pts.map(function(p,i){return '<circle class="am a-twk" cx="'+p[0]+'" cy="'+p[1]+'" r="1.3" fill="'+col+'" style="animation-delay:-'+(i*.3).toFixed(1)+'s"/>';}).join('');
   }else{
     const col=val>=8?'#E24B4A':val>=3?'var(--ww)':'var(--wa)';
     let r='';
@@ -4200,7 +4206,8 @@ var _watch={space:null,quakes:null,cloud:null,internet:null,tsunami:null,errors:
 var WATCH_API='http://localhost:19234/watch/';
 function watchVars(c){
   const s=document.documentElement.style;
-  s.setProperty('--wbc',c.lo);s.setProperty('--wfg',c.lbl);s.setProperty('--wmu',c.mut);s.setProperty('--whi',c.hi);
+  s.setProperty('--wbc',c.lo);s.setProperty('--wfg',c.lbl);s.setProperty('--wmu',c.mut);s.setProperty('--whi',c.hi);s.setProperty('--wdeep',c.deep);
+  if(typeof airRender==='function'){try{airRender();wRenderAir();}catch(e){}}
 }
 function wAgo(ms){
   const m=Math.max(0,Math.round((Date.now()-ms)/60000));
@@ -4263,7 +4270,8 @@ function wsFit(el){
       let pick=null,ph=0;
       secs.forEach(function(sc){
         const k=sc.getAttribute('data-k')||'';
-        const min=/SISMOS/.test(k)?(pass?1:3):/NUBE/.test(k)?(pass?1:svcs(sc)):1;
+        // AVISOS (tsunami, internet, lluvia, aire) no se recorta: es lo más breve y lo más urgente
+        const min=/SISMOS/.test(k)?(pass?1:3):/NUBE/.test(k)?(pass?1:svcs(sc)):!k?sc.children.length:1;
         if(sc.children.length-1>min&&sc.offsetHeight>ph){pick=sc;ph=sc.offsetHeight;}
       });
       if(!pick)break;
@@ -4301,6 +4309,10 @@ function wStripRender(){
   if(tu&&!tact.length)bits.push('<span style="color:'+c.mid+';flex-shrink:0">🌊 sin avisos</span>');
   if(nt)bits.push('<span style="flex-shrink:0"><span style="color:'+c.mut+'">NET</span> '+nt.mine.map(function(m){return '<span style="color:'+(m.score>0?c.warn:c.mid)+'">'+m.code+(m.score>0?'⚠':'✓')+'</span>';}).join(' ')+'</span>');
   if(bits.length)av+='<div class="ws-row" style="gap:10px">'+bits.join('')+'</div>';
+  const b2=[];
+  if(typeof _rain!=='undefined'&&_rain)b2.push(rainChip(c));
+  if(typeof _air!=='undefined'&&_air){const k=airCat(_air.aqi,c);b2.push('<span style="flex-shrink:0;color:'+k.col+'" title="Calidad del aire, modelo CAMS: '+k.name+' · '+stEsc(airConc(_air))+'">AQI '+Math.round(_air.aqi)+' '+k.short.toLowerCase()+'</span>');}
+  if(b2.length)av+='<div class="ws-row" style="gap:12px">'+b2.join('')+'</div>';
   parts.push(sec('',  '', av||wait));
   // 3. nube, con desglose por servicio
   if(cl){
@@ -4569,6 +4581,7 @@ function spotEnd(){
   if(el){el.classList.remove('spot');el.style.background='';el.style.removeProperty('--spot-s');const tg=el.querySelector('.spot-tag');if(tg)tg.remove();}
   _spot.cur=null;
   document.body.classList.remove('spot-on');
+  if(cur.onEnd){try{cur.onEnd();}catch(e){}}
   setTimeout(function(){if(el&&!(_spot.cur&&_spot.cur.panel===cur.panel))el.style.transformOrigin='';},800);   // el origen se suelta cuando termina la animación de vuelta
 }
 function spotStart(o){
@@ -4587,7 +4600,8 @@ function spotStart(o){
   document.body.classList.add('spot-on');
   void el.offsetWidth;                       // la transición parte de la escala 1
   el.classList.add('spot');
-  _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key};
+  _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key,onEnd:o.onEnd};
+  if(o.onStart){try{o.onStart();}catch(e){}}
   _spot.timer=setTimeout(spotEnd,o.ms||22000);
   // si aparece una ventana encima, se acaba al instante
   if(spotMode()==='auto'&&!o.force)_spot.poll=setInterval(async function(){if(!(await spotDeskFree()))spotEnd();},2500);
@@ -4663,6 +4677,125 @@ function spotScanWatch(key){
     _spot.lastTsu=act;
   }
 }
+// ── CALIDAD DEL AIRE (/watch/air: Open-Meteo, modelo CAMS; no es una estación de medición) ──
+var _air=null;
+function airCat(a,c){
+  return a<=50?{n:0,name:'BUENA',short:'BUENA',col:c.mid}:a<=100?{n:1,name:'MODERADA',short:'MODERADA',col:'#E8D94C'}:a<=150?{n:2,name:'DAÑINA PARA SENSIBLES',short:'SENSIBLES',col:'#F0883E'}:
+         a<=200?{n:3,name:'DAÑINA',short:'DAÑINA',col:'#E24B4A'}:a<=300?{n:4,name:'MUY DAÑINA',short:'MUY DAÑINA',col:'#C026D3'}:{n:5,name:'PELIGROSA',short:'PELIGROSA',col:'#9F1239'};
+}
+function airConc(d){
+  const v={'PM2.5':d.pm25,'PM10':d.pm10,'O₃':d.o3,'NO₂':d.no2}[d.dom];
+  return d.dom+(v!=null?' '+Math.round(v*10)/10+' µg/m³':'');
+}
+function airRender(){
+  const el=document.getElementById('w-air'),d=_air,c=_pal;
+  if(!el)return;
+  if(!d){el.style.display='none';return;}
+  const k=airCat(d.aqi,c);
+  el.style.display='';el.style.borderLeftColor=k.col;
+  el.title='Calidad del aire (modelo CAMS vía Open-Meteo): AQI '+Math.round(d.aqi)+' '+k.name+' · dominante '+airConc(d)+' · clic: detalle en WATCH';
+  if(!el.firstChild){
+    el.innerHTML='<span class="wsi" id="w-air-ic"></span><span class="wa-l">AIRE</span><b id="w-air-v"></b><span id="w-air-c" style="font-size:9.5px;font-weight:700"></span><span class="wa-r" id="w-air-r"></span>';
+    el.style.cursor='pointer';el.addEventListener('click',function(){showView('watch');});
+  }
+  const ic=document.getElementById('w-air-ic'),key=k.n+'|'+Math.round(d.aqi/25);
+  if(ic&&ic.dataset.k!==key){ic.dataset.k=key;ic.innerHTML=wxStatIcon('air',d.aqi,18);}
+  const v=document.getElementById('w-air-v');v.textContent='AQI '+Math.round(d.aqi);v.style.color=k.col;
+  const cc=document.getElementById('w-air-c');cc.textContent=k.short;cc.style.color=k.col;
+  document.getElementById('w-air-r').textContent=airConc(d);
+}
+function wRenderAir(){
+  const el=document.getElementById('wc-air-body'),sub=document.getElementById('wc-air-sub');if(!el)return;
+  const d=_air,c=_pal;
+  if(!d){el.innerHTML='<div class="w-empty">Cargando…</div>';return;}
+  const k=airCat(d.aqi,c);
+  if(sub)sub.textContent='modelo CAMS · '+String(d.time||'').slice(11,16);
+  const max=Math.max.apply(null,[100].concat(d.series.filter(function(x){return x!=null;})))+10;
+  el.innerHTML='<div class="w-cols" style="margin-bottom:4px"><div class="w-box"><div class="k">AQI (EE. UU.)</div><div class="v" style="color:'+k.col+'">'+Math.round(d.aqi)+'</div><div class="s" style="color:'+k.col+'">'+k.name+'</div></div>'+
+    '<div class="w-box"><div class="k">24 H · -12 / +12</div>'+wSpark(d.series,160,30,0,max,k.col,[50,100])+'<div class="s">líneas: 50 · 100</div></div></div>'+
+    Object.keys(d.sub).filter(function(n){return d.sub[n]!=null;}).map(function(n){
+      const v=d.sub[n],kk=airCat(v,c);
+      return '<div class="w-row"><span style="width:38px;flex-shrink:0">'+n+'</span><div style="flex:1;height:4px;background:var(--wbc);border-radius:2px;align-self:center"><div style="width:'+Math.min(100,v/1.5).toFixed(0)+'%;height:4px;border-radius:2px;background:'+kk.col+'"></div></div><span class="t" style="width:30px;text-align:right;color:'+kk.col+'">'+Math.round(v)+'</span></div>';
+    }).join('')+'<div class="w-empty" style="font-size:9px">Índice por contaminante (el mayor define el AQI). Modelo global de ~11 km (Copernicus CAMS vía Open-Meteo): es una referencia, no sustituye a la red oficial de monitoreo.</div>';
+}
+async function fetchAir(){
+  try{
+    const r=await fetch(WATCH_API+'air?lat='+_homeCoords.lat+'&lon='+_homeCoords.lon);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    _air=await r.json();
+    airRender();wRenderAir();wStripRender();
+    try{spotScanAir();}catch(e){}
+  }catch(e){setTimeout(fetchAir,90000);}
+}
+function spotScanAir(){
+  const d=_air;if(!d)return;
+  const lvl=d.aqi>=201?3:d.aqi>=151?2:d.aqi>=101?1:0;           // dañina para sensibles, dañina, muy dañina
+  if(lvl>(_spot.lastAir||0)){const k=airCat(d.aqi,_pal);spotTrigger({panel:'p-wth',key:'air-'+lvl,reason:'AIRE · AQI '+Math.round(d.aqi)+' · '+k.name,pri:52+lvl*4,ms:26000,cool:3*3600000,color:k.col});}
+  _spot.lastAir=lvl;
+}
+
+// ── LLUVIA CERCANA, en segundo plano ────────────────────────────────────────
+// El radar de lluvia solo tiene lienzo (y datos) con el modo CLIMA visible, así que esto es un análisis propio:
+// vista fija de 600×340 km a 1 km/px centrada en la casa, con la misma lectura por celdas de 4×4 px. Compara el
+// cuadro actual con el de hace 30 min para saber si se acerca. Los mosaicos traen CORS abierto y el navegador
+// los cachea (2 por cuadro cada 10 min).
+var _rain=null;
+async function rainScan(){
+  try{
+    const W=600,H=340,v=wxView(W,H),n=1<<WX_Z;
+    const d=await(await fetch(WX_API+'/wx')).json();
+    const fr=(d.frames||[]).filter(function(f){return !f.fc;});
+    if(fr.length<2)return;
+    const cur=fr[fr.length-1],prv=fr[Math.max(0,fr.length-4)],list=wxTileList(v,W,H);
+    const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');
+    const analyze=async function(f){
+      const imgs=await Promise.all(list.map(function(t){return new Promise(function(res){
+        const im=new Image();im.crossOrigin='anonymous';
+        im.onload=function(){res({im:im,tx:t[0],ty:t[1]});};im.onerror=function(){res(null);};
+        im.src=d.host+f.path+'/256/'+WX_Z+'/'+t[0]+'/'+t[1]+'/2/1_1.png';
+      });}));
+      g.clearRect(0,0,W,H);const sz=1/n/v.wpp;
+      imgs.forEach(function(o){if(o)g.drawImage(o.im,(o.tx/n-v.x0)/v.wpp,(o.ty/n-v.y0)/v.wpp,sz+.6,sz+.6);});
+      const px=g.getImageData(0,0,W,H).data,C=4,cw=Math.floor(W/C),ch=Math.floor(H/C);
+      let best=null,act=0;
+      for(let cy=0;cy<ch;cy++)for(let cx=0;cx<cw;cx++){
+        let cnt=0;
+        for(let y=0;y<C;y++){const row=((cy*C+y)*W+cx*C)*4;for(let x=0;x<C;x++)if(px[row+x*4+3]>40)cnt++;}
+        if(cnt<5)continue;
+        act++;
+        const dx=cx*C+C/2-W/2,dy=cy*C+C/2-H/2,km=Math.hypot(dx,dy)*v.kmpp;
+        if(!best||km<best.km)best={km:km,brg:(Math.atan2(dx,-dy)*180/Math.PI+360)%360};
+      }
+      return {near:best,cells:act};
+    };
+    const a=await analyze(cur),b=await analyze(prv);
+    _rain={near:a.near,cells:a.cells,prevNear:b.near,prevCells:b.cells,t:cur.t,ts:Date.now()};
+    wStripRender();
+    try{spotScanRain(_rain);}catch(e){}
+  }catch(e){}
+}
+function rainChip(c){
+  const r=_rain;if(!r)return '';
+  if(!r.near||r.cells<3)return '<span style="color:'+c.mid+';flex-shrink:0">☔ sin lluvia en 300 km</span>';
+  const km=Math.round(r.near.km),near=km<=25,hasPrev=r.prevNear&&r.prevCells>=3;
+  const tr=hasPrev?(r.near.km<r.prevNear.km-8?' · se acerca':r.near.km>r.prevNear.km+8?' · se aleja':''):'';
+  return '<span class="x" style="color:'+(near?'#38BDF8':c.hi)+';font-weight:'+(near?700:400)+'">☔ lluvia '+(km<8?'sobre la zona':'a '+km+' km al '+wxDir(r.near.brg))+tr+'</span>';
+}
+function spotScanRain(r){
+  if(!r||!r.near||r.cells<3)return;
+  const km=Math.round(r.near.km),hasPrev=r.prevNear&&r.prevCells>=3,approaching=hasPrev&&r.near.km<r.prevNear.km-8;
+  let reason=null,pri=0;
+  if(km<=25){reason='LLUVIA '+(km<8?'SOBRE LA ZONA':'A '+km+' km '+wxDir(r.near.brg));pri=65;}
+  else if(km<=80&&approaching){reason='LLUVIA SE ACERCA · '+km+' km '+wxDir(r.near.brg);pri=60;}
+  if(!reason)return;
+  // al destacar el radar se cambia a CLIMA mientras dure y se vuelve al modo que estaba (sin guardarlo como preferencia)
+  spotTrigger({panel:'p-nxlog',key:'rain',reason:reason,pri:pri,ms:28000,cool:2700000,color:'#38BDF8',
+    onStart:function(){if(_nxPanelMode!=='wx'){_spot.rainPrev=_nxPanelMode;_nxPanelMode='wx';_applyNxPanel();}else _spot.rainPrev=null;},
+    onEnd:function(){if(_spot.rainPrev){_nxPanelMode=_spot.rainPrev;_spot.rainPrev=null;_applyNxPanel();}}});
+}
+setTimeout(fetchAir,5000);setInterval(fetchAir,15*60*1000);
+setTimeout(rainScan,9000);setInterval(rainScan,5*60*1000);
+
 // ── PANEL TOGGLE (Radar ↔ Lluvia ↔ Log) ─────────────────────────────────────
 var NXP_MODES=['radar','wx','log'];
 var _nxPanelMode=localStorage.getItem('nexus_nxpanel')||'radar';
@@ -5329,6 +5462,10 @@ function initSnake(canvas){
 #wx-icons .ci { position:absolute; line-height:0; }
 #wind-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:2; }
 #wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
+/* ── Calidad del aire en el panel del clima ── */
+.wair { display:flex; align-items:center; gap:8px; margin-top:6px; padding:3px 8px 3px 7px; border-radius:4px; border-left:3px solid transparent; background:var(--wdeep,#03280F); font-size:11px; white-space:nowrap; overflow:hidden; }
+.wair .wa-l { font-size:9px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
+.wair .wa-r { margin-left:auto; font-size:10px; color:var(--wmu,#1D9E75); overflow:hidden; text-overflow:ellipsis; }
 /* ── Spotlight: un panel con actividad relevante pasa al frente y se amplía un rato ── */
 .pnl { transition:transform .55s cubic-bezier(.2,.8,.2,1), box-shadow .55s, opacity .55s; }
 body.spot-on #inner, body.spot-on .col, body.spot-on .col-m, body.spot-on .grid > div, body.spot-on .grid > div > div { overflow:visible !important; }

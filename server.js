@@ -1639,6 +1639,42 @@ app.get('/desktop', async (req, res) => {
   res.json({ supported: true, free: wins.length === 0, n: wins.length, titles: wins.slice(0, 6).map(w => w.t), screen: [_deskLast.w, _deskLast.h], age: Date.now() - _deskLast.ts });
 });
 
+// ── Calidad del aire (Open-Meteo, modelo CAMS de Copernicus) ──────────────────
+// Es un modelo global de ~11 km, NO una estación de medición: sirve de referencia, no sustituye al dato oficial.
+// AQI de EE. UU. (0-50 buena · 51-100 moderada · 101-150 dañina para sensibles · 151-200 dañina · 201-300 muy dañina).
+const AIR_TTL = 20 * 60 * 1000;
+const _airCache = new Map();
+async function fetchAir(lat, lon) {
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1);
+  const c = _airCache.get(key);
+  if (c && Date.now() - c.ts < AIR_TTL) return c;
+  try {
+    const url = 'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=' + lat + '&longitude=' + lon +
+      '&current=us_aqi,us_aqi_pm2_5,us_aqi_pm10,us_aqi_ozone,us_aqi_nitrogen_dioxide,us_aqi_sulphur_dioxide,us_aqi_carbon_monoxide,pm2_5,pm10,ozone,nitrogen_dioxide' +
+      '&hourly=us_aqi&past_hours=12&forecast_hours=12&timezone=auto';
+    const j = await omJson(url, 15000);
+    const cur = j.current || {};
+    const sub = { 'PM2.5': cur.us_aqi_pm2_5, 'PM10': cur.us_aqi_pm10, 'O₃': cur.us_aqi_ozone, 'NO₂': cur.us_aqi_nitrogen_dioxide, 'SO₂': cur.us_aqi_sulphur_dioxide, 'CO': cur.us_aqi_carbon_monoxide };
+    const dom = Object.entries(sub).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1])[0];
+    const times = (j.hourly && j.hourly.time) || [], series = ((j.hourly && j.hourly.us_aqi) || []).map(v => v == null ? null : v);
+    const out = {
+      aqi: cur.us_aqi, dom: dom ? dom[0] : null, sub, time: cur.time,
+      pm25: cur.pm2_5, pm10: cur.pm10, o3: cur.ozone, no2: cur.nitrogen_dioxide,
+      series, nowIdx: Math.max(0, times.findIndex(t => t >= cur.time)), ts: Date.now()
+    };
+    if (out.aqi == null) throw new Error('sin AQI en la respuesta');
+    _airCache.set(key, out);
+    if (_airCache.size > 4) _airCache.delete(_airCache.keys().next().value);
+    return out;
+  } catch (e) { nxLog('Calidad del aire: ' + e.message, 'warn'); return c || null; }
+}
+app.get('/watch/air', async (req, res) => {
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
+  const a = await fetchAir(lat, lon);
+  a ? res.json(a) : res.status(503).json({ error: 'sin datos de aire' });
+});
+
 let _eventsInFlight = null;
 
 app.get('/events', async (req, res) => {

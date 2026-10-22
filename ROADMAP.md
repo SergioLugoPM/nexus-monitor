@@ -1047,10 +1047,34 @@ Los demás paneles se atenúan mientras tanto. Clic sobre el panel lo devuelve a
 - Se amplía con `transform: scale()`, así que NO cambia el layout (el recorte de la franja WATCH y los
   lienzos no se enteran). Hay que levantar el `overflow:hidden` de las columnas mientras dura
   (`body.spot-on`) y dar al panel un fondo opaco. Los lienzos (Neural Core) se ven algo suaves al ampliarse.
-- Pendiente: lluvia cerca de casa (hoy el radar de lluvia solo carga datos con el modo CLIMA visible, así que
-  no puede disparar en segundo plano), y ampliar más contenido (no solo el tamaño) cuando un panel se destaca.
+- Lluvia cercana y calidad del aire ya disparan (ver la sección siguiente). Pendiente: ampliar más contenido
+  (no solo el tamaño) cuando un panel se destaca.
 
 Universal (`server.js` + `dashboard.html` + `desktop_probe.ps1`) — cruza a `master`.
+
+## Lluvia cercana y calidad del aire (22-oct-2026)
+
+- **Lluvia cercana, en segundo plano** (`rainScan`, cada 5 min). El radar de lluvia solo tiene lienzo y datos con
+  el modo CLIMA visible, así que esto es un análisis propio: vista fija de 600×340 km a 1 km/px centrada en la
+  casa, con la misma lectura por celdas de 4×4 px (>=5 px de eco) y comparando el cuadro actual con el de hace
+  30 min. Los mosaicos de RainViewer traen CORS abierto y el navegador los cachea (2 por cuadro cada 10 min).
+  Dispara el panel del radar si hay >= 3 celdas de eco a <= 25 km, o a <= 80 km y acercándose (>8 km más cerca
+  que hace 30 min); prioridad 65 / 60, enfriamiento de 45 min. Al destacarse, el panel cambia a CLIMA mientras
+  dure y vuelve al modo que tenía (`onStart`/`onEnd` de `spotStart`; NO toca la preferencia guardada).
+  Probado: un eco real a 51 km al SSO que se aleja no dispara; simulados 18 km (dispara y restaura el modo) y
+  60 km acercándose (dispara).
+- **Calidad del aire** (`/watch/air`, Open-Meteo, modelo CAMS de Copernicus, ~11 km). NO es una estación de
+  medición: es una referencia y así se rotula. AQI de EE. UU. con el contaminante dominante, los subíndices
+  (PM2.5, PM10, O₃, NO₂, SO₂, CO) y una serie de 24 h (-12 / +12). Caché 20 min. Hoy en Toluca: AQI 41, PM2.5.
+  Dónde se ve: fila "AIRE" bajo HUM/WIND/UV del panel del clima (icono animado con más partículas y más cálido
+  con peor aire, borde del color de la categoría), tarjeta "CALIDAD DEL AIRE" en la pestaña WATCH y una chip en
+  la franja WATCH. Dispara el panel del clima al subir a >= 101 (dañina para sensibles; 151 dañina; 201 muy dañina,
+  con prioridad creciente), enfriamiento de 3 h.
+- La segunda fila de AVISOS de la franja (lluvia y aire) no se recorta nunca (`wsFit`): es lo más breve y lo más
+  urgente; lo que cede espacio son los sismos y los servicios de la nube.
+- Pendiente (el usuario lo dejó fuera): monitor de sitios propios y de clientes.
+
+Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
 ## Temas visuales
 
