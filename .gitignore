@@ -10,3 +10,4 @@ nexus.config.json
 lan-vendor-cache.json
 agent-backups/
 .history/
+.wind-cache.json
