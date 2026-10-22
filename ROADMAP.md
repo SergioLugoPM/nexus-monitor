@@ -738,10 +738,9 @@ Fuentes probadas y **descartadas** (no repetir la prueba):
 - Open-Meteo: sirve para viento/oleaje regional, **no** para intensidad (su
   modelo marca 85 km/h en el ojo de un tifón de 296 km/h).
 
-Ideas pendientes con fuente ya verificada: campo de viento animado
-(Open-Meteo multipunto, partículas en canvas con el mismo throttle de 24 fps),
-oleaje máximo bajo la huella (Open-Meteo marine), y capas de NHC (ArcGIS) para
-el Atlántico cuando haya tormentas activas (no se pudo probar: no había).
+Hechas el 21-oct (ver "Viento, oleaje e iconos de clima"): campo de viento
+animado y oleaje bajo la huella. Sigue pendiente: capas de NHC (ArcGIS) para el
+Atlántico cuando haya tormentas activas (no se pudo probar: no había).
 
 ## Neural Core: ondas
 
@@ -860,6 +859,84 @@ módulo, con todo ya definido.
 Datos de la zona al 21-oct: casi todo el día seco sobre el Valle de México (eco
 < 1 % del área), así que lo normal será ver "SIN PRECIPITACIÓN EN EL ÁREA" fuera
 de la temporada de lluvias.
+
+Universal (`server.js` + `dashboard.html`) — cruza a `master`.
+
+## Viento, oleaje e iconos de clima (21-oct-2026)
+
+- **Iconos animados** (SVG inline + `@keyframes` CSS, no SMIL): 10 tipos (despejado,
+  parcial, nublado, niebla, llovizna, lluvia, lluvia fuerte, aguanieve, nieve,
+  tormenta) en versión día y noche. Los colores son variables CSS (`--wa --wl --ww
+  --wc --wm`) que fija `applyPalette`, así siguen al tema sin redibujarse. El
+  relleno de la nube tiene que ser OPACO: con alpha el sol se transparentaba.
+  Cada elemento animado va en un `<g>` interno; el externo lleva la posición, porque
+  una animación CSS reemplaza el `transform` del propio elemento.
+  Dónde: panel WEATHER (icono principal + gota con nivel de humedad, rayas de viento
+  cuya velocidad sigue al viento, sol de UV que cambia de color) y modo CLIMA del radar
+  (casa y ciudades con su clima real, HTML encima del lienzo; solo se reconstruyen
+  si cambia lo que dibujan para no reiniciar animaciones).
+- **`/weather`** ahora devuelve `kind` (tipo de icono, desde el código WWO) y `day`.
+  wttr.in dejó de traer `localObsDateTime`: el día/noche se pregunta a Open-Meteo
+  (`is_day`) y, si falla, se usa amanecer/atardecer con el reloj del PC.
+- **`/wx/now?lat&lon`**: clima actual de la casa + hasta 9 ciudades de México dentro
+  de la vista (Open-Meteo, caché 15 min, reintento de 1 vez: da 503 sueltos y a
+  veces tarda decenas de segundos; no cuenta cuota alta, son ~10 puntos).
+- **Viento (`/wind`)**: GFS a 10 m, rejilla de 2.5° (144×73, ~71 KB), de UCAR THREDDS
+  (`ncss/grid/grib/NCEP/GFS/Global_0p5deg/Best`, `accept=netcdf`, `horizStride=5`,
+  `vertCoord=10`). NOMADS retiró OpenDAP; Open-Meteo para una rejilla mundial salía
+  caro (cuenta cada punto, 100 puntos tardaron 26 s). El servidor lee NetCDF-3
+  clásico sin librerías (`readNetcdf3`, ~40 líneas) y busca las coordenadas por
+  unidades, no por nombre (`latitude`/`longitude`, no `lat`/`lon`). Caché en
+  `.wind-cache.json` (con punto: `express.static` ignora dotfiles; sirve toda la
+  carpeta) y se renueva cada 3 h.
+  Cliente: ~500 a 2200 partículas que avanzan en lon/lat y se proyectan con
+  `ll2xy`; lienzo sobre el SVG que replica su encaje (viewBox 2000×1001 centrado):
+  la casa cae exactamente en `#pin-dot` (comprobado a 0.1 px). 24 fps, 0.28 ms por
+  cuadro. Se oculta con clic en el rótulo o en ajustes (⚙, "Wind layer").
+- **Oleaje (`/storms/:id/waves`)**: Open-Meteo Marine en el centro, mitad y borde de
+  los radios de 34 kt más un anillo exterior a 1.5×; el "máximo bajo la huella" no
+  cuenta el anillo. Es un modelo global de baja resolución y subestima el núcleo
+  de ciclones intensos (se dice en el propio modal). Puntos coloreados por altura
+  sobre la imagen IR del modal. Probado con JOSEPHINE (6.2 m, 37°N 70°O).
+- **Arreglo de `/storms`**: si GDACS fallaba para todos los ciclones (típico justo
+  tras arrancar) se guardaba una lista vacía como válida durante 20 min y el mapa
+  quedaba sin huracanes. Ahora una lista vacía por errores transitorios no se
+  acepta y se reintenta a los 3 min (un solo temporizador; "sin boletines reales"
+  cuenta como permanente y no reintenta).
+- **Trampas de maquetación**: (1) el lienzo del radar se medía una vez y luego el
+  panel crecía 7 px (llegaba el icono del clima), deformando el mapa un 8 %: ahora
+  `wxStep` vuelve a medir en cada paso (además de `ResizeObserver`, que no corre en
+  el navegador emulado de pruebas). (2) El rótulo del viento chocaba con "DATA
+  STREAM: LIVE": va centrado abajo.
+- Para ver DOM a tamaño real en el navegador de pruebas: el panel de captura es de
+  media resolución y `zoom` no amplía; se clona el elemento en un overlay fijo con
+  `transform:scale(2.4)` (vectorial) o se fuerza el contenedor a 800×450.
+
+## Qué más se puede monitorear (verificado desde esta PC, 21-oct-2026)
+
+Responden bien (candidatas, ordenadas por utilidad para Sergio):
+1. **Sitios propios/clientes** (sin fuente externa): HTTP, latencia, días de
+   certificado TLS y, dado el incidente owlabc, detección de cambios inesperados en
+   la portada. Lista en `nexus.config.json`.
+2. **Calidad del aire**: `air-quality-api.open-meteo.com` (us_aqi, pm2_5, pm10,
+   ozono, NO2). Dio AQI 44, PM2.5 9.5 en Toluca.
+3. **Sismos de México**: RSS del SSN, por **http** (`http://www.ssn.unam.mx/rss/ultimos-sismos.xml`,
+   8 KB); por https no responde. Cubre magnitudes que USGS no lista.
+4. **Estado de la nube**: statuspage JSON (`githubstatus.com`, `cloudflarestatus.com`,
+   `status.claude.com`, `vercel-status.com`) + Stripe/Neon si se quiere. Ojo:
+   Cloudflare marcaba "Partial System Outage" con `updated_at` de agosto (dato viejo).
+5. **Clima espacial**: `services.swpc.noaa.gov/products/alerts.json` (58 KB) y el óvalo
+   auroral `json/ovation_aurora_latest.json` (925 KB). El 21-oct a las 23:59 UTC hubo
+   tormenta geomagnética G1 (Kp 5).
+6. **Cortes de internet por país**: IODA (`api.ioda.inetintel.cc.gatech.edu/v2/outages/summary`, 3 s).
+7. **Tsunamis**: Atom de NOAA (`tsunami.gov/events/xml/PAAQAtom.xml`, `PHEBAtom.xml`).
+8. Pronóstico oficial SMN (`smn.conagua.gob.mx/tools/GUI/webservices/index.php?method=1`,
+   448 KB): funciona pero duplica lo que ya hay.
+
+No sirven (no volver a probarlas): Smithsonian GVP volcanes (403, también con otro
+User-Agent), Yahoo Finance (429), Stooq (404), lluvia global NASA IMERG en GIBS (solo
+promedios diarios, no tiempo casi real), Blitzortung (websocket de la comunidad).
+Necesitan clave o hardware: barcos AIS (aisstream.io, clave gratis), radar WiFi (ESP32).
 
 Universal (`server.js` + `dashboard.html`) — cruza a `master`.
 
