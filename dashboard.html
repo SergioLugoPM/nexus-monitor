@@ -399,7 +399,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
       <div id="crit-alert-wrap" style="display:none;position:absolute;top:8px;left:8px;z-index:20;width:230px;pointer-events:auto"></div>
-      <div id="map-tooltip"></div>
+      <div id="map-tooltip"></div><canvas id="wind-cv"></canvas><div id="wind-lbl" onclick="toggleWind()" title="Clic: ocultar la capa de viento (se reactiva en ⚙)"></div>
       <svg id="wmap" viewBox="0 0 2000 1001" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;height:100%;">
       <rect id="map-bg" width="2000" height="1001" rx="3"/>
       <line id="ml1" x1="0" y1="500" x2="2000" y2="500" stroke-width="1" opacity=".35"/>
@@ -1741,7 +1741,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 
 <!-- COL D: RIGHT -->
 <div class="col">
-  <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div id="w-hum" style="font-size:13px;margin-top:2px;">--%</div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div id="w-wnd" style="font-size:13px;margin-top:2px;">--</div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div id="w-uv" style="font-size:13px;margin-top:2px;">--</div></div></div></div>
+  <div class="pnl" id="p-wth"><div class="lbl" id="l-wth">WEATHER · CDMX</div><div class="rmd"><span id="w-tmp" style="font-size:48px;line-height:1;font-weight:bold;">--°</span><div class="w-icon" id="w-icon"></div><div style="text-align:right"><div id="w-dsc" style="font-size:13px;">--</div><div id="w-hl" class="mut" style="margin-top:3px;font-size:12px;">H:--° L:--°</div></div></div><div class="wm"><div class="wc" id="wc1"><div class="wcl" id="wl1">HUM</div><div class="wrow"><span class="wsi" id="wi-hum"></span><span id="w-hum">--%</span></div></div><div class="wc" id="wc2"><div class="wcl" id="wl2">WIND</div><div class="wrow"><span class="wsi" id="wi-wnd"></span><span id="w-wnd">--</span></div></div><div class="wc" id="wc3"><div class="wcl" id="wl3">UV</div><div class="wrow"><span class="wsi" id="wi-uv"></span><span id="w-uv">--</span></div></div></div></div>
   <div class="pnl" id="p-cry"><div class="lbl" id="l-cry">CRYPTO · FX</div>
     <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="btc-c" style="font-size:12px;text-align:right;">--%</span></div>
     <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="eth-c" style="font-size:12px;text-align:right;">--%</span></div>
@@ -1774,6 +1774,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     </div>
     <div id="nxp-wx" style="flex:1;display:none;flex-direction:column;min-height:0;">
       <canvas id="wx-canvas" onclick="wxCycleLayer()" title="Clic: radar + IR / solo IR" style="flex:1;min-height:0;width:100%;display:block;min-height:120px;cursor:pointer"></canvas>
+      <div id="wx-icons"></div>
       <div id="wx-info" style="font-size:10px;line-height:15px;height:30px;margin-top:3px;flex-shrink:0;letter-spacing:.03em;overflow:hidden"></div>
     </div>
     <div id="nxp-log" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden;">
@@ -1853,6 +1854,7 @@ function ca(hex,a){const[r,g,b]=h2r(hex);return'rgba('+r+','+g+','+b+','+a+')';}
 function currentPalette(){ return _pal; }
 function applyPalette(c){
   _pal = c;
+  wxIconVars(c);
   document.getElementById('root').style.cssText='background:'+c.wrap+';border:1px solid '+c.wB+';border-radius:12px;padding:1px;width:100%;';
   const inn=document.getElementById('inner');inn.style.background=c.base;inn.style.color=c.hi;
   document.getElementById('hdr').style.borderBottomColor=c.lo;
@@ -2144,6 +2146,7 @@ async function fetchWeather(){
     const cityParam = (_settings&&_settings.city) ? '?city='+encodeURIComponent(_settings.city) : '';
     const d=await(await fetch('http://localhost:19234/weather'+cityParam)).json();
     _weatherData=d;
+    wxRenderPanelIcons(d);
     if(d.temp!==undefined)document.getElementById('w-tmp').textContent=d.temp+'°';
     if(d.desc)document.getElementById('w-dsc').textContent=d.desc;
     if(d.high!==undefined&&d.low!==undefined)document.getElementById('w-hl').textContent='H:'+d.high+'° L:'+d.low+'°';
@@ -2475,6 +2478,7 @@ function buildStormModalHtml(s){
       '</div>'+
       '<div class="st-sec">Radio del viento por cuadrante</div>'+
       '<table class="st-tbl"><tr><th></th><th>NE</th><th>SE</th><th>SO</th><th>NO</th></tr>'+rrow('kt34','≥63 km/h')+rrow('kt50','≥93 km/h')+rrow('kt64','≥119 km/h')+'</table>'+
+      '<div class="st-sec">Oleaje bajo la huella</div><div id="st-waves" class="st-note">Consultando el modelo de olas…</div>'+
       '<div class="st-sec">Intensidad (km/h): pasado y pronóstico</div>'+stormChartSvg(s)+
       '<div class="st-sec">Población expuesta por zona</div>'+
       '<table class="st-tbl"><tr><th>Momento</th><th>km/h</th><th>País principal</th><th>≥63 km/h</th><th>≥119 km/h</th>'+(anySurge?'<th>Marejada</th>':'')+'</tr>'+exRows+'</table>'+
@@ -2512,6 +2516,7 @@ function openStormModal(id){
   m.style.display='flex';
   _stModalTimer=setTimeout(closeStormModal,180000);
   loadStormSat(s);
+  loadStormWaves(s);
 }
 async function fetchStorms(){
   try{
@@ -3478,7 +3483,7 @@ window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mr
 
 // ── SETTINGS ────────────────────────────────────────────────────────────────
 var SETTINGS_KEY = 'nexus_settings';
-var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true };
+var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true };
 var _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
 
 function saveSettings() {
@@ -3495,6 +3500,7 @@ function openSettings() {
   document.getElementById('cfg-flights').checked = _settings.showFlights;
   document.getElementById('cfg-fires').checked = _settings.showFires;
   document.getElementById('cfg-news').checked = _settings.showNews;
+  document.getElementById('cfg-wind').checked = _settings.showWind !== false;
   fetch('/config').then(function(r){return r.json();}).then(function(c){
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
@@ -3520,6 +3526,7 @@ function applySettings() {
   _settings.showFlights = document.getElementById('cfg-flights').checked;
   _settings.showFires = document.getElementById('cfg-fires').checked;
   _settings.showNews = document.getElementById('cfg-news').checked;
+  _settings.showWind = document.getElementById('cfg-wind').checked;applyWindSetting();
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
@@ -3539,6 +3546,237 @@ function applySettings() {
 var _nxrRaf=null,_nxrContacts=[];
 function _nxrGeoB(la1,lo1,la2,lo2){const f1=la1*Math.PI/180,f2=la2*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;return Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl));}
 function _nxrGeoD(la1,lo1,la2,lo2){const Rr=6371,f1=la1*Math.PI/180,f2=la2*Math.PI/180,df=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;return Rr*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+
+// ── ICONOS DE CLIMA ANIMADOS ─────────────────────────────────────────────────
+// SVG inline con animaciones CSS (no SMIL: cuesta CPU en Wallpaper Engine). Los
+// colores son variables --wa/--wl/--ww/--wc/--wm que fija applyPalette, así los
+// iconos siguen al tema sin redibujarse ni reiniciar su animación. Cada elemento
+// animado va dentro de un <g> fijo que lleva la posición: una animación CSS
+// reemplaza el atributo transform del propio elemento.
+var WXI_CLOUD='M18 46C11 46 8 41 9 36.5 10 32 14 29.5 18 30 19.5 23 25 19 31.5 19 38.5 19 43.5 23.5 45 29.5 50.5 29.5 55 33.5 55 38.5 55 43 51.5 46 47 46Z';
+var WXI_DROP='M12 2.5C12 2.5 5 10.5 5 15a7 7 0 0 0 14 0C19 10.5 12 2.5 12 2.5Z';
+function wxMix(a,b,t){const A=h2r(a),B=h2r(b);return 'rgb('+A.map(function(v,i){return Math.round(v+(B[i]-v)*t);}).join(',')+')';}
+function wxIconVars(c){
+  const s=document.documentElement.style;
+  s.setProperty('--wa',c.hi);s.setProperty('--wl',wxMix(c.base,c.lo,.65));   // relleno de nube OPACO: con alpha el sol se transparentabas.setProperty('--ww',c.warn);s.setProperty('--wc',c.pulse);s.setProperty('--wm',c.pulse);
+}
+function wxCloudG(tr,anim){
+  const inner='<g class="am '+(anim||'')+'"><path class="cl" d="'+WXI_CLOUD+'"/></g>';
+  return tr?'<g transform="'+tr+'">'+inner+'</g>':inner;
+}
+function wxSunG(cx,cy,sc){
+  let r='';
+  for(let i=0;i<8;i++){const a=i*Math.PI/4,co=Math.cos(a),si=Math.sin(a);r+='<line class="ry" x1="'+(co*13).toFixed(1)+'" y1="'+(si*13).toFixed(1)+'" x2="'+(co*18).toFixed(1)+'" y2="'+(si*18).toFixed(1)+'"/>';}
+  return '<g transform="translate('+cx+' '+cy+') scale('+sc+')"><circle class="halo am a-halo" r="13"/><g class="am a-spin">'+r+'</g><circle class="sn" r="8.5"/></g>';
+}
+function wxMoonG(cx,cy,sc){
+  return '<g transform="translate('+cx+' '+cy+') scale('+sc+')"><path class="mn" d="M5 -12.2A12.5 12.5 0 1 0 12 7.5 10 10 0 0 1 5 -12.2Z"/></g>';
+}
+function wxDropsG(xs,y0,cls,period,w){
+  return xs.map(function(x,i){
+    return '<line class="dp am '+cls+'" x1="'+x+'" y1="'+y0+'" x2="'+(x-2)+'" y2="'+(y0+5)+'" style="animation-duration:'+period+'s;animation-delay:-'+(i*period/xs.length).toFixed(2)+'s'+(w?';stroke-width:'+w:'')+'"/>';
+  }).join('');
+}
+function wxFlakesG(xs,y0,period){
+  return xs.map(function(x,i){
+    return '<circle class="fk am a-snow" cx="'+x+'" cy="'+y0+'" r="1.9" style="animation-duration:'+period+'s;animation-delay:-'+(i*period/xs.length).toFixed(2)+'s"/>';
+  }).join('');
+}
+function wxIconSvg(kind,day,px){
+  let g='';
+  const sky=function(cx,cy,sc){return day?wxSunG(cx,cy,sc):wxMoonG(cx,cy,sc*1.05);};
+  switch(kind){
+    case 'clear':
+      g=sky(32,32,1.15);
+      if(!day)g+='<circle class="st am a-twk" cx="13" cy="16" r="1.5"/><circle class="st am a-twk" cx="50" cy="20" r="1.2" style="animation-delay:-.8s"/><circle class="st am a-twk" cx="46" cy="49" r="1.4" style="animation-delay:-1.5s"/>';
+      break;
+    case 'partly': g=sky(24,24,.85)+wxCloudG('translate(4 4)','a-drift'); break;
+    case 'cloudy': g=wxCloudG('translate(14 -11) scale(.8)','a-drift2')+wxCloudG('translate(-3 5)','a-drift'); break;
+    case 'fog':
+      g=wxCloudG('translate(6 -8) scale(.85)','a-drift')+
+        '<line class="fg am a-fog" x1="12" y1="42" x2="48" y2="42"/><line class="fg am a-fog" x1="18" y1="49" x2="54" y2="49" style="animation-delay:-1.7s"/><line class="fg am a-fog" x1="10" y1="56" x2="42" y2="56" style="animation-delay:-3.3s"/>';
+      break;
+    case 'drizzle': g=wxCloudG('translate(0 -3)','a-drift')+wxDropsG([23,32,41],49,'a-fall',1.8,1.5); break;
+    case 'rain': g=wxCloudG('translate(0 -3)','a-drift')+wxDropsG([22,32,42],49,'a-fall',1.15); break;
+    case 'heavy': g=wxCloudG('translate(0 -3)','a-drift')+wxDropsG([18,26,34,42,50],48,'a-fallh',.75); break;
+    case 'sleet': g=wxCloudG('translate(0 -3)','a-drift')+wxDropsG([22,42],49,'a-fall',1.3)+wxFlakesG([32,50],50,2.6); break;
+    case 'snow': g=wxCloudG('translate(0 -3)','a-drift')+wxFlakesG([19,28,37,46],50,2.6); break;
+    case 'thunder':
+      g=wxCloudG('translate(0 -4)','a-drift')+wxDropsG([20,47],46,'a-fall',1.2)+
+        '<polygon class="bl am a-flash" points="35,36 26,51 32,51 28,62 42,44 35,44 39,36"/>';
+      break;
+    default: g=wxCloudG('translate(0 2)','a-drift');
+  }
+  return '<svg class="wi" viewBox="0 0 64 64" width="'+px+'" height="'+px+'" aria-hidden="true">'+g+'</svg>';
+}
+// Iconos chicos de las celdas HUM / WIND / UV; reflejan el valor medido
+function wxStatIcon(type,val,px){
+  let g='';
+  if(type==='hum'){
+    const id='whc'+(wxStatIcon._n=(wxStatIcon._n||0)+1),lvl=21-15*Math.max(0,Math.min(100,val))/100;
+    g='<defs><clipPath id="'+id+'"><path d="'+WXI_DROP+'"/></clipPath></defs>'+
+      '<g clip-path="url(#'+id+')"><g class="am a-wave"><path class="wv" d="M-12 '+lvl.toFixed(1)+'q3 -2.4 6 0t6 0t6 0t6 0t6 0t6 0V30H-12Z"/></g></g>'+
+      '<path class="ol" d="'+WXI_DROP+'"/>';
+  }else if(type==='wind'){
+    const dur=Math.max(.7,Math.min(4.5,5-val/9)).toFixed(2);   // más viento, rayas más rápidas
+    g=['M9.6 4.6A2 2 0 1 1 11 8H2','M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2','M12.6 19.4A2 2 0 1 0 14 16H2'].map(function(d,i){
+      // base tenue + rayas brillantes que corren hacia el rizo (de izquierda a derecha)
+      return '<path class="ol" style="opacity:.3" d="'+d+'"/><path class="fl am a-flow" style="animation-duration:'+dur+'s;animation-delay:-'+(i*.4).toFixed(1)+'s" d="'+d+'"/>';
+    }).join('');
+  }else{
+    const col=val>=8?'#E24B4A':val>=3?'var(--ww)':'var(--wa)';
+    let r='';
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;r+='<line x1="'+(12+Math.cos(a)*6.2).toFixed(1)+'" y1="'+(12+Math.sin(a)*6.2).toFixed(1)+'" x2="'+(12+Math.cos(a)*9.6).toFixed(1)+'" y2="'+(12+Math.sin(a)*9.6).toFixed(1)+'" stroke="'+col+'" stroke-width="1.8" stroke-linecap="round"/>';}
+    g='<g style="opacity:'+(val<=0?.45:1)+'"><g class="am a-spin" style="animation-duration:'+(val>=8?9:val>=3?16:26)+'s">'+r+'</g><circle cx="12" cy="12" r="3.6" fill="'+col+'"/></g>';
+  }
+  return '<svg class="wi" viewBox="0 0 24 24" width="'+px+'" height="'+px+'" aria-hidden="true">'+g+'</svg>';
+}
+// Panel WEATHER: se reconstruye un icono solo si cambió lo que dibuja (no reiniciar animaciones cada 5 min)
+function wxRenderPanelIcons(d){
+  const put=function(id,key,html){const el=document.getElementById(id);if(el&&el.dataset.k!==key){el.dataset.k=key;el.innerHTML=html();}return el;};
+  const m=put('w-icon',(d.kind||'cloudy')+'|'+(d.day===false?0:1),function(){return wxIconSvg(d.kind||'cloudy',d.day!==false,52);});
+  if(m)m.title=d.desc||'';
+  if(d.humidity!=null)put('wi-hum','h'+Math.round(d.humidity/5),function(){return wxStatIcon('hum',d.humidity,18);});
+  if(d.wind!=null)put('wi-wnd','w'+Math.round(d.wind/4),function(){return wxStatIcon('wind',d.wind,18);});
+  if(d.uv!=null)put('wi-uv','u'+d.uv,function(){return wxStatIcon('uv',d.uv,18);});
+}
+
+// ── VIENTO: partículas sobre el mapa (GFS a 10 m, /wind) ─────────────────────
+// Las partículas avanzan en lon/lat y se proyectan con ll2xy (Robinson) al
+// dibujar, así el viento queda sobre el mapa correcto sin cálculos propios.
+// El lienzo cubre el contenedor y replica el encaje del SVG (viewBox 2000×1001,
+// centrado): se dibuja directamente en unidades del viewBox.
+var _wind={u:null,v:null,nx:0,ny:0,lo0:0,dlo:2.5,la0:90,dla:-2.5,time:null,cv:null,ctx:null,W:0,H:0,sc:1,ox:0,oy:0,p:[],raf:0,last:0,on:false,pal:null,cols:null};
+var WIND_K=0.012,WIND_AGE_MIN=50,WIND_AGE_SPAN=70,_wU=0,_wV=0;
+function windSample(lon,lat){
+  const w=_wind;
+  let fx=(((lon-w.lo0)%360)+360)%360/w.dlo,fy=(lat-w.la0)/w.dla;
+  if(fy<0)fy=0;if(fy>w.ny-1.001)fy=w.ny-1.001;
+  const ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,x0=ix%w.nx,x1=(ix+1)%w.nx;
+  const a=iy*w.nx,b=(iy+1)*w.nx,w00=(1-tx)*(1-ty),w10=tx*(1-ty),w01=(1-tx)*ty,w11=tx*ty;
+  _wU=w.u[a+x0]*w00+w.u[a+x1]*w10+w.u[b+x0]*w01+w.u[b+x1]*w11;
+  _wV=w.v[a+x0]*w00+w.v[a+x1]*w10+w.v[b+x0]*w01+w.v[b+x1]*w11;
+}
+function windSpawn(p){p.lon=Math.random()*360-180;p.lat=(Math.random()*2-1)*78;p.age=0;p.max=WIND_AGE_MIN+Math.random()*WIND_AGE_SPAN;p.x=NaN;p.y=0;}
+function windResize(){
+  const w=_wind,cv=w.cv;if(!cv)return;
+  const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
+  w.W=W;w.H=H;cv.width=W;cv.height=H;
+  if(!W||!H)return;
+  w.sc=Math.min(W/2000,H/1001);w.ox=(W-2000*w.sc)/2;w.oy=(H-1001*w.sc)/2;
+  const n=Math.max(500,Math.min(2200,Math.round(W*H/520)));
+  w.p=[];for(let i=0;i<n;i++){const p={};windSpawn(p);p.age=Math.random()*p.max;w.p.push(p);}
+}
+function windFrame(){
+  const w=_wind,ctx=w.ctx,c=_pal;
+  if(w.pal!==c){w.pal=c;w.cols=[ca(c.hi,.30),ca(c.hi,.55),ca(c.pulse,.9)];}
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalCompositeOperation='destination-out';ctx.fillStyle='rgba(0,0,0,.09)';ctx.fillRect(0,0,w.W,w.H);
+  ctx.globalCompositeOperation='source-over';
+  ctx.setTransform(w.sc,0,0,w.sc,w.ox,w.oy);
+  ctx.lineWidth=1.1/w.sc;ctx.lineCap='round';
+  const b=[[],[],[]];
+  for(let i=0;i<w.p.length;i++){
+    const p=w.p[i];
+    if(p.age++>p.max){windSpawn(p);continue;}
+    windSample(p.lon,p.lat);
+    const sp=Math.sqrt(_wU*_wU+_wV*_wV),cl=Math.max(.15,Math.cos(p.lat*Math.PI/180));
+    let lon=p.lon+_wU*WIND_K/cl;const lat=p.lat+_wV*WIND_K;
+    if(lat>84||lat<-84){windSpawn(p);continue;}
+    if(lon>180)lon-=360;else if(lon<-180)lon+=360;
+    const xy=ll2xy(lon,lat);
+    if(p.x===p.x&&Math.abs(xy[0]-p.x)<150)b[sp<5?0:sp<12?1:2].push(p.x,p.y,xy[0],xy[1]);
+    p.lon=lon;p.lat=lat;p.x=xy[0];p.y=xy[1];
+  }
+  for(let k=0;k<3;k++){
+    const s=b[k];if(!s.length)continue;
+    ctx.strokeStyle=w.cols[k];ctx.beginPath();
+    for(let j=0;j<s.length;j+=4){ctx.moveTo(s[j],s[j+1]);ctx.lineTo(s[j+2],s[j+3]);}
+    ctx.stroke();
+  }
+}
+function windLoop(ts){
+  _wind.raf=requestAnimationFrame(windLoop);
+  if(ts-_wind.last<BG_ANIM_FRAME_MS)return;
+  _wind.last=ts;
+  const w=_wind;
+  if(!w.on||!w.u)return;
+  if(w.cv.clientWidth!==w.W||w.cv.clientHeight!==w.H)windResize();   // también cubre el mapa oculto/mostrado
+  if(!w.W||!w.H)return;
+  windFrame();
+}
+function windLabel(){
+  const el=document.getElementById('wind-lbl');if(!el)return;
+  const t=_wind.time?new Date(_wind.time):null;
+  el.textContent='VIENTO 10 m · GFS'+(t?' '+t.toLocaleString('es-MX',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'UTC'})+'Z':'')+' · clic: ocultar';
+  el.style.color=_pal.mut;
+}
+function applyWindSetting(){
+  const w=_wind,on=_settings.showWind!==false;
+  w.on=on;
+  if(w.cv)w.cv.style.display=on?'block':'none';
+  const el=document.getElementById('wind-lbl');if(el)el.style.display=on&&w.u?'block':'none';
+  if(on&&w.cv){windResize();}else if(w.ctx){w.ctx.setTransform(1,0,0,1,0,0);w.ctx.clearRect(0,0,w.W,w.H);}
+}
+function toggleWind(){_settings.showWind=false;saveSettings();applyWindSetting();}
+async function fetchWind(){
+  try{
+    const r=await fetch('http://localhost:19234/wind');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json(),n=d.nx*d.ny,u=new Float32Array(n),v=new Float32Array(n);
+    for(let i=0;i<n;i++){u[i]=d.u[i]/10;v[i]=d.v[i]/10;}
+    Object.assign(_wind,{u:u,v:v,nx:d.nx,ny:d.ny,lo0:d.lo0,dlo:d.dlo,la0:d.la0,dla:d.dla,time:d.time});
+    windLabel();applyWindSetting();
+  }catch(e){setTimeout(fetchWind,60000);}
+}
+function windInit(){
+  const w=_wind;w.cv=document.getElementById('wind-cv');if(!w.cv)return;
+  w.ctx=w.cv.getContext('2d');
+  window.addEventListener('resize',function(){clearTimeout(window._wdt);window._wdt=setTimeout(function(){if(_wind.on)windResize();},250);});
+  applyWindSetting();
+  w.raf=requestAnimationFrame(windLoop);
+  setTimeout(fetchWind,2500);setInterval(fetchWind,30*60*1000);
+}
+
+// ── OLEAJE bajo la huella de un ciclón (modal de detalle) ────────────────────
+var WAVE_BANDS=[[1.25,'#5ec8e8'],[2.5,'#4cd08a'],[4,'#e8d94c'],[6,'#f0883e'],[9,'#f85149'],[1e9,'#d94bd9']];
+function waveCol(h){for(let i=0;i<WAVE_BANDS.length;i++)if(h<WAVE_BANDS[i][0])return WAVE_BANDS[i][1];return '#d94bd9';}
+function waveSeaState(h){return h<.1?'calma':h<.5?'mar rizada':h<1.25?'marejadilla':h<2.5?'marejada':h<4?'fuerte marejada':h<6?'mar gruesa':h<9?'mar muy gruesa':h<14?'mar arbolada':'mar montañosa';}
+async function loadStormWaves(s){
+  const box=document.getElementById('st-waves');if(!box)return;
+  try{
+    const r=await fetch('http://localhost:19234/storms/'+s.id+'/waves');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const w=await r.json(),m=document.getElementById('storm-modal');
+    if(!m||m.dataset.id!==String(s.id))return;
+    if(!w.max)throw new Error('sin puntos de mar');
+    const kv=function(k,v,sub){return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+(sub||'&nbsp;')+'</div></div>';};
+    box.className='';
+    box.innerHTML='<div class="st-kv">'+
+      kv('Oleaje máx. ahora',w.max.h.toFixed(1)+' m',waveSeaState(w.max.h)+' · '+Math.round(w.max.p)+' s · del '+stormDir(w.max.d))+
+      kv('Próximas 24 h',w.max24.max24.toFixed(1)+' m','máx. pronosticado')+
+      kv('Fuera de la huella',w.maxOut?w.maxOut.h.toFixed(1)+' m':'—','a 1.5× el radio de 34 kt')+
+      '</div><div class="st-note">Modelo global de olas (Open-Meteo Marine) en el centro, a mitad y en el borde del radio de 34 kt. Es de baja resolución: cerca del ojo de un ciclón intenso subestima la altura real, así que úsalo para ver dónde hay más mar, no como medida exacta. Cada punto del mapa muestra la altura significativa en metros.</div>';
+    const b=s.sat.bbox,svg=document.querySelector('#st-sat svg');
+    if(svg){
+      const old=svg.querySelector('#st-wave-pts');if(old)old.remove();
+      const vb=svg.viewBox.baseVal,W=vb.width,H=vb.height,ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g');g.setAttribute('id','st-wave-pts');
+      w.points.forEach(function(p){
+        const x=(p.lon-b[0])/(b[2]-b[0])*W,y=(b[3]-p.lat)/(b[3]-b[1])*H;
+        if(x<0||x>W||y<0||y>H)return;
+        const c=document.createElementNS(ns,'circle');
+        c.setAttribute('cx',x.toFixed(1));c.setAttribute('cy',y.toFixed(1));c.setAttribute('r',p.zone==='out'?4:6);
+        c.setAttribute('fill',waveCol(p.h));c.setAttribute('stroke','#000');c.setAttribute('stroke-width','1');c.setAttribute('fill-opacity',p.zone==='out'?'.75':'1');
+        g.appendChild(c);
+        const t=document.createElementNS(ns,'text');
+        t.setAttribute('x',(x+8).toFixed(1));t.setAttribute('y',(y+4).toFixed(1));t.setAttribute('fill','#fff');t.setAttribute('font-size','12');t.setAttribute('font-family','monospace');t.setAttribute('stroke','#000');t.setAttribute('stroke-width','.5');
+        t.textContent=p.h.toFixed(1);g.appendChild(t);
+      });
+      svg.appendChild(g);
+    }
+  }catch(e){box.textContent='Sin datos de oleaje del modelo en este momento.';}
+}
+windInit();
 
 // ── PANEL TOGGLE (Radar ↔ Lluvia ↔ Log) ─────────────────────────────────────
 var NXP_MODES=['radar','wx','log'];
@@ -3568,7 +3806,7 @@ var WX_API='http://localhost:19234',WX_Z=6,WX_HALF_KM=300,WX_MAX_FRAMES=12;
 var WX_STEP_MS=650,WX_HOLD_MS=1800,WX_REFRESH_MS=300000;
 var WX_CITIES=[['Cd. de México',19.43,-99.13],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Acapulco',16.86,-99.89],['Veracruz',19.17,-96.13],['Tampico',22.23,-97.86],['S.L. Potosí',22.15,-100.98]];
 var _wx={frames:[],host:'',tiles:{},sat:null,satBox:null,satKey:'',satTs:0,satTime:'',satLayer:'',satUrl:null,
-  idx:0,timer:null,refresh:null,active:false,layer:'radar',err:false,loading:false,view:null,W:0,H:0,infoHtml:'',_off:null};
+  idx:0,timer:null,refresh:null,active:false,layer:'radar',err:false,loading:false,view:null,W:0,H:0,infoHtml:'',_off:null,now:null,nowKey:'',nowTs:0,nowRetry:null,nowLoading:false};
 try{_wx.layer=localStorage.getItem('nexus_wxlayer')==='ir'?'ir':'radar';}catch(e){}
 
 function wxMerc(lat,lon){const s=Math.sin(lat*Math.PI/180);return{x:(lon+180)/360,y:0.5-Math.log((1+s)/(1-s))/(4*Math.PI)};}
@@ -3701,16 +3939,39 @@ function wxDraw(){
   const lab=function(t,x,y,col,al){ctx.textAlign=al||'left';ctx.lineWidth=2.5;ctx.strokeStyle=ca(c.base,.9);ctx.strokeText(t,x,y);ctx.fillStyle=col;ctx.fillText(t,x,y);};
   ctx.font='9px monospace';ctx.lineJoin='round';
   ctx.lineWidth=.7;ctx.strokeStyle=ca(c.hi,.4);ctx.setLineDash([2,3]);
-  [100,200].forEach(function(km){const r=km/v.kmpp;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();if(cx+r+26<W)lab(km+' km',cx+r+3,cy-2,c.mut);});
+  [100,200].forEach(function(km){const r=km/v.kmpp;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();});
   ctx.setLineDash([]);
-  WX_CITIES.forEach(function(ct){
+  // ciudades y casa: con datos de /wx/now cada una lleva un icono animado (HTML encima) y la etiqueta junto a él
+  const boxes=[[cx-16,cy-16,cx+16,cy+16]];   // rectángulos ocupados, para ubicar los rótulos de los anillos
+  const now=_wx.now,home=now&&now.cities.find(function(k){return k.home;});
+  const list=now?now.cities.filter(function(k){return !k.home;}).map(function(k){return [k.n,k.lat,k.lon,k.t];}):WX_CITIES;
+  list.forEach(function(ct){
     const m=wxMerc(ct[1],ct[2]),x=(m.x-v.x0)/v.wpp,y=(m.y-v.y0)/v.wpp;
-    if(x<6||x>W-6||y<22||y>H-14||Math.hypot(x-cx,y-cy)<16)return;
-    ctx.fillStyle=c.lbl;ctx.fillRect(x-1,y-1,3,3);
-    if(x>W-70)lab(ct[0],x-4,y+3,c.lbl,'right');else lab(ct[0],x+5,y+3,c.lbl);
+    if(x<12||x>W-12||y<24||y>H-16||Math.hypot(x-cx,y-cy)<(now?34:16))return;
+    const txt=ct[0]+(ct[3]!=null?' '+ct[3]+'°':''),gap=now?12:5;
+    if(!now){ctx.fillStyle=c.lbl;ctx.fillRect(x-1,y-1,3,3);}
+    const tw=txt.length*5.6,rt=x>W-80,lx=rt?x-gap-tw:x+gap;
+    boxes.push([x-10,y-10,x+10,y+10],[lx,y-10,lx+tw,y+4]);
+    if(rt)lab(txt,x-gap,y+3,c.lbl,'right');else lab(txt,x+gap,y+3,c.lbl);
   });
-  ctx.strokeStyle=c.hi;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle=c.hi;ctx.beginPath();ctx.arc(cx,cy,1.8,0,Math.PI*2);ctx.fill();
+  if(home){
+    ctx.strokeStyle=ca(c.hi,.8);ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(cx,cy,17,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    lab('CASA '+home.t+'°',cx,cy+31,c.hi,'center');
+  }else{
+    ctx.strokeStyle=c.hi;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=c.hi;ctx.beginPath();ctx.arc(cx,cy,1.8,0,Math.PI*2);ctx.fill();
+  }
+  // rótulos de los anillos: primer ángulo libre, sin pisar ciudades ni iconos
+  if(home)boxes.push([cx-34,cy+20,cx+34,cy+35]);
+  [100,200].forEach(function(km){
+    const r=km/v.kmpp,t=km+' km',tw=t.length*5.4,angs=[20,-20,160,200,50,-50,130,-130,90,-90,0,180];
+    for(let i=0;i<angs.length;i++){
+      const a=angs[i]*Math.PI/180,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r,rt=Math.cos(a)>=0,lx=rt?x+3:x-3-tw;
+      if(lx<4||lx+tw>W-4||y<22||y>H-12)continue;
+      if(boxes.some(function(b){return lx<b[2]&&lx+tw>b[0]&&y-9<b[3]&&y+3>b[1];}))continue;
+      lab(t,rt?x+3:x-3,y+3,c.mut,rt?'left':'right');break;
+    }
+  });
   // HUD: hora del cuadro, capa y línea de tiempo
   ctx.font='10px monospace';
   if(f){
@@ -3728,6 +3989,8 @@ function wxDraw(){
 function wxStep(){
   _wx.timer=null;
   if(!_wx.active)return;
+  // el panel puede cambiar de alto después de medirlo: se vuelve a medir en cada paso (barato) sin depender solo de eventos
+  if(wxSize()){if(_wx.frames.length)wxLoadFrames();wxRenderIcons();}
   const n=_wx.frames.length;
   if(n){
     for(let k=0;k<n;k++){
@@ -3739,12 +4002,45 @@ function wxStep(){
   }
   _wx.timer=setTimeout(wxStep,(n&&_wx.idx===wxNowIdx())?WX_HOLD_MS:WX_STEP_MS);
 }
+// Iconos animados de clima sobre el lienzo (HTML: sus animaciones CSS corren aparte del bucle del radar).
+// Solo se reconstruyen si cambia algo que dibujan, para no reiniciar las animaciones.
+function wxRenderIcons(){
+  const host=document.getElementById('wx-icons'),v=_wx.view;
+  if(!host||!v)return;
+  if(!_wx.now){if(host.dataset.k){host.innerHTML='';host.dataset.k='';}return;}
+  const W=_wx.W,H=_wx.H,items=[];
+  _wx.now.cities.forEach(function(ct){
+    const mm=wxMerc(ct.lat,ct.lon),x=(mm.x-v.x0)/v.wpp,y=(mm.y-v.y0)/v.wpp,sz=ct.home?30:20;
+    if(x<sz/2+2||x>W-sz/2-2||y<sz/2+10||y>H-sz/2-8)return;
+    if(!ct.home&&Math.hypot(x-W/2,y-H/2)<34)return;
+    items.push({x:x,y:y,sz:sz,kind:ct.kind,day:ct.day});
+  });
+  const key=items.map(function(i){return [Math.round(i.x),Math.round(i.y),i.kind,i.day?1:0].join(',');}).join(';')+'|'+W+'x'+H;
+  if(host.dataset.k===key)return;
+  host.dataset.k=key;host.style.width=W+'px';host.style.height=H+'px';
+  host.innerHTML=items.map(function(i){return '<div class="ci" style="left:'+(i.x-i.sz/2).toFixed(0)+'px;top:'+(i.y-i.sz/2).toFixed(0)+'px">'+wxIconSvg(i.kind,i.day,i.sz)+'</div>';}).join('');
+}
+async function wxLoadNow(){
+  const v=_wx.view;
+  if(_wx.nowLoading||!v)return;
+  const key=v.lat.toFixed(1)+','+v.lon.toFixed(1);
+  if(_wx.now&&_wx.nowKey===key&&Date.now()-_wx.nowTs<600000)return;
+  _wx.nowLoading=true;
+  try{
+    const r=await fetch(WX_API+'/wx/now?lat='+v.lat+'&lon='+v.lon);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    _wx.now=await r.json();_wx.nowKey=key;_wx.nowTs=Date.now();
+    wxRenderIcons();if(_wx.active)wxDraw();
+  }catch(e){clearTimeout(_wx.nowRetry);_wx.nowRetry=setTimeout(function(){if(_wx.active)wxLoadNow();},60000);}
+  _wx.nowLoading=false;
+}
 async function wxLoad(){
   if(_wx.loading)return;
   _wx.loading=true;
   try{
     wxSize();
     if(!_wx.view)throw new Error('sin lienzo');
+    wxLoadNow();
     const r=await fetch(WX_API+'/wx');
     if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
@@ -3782,6 +4078,7 @@ function wxActivate(on){
   if(!on)return;
   if(wxSize()&&_wx.frames.length)wxLoadFrames();
   wxInfoUpdate();wxDraw();wxLoad();
+  wxRenderIcons();
   _wx.refresh=setInterval(wxLoad,WX_REFRESH_MS);
   _wx.timer=setTimeout(wxStep,WX_STEP_MS);
 }
@@ -3793,8 +4090,17 @@ function wxCycleLayer(){
 window.addEventListener('resize',function(){
   if(!_wx.active)return;
   clearTimeout(window._wxrt);
-  window._wxrt=setTimeout(function(){if(wxSize()){if(_wx.frames.length)wxLoadFrames();wxDraw();}},250);
+  window._wxrt=setTimeout(function(){if(wxSize()){if(_wx.frames.length)wxLoadFrames();wxRenderIcons();wxDraw();}},250);
 });
+// El panel puede cambiar de alto después de medirlo (p. ej. al llegar el icono del clima):
+// si el bitmap no coincide con el tamaño mostrado, el radar se ve deformado.
+if(window.ResizeObserver){
+  new ResizeObserver(function(){
+    if(!_wx.active)return;
+    clearTimeout(window._wxro);
+    window._wxro=setTimeout(function(){if(wxSize()){if(_wx.frames.length)wxLoadFrames();wxRenderIcons();wxDraw();}},120);
+  }).observe(document.getElementById('wx-canvas'));
+}
 // Antes se aplicaba al arrancar, cuando _nxPanelMode aún no estaba asignada y el
 // panel siempre quedaba en LOG; ahora se aplica aquí, con todo ya definido.
 _applyNxPanel();
@@ -4093,6 +4399,51 @@ function initSnake(canvas){
 @media (max-width:800px) { .st-grid { grid-template-columns:1fr; } }
 .st-sat { position:relative; width:100%; background:#05080c; border:1px solid #30363d; border-radius:4px; overflow:hidden; }
 .st-sat img { position:absolute; left:0; top:0; width:100%; height:100%; object-fit:fill; }
+/* ── Iconos de clima animados (SVG inline; colores = variables del tema) ── */
+.wi { display:inline-block; vertical-align:middle; overflow:visible; }
+.wi .am { transform-box:fill-box; transform-origin:center; }
+.wi .cl { fill:var(--wl); stroke:var(--wa); stroke-width:2; stroke-linejoin:round; }
+.wi .sn { fill:var(--ww); }
+.wi .ry { stroke:var(--ww); stroke-width:2.4; stroke-linecap:round; }
+.wi .halo { fill:var(--ww); opacity:.3; }
+.wi .mn { fill:var(--wm); }
+.wi .st { fill:var(--wm); }
+.wi .dp { stroke:var(--wc); stroke-width:2.2; stroke-linecap:round; fill:none; }
+.wi .fk { fill:var(--wa); }
+.wi .bl { fill:var(--ww); }
+.wi .fg { stroke:var(--wa); stroke-width:2.6; stroke-linecap:round; fill:none; }
+.wi .wv { fill:var(--wc); opacity:.85; }
+.wi .ol { fill:none; stroke:var(--wa); stroke-width:1.8; stroke-linejoin:round; }
+.wi .fl { fill:none; stroke:var(--wc); stroke-width:1.9; stroke-linecap:round; stroke-dasharray:12 8; }
+@keyframes wi-spin { to { transform:rotate(360deg); } }
+@keyframes wi-halo { 0%,100% { transform:scale(1); opacity:.32; } 50% { transform:scale(1.22); opacity:.08; } }
+@keyframes wi-drift { from { transform:translateX(-3px); } to { transform:translateX(3px); } }
+@keyframes wi-fall { 0% { transform:translateY(-4px); opacity:0; } 25% { opacity:1; } 100% { transform:translateY(11px); opacity:0; } }
+@keyframes wi-snow { 0% { transform:translate(-2px,-4px); opacity:0; } 25% { opacity:1; } 100% { transform:translate(2px,11px); opacity:0; } }
+@keyframes wi-flash { 0%,52%,100% { opacity:.15; } 55% { opacity:1; } 59% { opacity:.25; } 63% { opacity:1; } 70% { opacity:.15; } }
+@keyframes wi-twk { 0%,100% { opacity:.2; } 50% { opacity:1; } }
+@keyframes wi-fog { 0%,100% { transform:translateX(-4px); opacity:.4; } 50% { transform:translateX(4px); opacity:1; } }
+@keyframes wi-flow { to { stroke-dashoffset:40; } }
+@keyframes wi-wave { to { transform:translateX(-12px); } }
+.wi .a-spin { animation:wi-spin 30s linear infinite; }
+.wi .a-halo { animation:wi-halo 4s ease-in-out infinite; }
+.wi .a-drift { animation:wi-drift 5s ease-in-out infinite alternate; }
+.wi .a-drift2 { animation:wi-drift 7s ease-in-out infinite alternate-reverse; }
+.wi .a-fall, .wi .a-fallh { animation:wi-fall 1.15s linear infinite; }
+.wi .a-snow { animation:wi-snow 2.6s linear infinite; }
+.wi .a-flash { animation:wi-flash 3.4s linear infinite; }
+.wi .a-twk { animation:wi-twk 2.4s ease-in-out infinite; }
+.wi .a-fog { animation:wi-fog 5s ease-in-out infinite; }
+.wi .a-flow { animation:wi-flow 2.5s linear infinite; }
+.wi .a-wave { animation:wi-wave 2.6s linear infinite; }
+.w-icon { width:58px; height:52px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.wrow { display:flex; align-items:center; justify-content:center; gap:5px; margin-top:2px; font-size:13px; }
+.wsi { width:18px; height:18px; display:inline-flex; flex-shrink:0; }
+#nxp-wx { position:relative; }
+#wx-icons { position:absolute; left:0; top:0; pointer-events:none; overflow:hidden; }
+#wx-icons .ci { position:absolute; line-height:0; }
+#wind-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+#wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
 .st-kv { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
 .st-kv > div { background:#161b22; border:1px solid #30363d; border-radius:4px; padding:6px 8px; }
 .st-kv .k { font-size:9px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
@@ -4191,6 +4542,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       <div class="cfg-toggle-row"><span>✈ Live Flights</span><input type="checkbox" id="cfg-flights"></div>
       <div class="cfg-toggle-row"><span>🔥 Wildfires (FIRMS)</span><input type="checkbox" id="cfg-fires"></div>
       <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
+      <div class="cfg-toggle-row"><span>🌬 Wind layer (GFS)</span><input type="checkbox" id="cfg-wind"></div>
     </div>
     <div class="cfg-actions">
       <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>

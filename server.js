@@ -361,7 +361,22 @@ app.get('/weather', async (req,res)=>{
     const d=await r.json();
     const cur=d.current_condition[0],today=d.weather[0];
     nxLog('Weather OK: '+cur.temp_C+'°C '+cur.weatherDesc[0].value,'ok');
-    const result = {temp:parseInt(cur.temp_C),desc:cur.weatherDesc[0].value,humidity:parseInt(cur.humidity),wind:parseInt(cur.windspeedKmph),uv:parseInt(cur.uvIndex),high:parseInt(today.maxtempC),low:parseInt(today.mintempC)};
+    // ¿es de día allá? wttr ya no trae la hora local de la observación: se pregunta a Open-Meteo
+    // por el punto que wttr resolvió y, si no responde, se usa amanecer/atardecer con el reloj de este PC
+    let day=null;
+    try{
+      const na=d.nearest_area&&d.nearest_area[0];
+      const om=await omJson(`https://api.open-meteo.com/v1/forecast?latitude=${na.latitude}&longitude=${na.longitude}&current=is_day`,6000);
+      if(om&&om.current&&om.current.is_day!=null)day=om.current.is_day===1;
+    }catch(_){}
+    if(day===null){
+      const clock12=s=>{const m=/(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(s||'');if(!m)return null;return((+m[1]%12)+(/pm/i.test(m[3])?12:0))*60+ +m[2];};
+      const ast=today.astronomy&&today.astronomy[0]||{},sr=clock12(ast.sunrise),ss=clock12(ast.sunset),n=new Date(),nm=n.getHours()*60+n.getMinutes();
+      day=(sr!=null&&ss!=null)?(nm>=sr&&nm<ss):true;
+    }
+    const code=parseInt(cur.weatherCode);
+    const result = {temp:parseInt(cur.temp_C),desc:cur.weatherDesc[0].value,humidity:parseInt(cur.humidity),wind:parseInt(cur.windspeedKmph),uv:parseInt(cur.uvIndex),high:parseInt(today.maxtempC),low:parseInt(today.mintempC),
+      code,kind:WWO_KIND[code]||'cloudy',day,windDir:parseInt(cur.winddirDegree),precip:parseFloat(cur.precipMM)||0};
     if (!req.query.city) { _weatherCache = result; _weatherTs = Date.now(); }
     res.json(result);
   }catch(e){nxLog('ERROR weather: '+e.message,'error');res.status(500).json({error:e.message});}
@@ -795,6 +810,7 @@ const NM_TO_KM  = 1.852;
 const MONTHS_EN = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
 let _stormsCache = { storms: [], ts: 0 };
 let _stormsInFlight = null;
+let _stormRetry = null;
 const _satCache = new Map();
 
 function stormCategory(kt) {
@@ -951,11 +967,19 @@ async function refreshStorms() {
       const results = await Promise.allSettled(active.map(buildStorm));
       results.forEach((r, i) => { if (r.status === 'rejected') nxLog('Storm ' + active[i].properties.eventname + ': ' + r.reason.message, 'warn'); });
       const storms = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-      if (active.length > 0 && storms.length === 0 && _stormsCache.storms.length) {
-        nxLog('Storms: todas las construcciones fallaron, se conserva la caché previa', 'warn');
+      // "sin boletines reales" es permanente (aún sin datos); lo demás (timeouts, HTTP) es transitorio
+      const transient = results.filter(r => r.status === 'rejected' && !/sin boletines reales/.test(r.reason.message)).length;
+      if (active.length > 0 && storms.length === 0 && transient > 0) {
+        // GDACS falló para todos (típico justo tras arrancar): una lista vacía NO es un resultado válido,
+        // aceptarla dejaba el mapa sin ciclones 20 min. Se conserva lo previo y se reintenta pronto.
+        nxLog('Storms: ' + transient + ' construcciones fallaron, se conserva la caché previa y se reintenta', 'warn');
       } else {
         _stormsCache = { storms, ts: Date.now() };
-        nxLog('Storms (detalle GDACS): ' + storms.length, storms.length ? 'ok' : 'info');
+        nxLog('Storms (detalle GDACS): ' + storms.length + (storms.length < active.length ? ' de ' + active.length : ''), storms.length ? 'ok' : 'info');
+      }
+      if (transient > 0) {   // reintento en 3 min (un solo temporizador)
+        clearTimeout(_stormRetry);
+        _stormRetry = setTimeout(refreshStorms, 3 * 60 * 1000);
       }
     } catch (e) { nxLog('Storms refresh falló: ' + e.message, 'warn'); }
     finally { _stormsInFlight = null; }
@@ -1091,6 +1115,240 @@ app.get('/wx/sat', async (req, res) => {
   res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Bbox': c.bbox, 'X-Sat-Time': c.time,
             'X-Sat-Layer': c.layer, 'Access-Control-Expose-Headers': 'X-Bbox, X-Sat-Time, X-Sat-Layer' });
   res.send(c.buf);
+});
+
+// ── Condición del tiempo → "tipo" de icono ──────────────────────────────────
+// wttr.in usa códigos WWO y Open-Meteo códigos WMO; los dos se reducen a la
+// misma docena de tipos que sabe dibujar el cliente.
+const WWO_KIND = {};
+[[113,'clear'],[116,'partly'],[119,'cloudy'],[122,'cloudy'],[143,'fog'],[248,'fog'],[260,'fog'],
+ [263,'drizzle'],[266,'drizzle'],[281,'drizzle'],[284,'drizzle'],[185,'drizzle'],
+ [176,'rain'],[293,'rain'],[296,'rain'],[299,'rain'],[302,'rain'],[311,'rain'],[353,'rain'],[356,'rain'],
+ [305,'heavy'],[308,'heavy'],[314,'heavy'],[359,'heavy'],
+ [182,'sleet'],[317,'sleet'],[320,'sleet'],[362,'sleet'],[365,'sleet'],[350,'sleet'],[374,'sleet'],[377,'sleet'],
+ [179,'snow'],[227,'snow'],[230,'snow'],[323,'snow'],[326,'snow'],[329,'snow'],[332,'snow'],[335,'snow'],[338,'snow'],[368,'snow'],[371,'snow'],
+ [200,'thunder'],[386,'thunder'],[389,'thunder'],[392,'thunder'],[395,'thunder']].forEach(([c, k]) => { WWO_KIND[c] = k; });
+function kindFromWmo(c) {
+  if (c <= 1) return 'clear';
+  if (c === 2) return 'partly';
+  if (c === 3) return 'cloudy';
+  if (c === 45 || c === 48) return 'fog';
+  if (c >= 51 && c <= 57) return 'drizzle';
+  if (c === 65 || c === 82) return 'heavy';
+  if (c === 66 || c === 67) return 'sleet';
+  if ((c >= 61 && c <= 64) || (c >= 80 && c <= 81)) return 'rain';
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+  if (c >= 95) return 'thunder';
+  return 'cloudy';
+}
+
+// ── Condiciones actuales por ciudad (Open-Meteo) para los iconos del radar ───
+const WX_NOW_TTL = 15 * 60 * 1000;
+const MX_CITIES = [
+  ['Cd. de México',19.43,-99.13],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],
+  ['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Tlaxcala',19.32,-98.24],
+  ['Acapulco',16.86,-99.89],['Chilpancingo',17.55,-99.50],['Zihuatanejo',17.64,-101.55],['Colima',19.24,-103.72],
+  ['Guadalajara',20.67,-103.35],['León',21.12,-101.68],['Aguascalientes',21.88,-102.29],['S.L. Potosí',22.15,-100.98],
+  ['Tampico',22.23,-97.86],['Cd. Valles',21.99,-99.01],['Xalapa',19.54,-96.91],['Veracruz',19.17,-96.13],
+  ['Coatzacoalcos',18.15,-94.42],['Villahermosa',17.99,-92.93],['Tuxtla',16.75,-93.12],['Oaxaca',17.07,-96.72],
+  ['Tehuacán',18.46,-97.39],['Monterrey',25.69,-100.32],['Mérida',20.97,-89.62],['Cancún',21.16,-86.85]
+];
+// Open-Meteo da 503 sueltos y a veces tarda decenas de segundos: un reintento corto basta
+async function omJson(url, ms) {
+  let err;
+  for (let i = 0; i < 2; i++) {
+    try { const r = await fetch(url, { signal: AbortSignal.timeout(ms) }); if (r.ok) return await r.json(); err = new Error('HTTP ' + r.status); }
+    catch (e) { err = e; }
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  throw err;
+}
+const _wxNowCache = new Map();
+async function fetchWxNow(lat, lon) {
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1);
+  const c = _wxNowCache.get(key);
+  if (c && Date.now() - c.ts < WX_NOW_TTL) return c;
+  const kmx = Math.cos(lat * Math.PI / 180) * 111.32;
+  const near = MX_CITIES.map(([n, la, lo]) => ({ n, lat: la, lon: lo, dx: (lo - lon) * kmx, dy: (la - lat) * 111.2 }))
+    .filter(x => Math.abs(x.dx) <= 310 && Math.abs(x.dy) <= 200 && Math.hypot(x.dx, x.dy) > 14)
+    .sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy)).slice(0, 9);
+  const pts = [{ n: 'CASA', lat, lon, home: true }, ...near];
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + pts.map(p => p.lat).join(',') + '&longitude=' + pts.map(p => p.lon).join(',') +
+      '&current=temperature_2m,weather_code,is_day,wind_speed_10m,wind_direction_10m,precipitation&timezone=auto';
+    const j = await omJson(url, 20000);
+    const arr = Array.isArray(j) ? j : [j];
+    const cities = pts.map((p, i) => {
+      const cur = arr[i] && arr[i].current;
+      if (!cur) return null;
+      return { n: p.n, lat: p.lat, lon: p.lon, home: !!p.home, t: Math.round(cur.temperature_2m), code: cur.weather_code, kind: kindFromWmo(cur.weather_code),
+               day: cur.is_day === 1, wind: Math.round(cur.wind_speed_10m), dir: cur.wind_direction_10m, precip: cur.precipitation };
+    }).filter(Boolean);
+    const out = { cities, ts: Date.now() };
+    _wxNowCache.set(key, out);
+    if (_wxNowCache.size > 4) _wxNowCache.delete(_wxNowCache.keys().next().value);
+    return out;
+  } catch (e) { nxLog('Clima por ciudad: ' + e.message, 'warn'); return c || null; }
+}
+app.get('/wx/now', async (req, res) => {
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
+  const out = await fetchWxNow(lat, lon);
+  if (!out) return res.status(503).json({ error: 'sin datos de clima' });
+  res.json(out);
+});
+
+// ── Viento global: GFS a 10 m, vía UCAR THREDDS (sin clave ni cuota) ─────────
+// NOMADS retiró OpenDAP; THREDDS entrega la rejilla de 2.5° completa en una
+// sola petición (~88 KB) como NetCDF-3 clásico, que se lee aquí sin librerías.
+const WIND_TTL = 3 * 60 * 60 * 1000;
+const WIND_FILE = path.join(__dirname, '.wind-cache.json');
+const WIND_URL = 'https://thredds.ucar.edu/thredds/ncss/grid/grib/NCEP/GFS/Global_0p5deg/Best' +
+  '?var=u-component_of_wind_height_above_ground&var=v-component_of_wind_height_above_ground' +
+  '&north=90&south=-90&west=0&east=359.5&horizStride=5&time=present&vertCoord=10&accept=netcdf';
+let _windCache = { ts: 0, data: null };
+let _windInFlight = null;
+try { const c = JSON.parse(fs.readFileSync(WIND_FILE, 'utf8')); if (c && c.data && Array.isArray(c.data.u)) _windCache = c; } catch (_) { /* sin caché previa */ }
+
+function readNetcdf3(buf) {
+  if (buf.toString('latin1', 0, 3) !== 'CDF') throw new Error('no es NetCDF-3');
+  const v2 = buf[3] === 2;
+  let p = 4;
+  const u32 = () => { const x = buf.readUInt32BE(p); p += 4; return x; };
+  const str = () => { const n = u32(); const s = buf.toString('latin1', p, p + n); p += (n + 3) & ~3; return s; };
+  const SZ = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 4, 6: 8 };
+  const atts = () => {
+    u32(); const n = u32(), out = {};
+    for (let i = 0; i < n; i++) {
+      const nm = str(), type = u32(), cnt = u32();
+      if (type === 2) out[nm] = buf.toString('latin1', p, p + cnt).replace(/\0+$/, '');
+      else if (type === 5) out[nm] = buf.readFloatBE(p);
+      else if (type === 6) out[nm] = buf.readDoubleBE(p);
+      p += (cnt * SZ[type] + 3) & ~3;
+    }
+    return out;
+  };
+  const numrecs = u32();
+  const dims = [];
+  u32(); for (let i = 0, n = u32(); i < n; i++) dims.push({ name: str(), len: u32() });
+  atts();
+  const vars = {};
+  u32();
+  for (let i = 0, n = u32(); i < n; i++) {
+    const name = str(), nd = u32(), dimids = [];
+    for (let k = 0; k < nd; k++) dimids.push(u32());
+    const a = atts(), type = u32(); u32();
+    let begin;
+    if (v2) { begin = Number(buf.readBigUInt64BE(p)); p += 8; } else begin = u32();
+    vars[name] = { dimids, type, begin, atts: a };
+  }
+  const read = name => {
+    const v = vars[name];
+    if (!v) throw new Error('falta la variable ' + name);
+    const n = v.dimids.reduce((a, i) => a * (dims[i].len || numrecs), 1);
+    const sz = SZ[v.type], out = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const o = v.begin + i * sz;
+      out[i] = v.type === 5 ? buf.readFloatBE(o) : v.type === 6 ? buf.readDoubleBE(o) : v.type === 4 ? buf.readInt32BE(o) : v.type === 3 ? buf.readInt16BE(o) : buf[o];
+    }
+    return out;
+  };
+  return { vars, read };
+}
+
+async function refreshWind() {
+  if (_windInFlight) return _windInFlight;
+  _windInFlight = (async () => {
+    try {
+      const r = await fetch(WIND_URL, { signal: AbortSignal.timeout(45000), headers: { 'User-Agent': 'NexusMonitor/1.0' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const nc = readNetcdf3(Buffer.from(await r.arrayBuffer()));
+      const names = Object.keys(nc.vars);
+      const un = names.find(n => /^u-component_of_wind/.test(n)), vn = names.find(n => /^v-component_of_wind/.test(n));
+      if (!un || !vn) throw new Error('sin componentes u/v');
+      // los nombres de coordenadas cambian entre servidores (lat/latitude/...): se buscan por unidades
+      const byAtt = f => names.find(n => f(nc.vars[n].atts));
+      const latN = byAtt(a => a.units === 'degrees_north'), lonN = byAtt(a => a.units === 'degrees_east');
+      if (!latN || !lonN) throw new Error('sin coordenadas lat/lon');
+      const lat = nc.read(latN), lon = nc.read(lonN), u = nc.read(un), v = nc.read(vn);
+      const nx = lon.length, ny = lat.length;
+      if (u.length !== nx * ny || v.length !== nx * ny) throw new Error('rejilla inesperada ' + u.length + ' vs ' + nx + 'x' + ny);
+      let time = null;
+      try {
+        const tN = byAtt(a => a.standard_name === 'time'), m = /^(\w+) since (\S+)/i.exec(nc.vars[tN].atts.units || '');
+        if (m) time = new Date(Date.parse(m[2]) + nc.read(tN)[0] * ({ hour: 3600e3, hours: 3600e3, minute: 60e3, minutes: 60e3, day: 864e5, days: 864e5 }[m[1].toLowerCase()] || 3600e3)).toISOString();
+      } catch (_) { /* la hora es solo informativa */ }
+      const q = a => Array.from(a, x => Number.isFinite(x) ? Math.round(x * 10) : 0);   // decímetros por segundo
+      const data = { nx, ny, lo0: lon[0], dlo: lon[1] - lon[0], la0: lat[0], dla: lat[1] - lat[0], time, u: q(u), v: q(v) };
+      _windCache = { ts: Date.now(), data };
+      fs.writeFile(WIND_FILE, JSON.stringify(_windCache), () => {});
+      nxLog('Viento GFS: ' + nx + '×' + ny + (time ? ' (' + time.slice(0, 16) + 'Z)' : ''), 'ok');
+    } catch (e) { nxLog('Viento GFS falló: ' + e.message, 'warn'); }
+    finally { _windInFlight = null; }
+    return _windCache;
+  })();
+  return _windInFlight;
+}
+app.get('/wind', async (req, res) => {
+  if (!_windCache.data || Date.now() - _windCache.ts > WIND_TTL) {
+    const p = refreshWind();
+    if (!_windCache.data) await p;   // sin nada que mostrar espera; con caché vieja responde ya y renueva detrás
+  }
+  if (!_windCache.data) return res.status(503).json({ error: 'sin datos de viento' });
+  res.json({ ..._windCache.data, ts: _windCache.ts });
+});
+
+// ── Oleaje bajo la huella de un ciclón (Open-Meteo Marine) ───────────────────
+// El modelo de olas es global y de baja resolución: en el núcleo de un ciclón
+// intenso subestima las alturas reales. Sirve para ver DÓNDE hay más mar, no
+// como medida exacta de la altura máxima.
+const WAVES_TTL = 30 * 60 * 1000;
+const _wavesCache = new Map();
+function destPoint(lat, lon, brgDeg, km) {
+  const r = Math.PI / 180, d = km / 6371, b = brgDeg * r, la = lat * r, lo = lon * r;
+  const la2 = Math.asin(Math.sin(la) * Math.cos(d) + Math.cos(la) * Math.sin(d) * Math.cos(b));
+  const lo2 = lo + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(la), Math.cos(d) - Math.sin(la) * Math.sin(la2));
+  return [+(la2 / r).toFixed(2), +(((lo2 / r + 540) % 360) - 180).toFixed(2)];
+}
+function wavePoints(st) {
+  const pts = [[st.lat, st.lon, 'core']];
+  const q = st.radii.kt34, brg = [45, 135, 225, 315];
+  const rmax = Math.max(...q, 0) || 100;
+  q.forEach((r, i) => { if (r > 0) { pts.push([...destPoint(st.lat, st.lon, brg[i], r * 0.5), 'in']); pts.push([...destPoint(st.lat, st.lon, brg[i], r), 'edge']); } });
+  if (!q.some(r => r > 0)) brg.forEach(b => pts.push([...destPoint(st.lat, st.lon, b, 60), 'in']));
+  [0, 90, 180, 270].forEach(b => pts.push([...destPoint(st.lat, st.lon, b, rmax * 1.5), 'out']));
+  return pts;
+}
+async function fetchStormWaves(st) {
+  const c = _wavesCache.get(st.id);
+  if (c && Date.now() - c.ts < WAVES_TTL) return c;
+  const pts = wavePoints(st);
+  try {
+    const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + pts.map(p => p[0]).join(',') + '&longitude=' + pts.map(p => p[1]).join(',') +
+      '&current=wave_height,wave_period,wave_direction,swell_wave_height&hourly=wave_height&forecast_hours=24';
+    const j = await omJson(url, 20000), arr = Array.isArray(j) ? j : [j];
+    const points = pts.map((p, i) => {
+      const cur = arr[i] && arr[i].current;
+      if (!cur || cur.wave_height == null) return null;   // punto en tierra
+      const hr = ((arr[i].hourly || {}).wave_height || []).filter(x => x != null);
+      return { lat: p[0], lon: p[1], zone: p[2], h: cur.wave_height, p: cur.wave_period, d: cur.wave_direction, swell: cur.swell_wave_height,
+               max24: hr.length ? Math.max(...hr) : cur.wave_height };
+    }).filter(Boolean);
+    // "bajo la huella" = centro, mitad y borde de los radios de 34 kt; el anillo 'out' solo da contexto
+    const top = (arr, key) => arr.reduce((m, x) => (!m || x[key] > m[key]) ? x : m, null);
+    const fp = points.filter(x => x.zone !== 'out'), base = fp.length ? fp : points;
+    const out = { points, max: top(base, 'h'), max24: top(base, 'max24'), maxOut: top(points.filter(x => x.zone === 'out'), 'h'), ts: Date.now() };
+    _wavesCache.set(st.id, out);
+    if (_wavesCache.size > 12) _wavesCache.delete(_wavesCache.keys().next().value);
+    return out;
+  } catch (e) { nxLog('Oleaje ' + st.fullName + ': ' + e.message, 'warn'); return c || null; }
+}
+app.get('/storms/:id/waves', async (req, res) => {
+  const st = _stormsCache.storms.find(s => String(s.id) === req.params.id);
+  if (!st) return res.status(404).json({ error: 'tormenta no encontrada' });
+  const out = await fetchStormWaves(st);
+  if (!out) return res.status(503).json({ error: 'sin datos de oleaje' });
+  res.json(out);
 });
 
 let _eventsInFlight = null;
@@ -2314,6 +2572,8 @@ purgeOldHistory();
 setInterval(purgeOldHistory, 24 * 3600 * 1000);
 
 refreshStorms(); setInterval(refreshStorms, STORM_TTL);
+if (Date.now() - _windCache.ts > WIND_TTL) refreshWind();   // la caché de disco evita bajar GFS en cada reinicio
+setInterval(refreshWind, WIND_TTL);
 app.listen(PORT,()=>{
   nxLog('Servidor escuchando en http://localhost:'+PORT,'ok');
   console.log('\n  ┌─────────────────────────────────┐');
