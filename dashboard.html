@@ -286,7 +286,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <span>PING <span id="pingval">-- ms</span></span>
     <span>PROCS <span id="procs">--</span></span>
     <span id="kp-badge" title="Geomagnetic Kp index" style="display:none;cursor:default;padding:1px 5px;border-radius:3px;font-weight:bold;letter-spacing:1px;">KP <span id="kp-val">--</span></span>
-    <span id="eq-footer"></span>
+    <span id="cloud-badge" onclick="showView('watch')" title="Estado de la nube" style="display:none;cursor:pointer;padding:1px 5px;border:1px solid;border-radius:3px;font-weight:bold;letter-spacing:1px;">☁ <span id="cloud-val">--</span></span><span id="tsu-badge" onclick="showView('watch')" title="Aviso de tsunami" style="display:none;cursor:pointer;padding:1px 5px;border:1px solid;border-radius:3px;font-weight:bold;letter-spacing:1px;">🌊 <span id="tsu-val">--</span></span><span id="eq-footer"></span>
     <span id="hostname" style="font-size:12px;font-weight:bold;letter-spacing:1px;">NEXUS@DESKTOP</span>
     <span style="display:flex;align-items:center;"><span class="ldot" id="ldot"></span><span id="llbl">LIVE</span></span>
   </div>
@@ -392,6 +392,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <button class="vtab" data-view="snake" onclick="showView('snake')" title="Alt+S">⌥S&nbsp;SNAKE</button>
       <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
       <button class="vtab" data-view="lan" onclick="showView('lan')" title="Alt+R">⌥R&nbsp;RED</button>
+      <button class="vtab" data-view="watch" onclick="showView('watch')" title="Alt+W">⌥W&nbsp;WATCH</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
       <button class="vtab" data-view="proc" id="vtab-proc" data-electron-only="1" onclick="showView('proc')" title="Alt+P" style="display:none">⌥P&nbsp;PROC</button>
       <button class="vtab" data-view="agent" id="vtab-agent" onclick="showView('agent')" title="Alt+A" style="display:none">⌥A&nbsp;AGENT</button>
@@ -399,7 +400,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="view-pane vp-active" id="view-map" style="flex:1;min-height:0;">
     <div id="wmap-wrap" style="position:relative; flex:1; min-height:0; width:100%; display:flex;">
       <div id="crit-alert-wrap" style="display:none;position:absolute;top:8px;left:8px;z-index:20;width:230px;pointer-events:auto"></div>
-      <div id="map-tooltip"></div><canvas id="wind-cv"></canvas><div id="wind-lbl" onclick="toggleWind()" title="Clic: ocultar la capa de viento (se reactiva en ⚙)"></div>
+      <div id="map-tooltip"></div><canvas id="aurora-cv"></canvas><canvas id="wind-cv"></canvas><div id="wind-lbl" onclick="toggleWind()" title="Clic: ocultar la capa de viento (se reactiva en ⚙)"></div>
       <svg id="wmap" viewBox="0 0 2000 1001" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%;height:100%;">
       <rect id="map-bg" width="2000" height="1001" rx="3"/>
       <line id="ml1" x1="0" y1="500" x2="2000" y2="500" stroke-width="1" opacity=".35"/>
@@ -1129,6 +1130,15 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 })();
 </script>
     </div>
+    <div class="view-pane" id="view-watch" style="flex:1;min-height:0;flex-direction:column;">
+      <div class="w-grid">
+        <div class="w-card wide"><div class="w-h"><b>CLIMA ESPACIAL</b><i>NOAA SWPC · Kp, viento solar, rayos X, avisos</i></div><div id="wc-space-body"></div></div>
+        <div class="w-card"><div class="w-h"><b>ESTADO DE LA NUBE</b><i id="wc-cloud-sub"></i></div><div id="wc-cloud-body"></div></div>
+        <div class="w-card"><div class="w-h"><b>SISMOS DE MÉXICO · SSN</b><i id="wc-ssn-sub"></i></div><div id="wc-ssn-body"></div></div>
+        <div class="w-card"><div class="w-h"><b>INTERNET POR PAÍS</b><i id="wc-net-sub"></i></div><div id="wc-net-body"></div></div>
+        <div class="w-card"><div class="w-h"><b>TSUNAMIS</b><i id="wc-tsu-sub"></i></div><div id="wc-tsu-body"></div></div>
+      </div>
+    </div>
     <div class="view-pane" id="view-explorer" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
       <div id="exp-toolbar" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:.5px solid;flex-shrink:0;font-size:11px">
         <button id="exp-up" onclick="explorerUp()" style="background:transparent;border:.5px solid;border-radius:3px;padding:2px 8px;cursor:pointer;font-family:monospace;font-size:10px">▲ UP</button>
@@ -1825,7 +1835,7 @@ function showView(name){
 document.addEventListener('keydown',function(e){
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
   if(!e.altKey||e.ctrlKey||e.metaKey)return;
-  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'lan',KeyF:'explorer',KeyP:'proc',KeyA:'agent'};
+  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'lan',KeyF:'explorer',KeyP:'proc',KeyA:'agent',KeyW:'watch'};
   if(vm[e.code]){showView(vm[e.code]);e.preventDefault();}
 });
 
@@ -1854,7 +1864,7 @@ function ca(hex,a){const[r,g,b]=h2r(hex);return'rgba('+r+','+g+','+b+','+a+')';}
 function currentPalette(){ return _pal; }
 function applyPalette(c){
   _pal = c;
-  wxIconVars(c);
+  wxIconVars(c);watchVars(c);
   document.getElementById('root').style.cssText='background:'+c.wrap+';border:1px solid '+c.wB+';border-radius:12px;padding:1px;width:100%;';
   const inn=document.getElementById('inner');inn.style.background=c.base;inn.style.color=c.hi;
   document.getElementById('hdr').style.borderBottomColor=c.lo;
@@ -2073,13 +2083,13 @@ async function fetchSpace() {
     const kpEl = document.getElementById('kp-val');
     if(badge && kp !== null && kp !== undefined) {
       badge.style.display = '';
-      kpEl.textContent = kp.value;
+      kpEl.textContent = (+kp.value).toFixed(1);
       const v = kp.value;
       const col = v >= 7 ? '#E24B4A' : v >= 5 ? '#EF9F27' : v >= 3 ? '#7F77DD' : _pal.mut;
       badge.style.color = col;
       badge.style.borderColor = col;
       badge.style.border = '1px solid ' + col;
-      badge.title = v >= 5 ? '⚡ AURORA POSSIBLE (Kp ' + v + ')' : 'Geomagnetic Kp = ' + v;
+      badge.title = (v >= 5 ? '⚡ AURORA POSIBLE · ' : '') + 'Kp ahora ' + v + (kp.peak24 != null ? ' · máx. 24 h ' + kp.peak24 : '') + ' (clic: WATCH)'; badge.style.cursor = 'pointer'; badge.onclick = function(){ showView('watch'); };
       // Aurora header glow
       const hdr = document.getElementById('hdr');
       if (hdr) {
@@ -2259,17 +2269,17 @@ let _correlations=[];
 // distintos: news→source, ISS→tripulación) se quedan como están, esas no
 // son duplicación pura sino comportamiento distinto por sitio.
 // var (no const) — top scope, ver regla de TDZ en el resumen del proyecto.
-var EVENT_FIXED_COLORS={volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',news:'#84CC16'};
+var EVENT_FIXED_COLORS={volcano:'#EC4899',storm:'#8B5CF6',flood:'#2563EB',news:'#84CC16',tsunami:'#06B6D4'};
 function eventColor(type,pal){
   if(EVENT_FIXED_COLORS[type])return EVENT_FIXED_COLORS[type];
   if(type==='fire')return pal.warn;
   if(type==='satellite'||type==='iss')return pal.hi;
   return pal.mid; // quake y cualquier tipo sin color fijo propio
 }
-var EVENT_ICON={quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',flood:'≈',satellite:'◈',iss:'◈'};
+var EVENT_ICON={quake:'⬡',fire:'▲',news:'◉',volcano:'▲',storm:'◎',flood:'≈',satellite:'◈',iss:'◈',tsunami:'≋'};
 var EVENT_LABEL={quake:'QUAKES',fire:'FIRES',news:'NEWS PINS',volcano:'VOLCANOES',storm:'STORMS',flood:'FLOODS',satellite:'SATELLITES'};
 var EVENT_INSIGHT_LABEL={volcano:'Actividad volcánica',storm:'Tormentas/ciclones',flood:'Inundaciones',news:'Volumen de noticias'};
-var EVENT_CRIT={quake:{icon:'⬡',title:'SEISMIC ALERT'},volcano:{icon:'▲',title:'VOLCANIC ALERT'},storm:{icon:'◎',title:'STORM ALERT'},flood:{icon:'≈',title:'FLOOD ALERT'}};
+var EVENT_CRIT={quake:{icon:'⬡',title:'SEISMIC ALERT'},volcano:{icon:'▲',title:'VOLCANIC ALERT'},storm:{icon:'◎',title:'STORM ALERT'},flood:{icon:'≈',title:'FLOOD ALERT'},tsunami:{icon:'≋',title:'TSUNAMI ALERT'}};
 
 // ── CICLONES TROPICALES: huella a escala real, trayectoria, cono y detalle ──
 // Datos de GET /storms (server.js, GDACS). La huella de viento NO es un
@@ -2586,7 +2596,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     if(ev.type==='cctv')return;
     if(ev.type==='fire' && !_settings.showFires) return;
     if(ev.type==='news' && !_settings.showNews) return;
-    if(ev.type==='quake' && ev.mag !== undefined && ev.mag < _settings.seismicMin) return;
+    if(ev.type==='quake' && ev.mag !== undefined && ev.mag < (ev.src==='SSN'?_settings.seismicMinMX:_settings.seismicMin)) return;
     const[x,y]=ll2xy(ev.lon,ev.lat);if(x<5||x>1995||y<5||y>996)return;
     const isISS=ev.type==='iss',isBig=ev.mag&&ev.mag>=6,isVolc=ev.type==='volcano',isStorm=ev.type==='storm',isFlood=ev.type==='flood',isSat=ev.type==='satellite',isNews=ev.type==='news',isFire=ev.type==='fire';
 
@@ -2599,6 +2609,8 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     else if(isSat){dc='#38BDF8';tc='#BAE6FD';r=4;}  // sky blue
     else if(isNews){dc='#84CC16';tc='#D9F99D';r=5;} // lime (≠ ISS amber)
     else if(isFire){dc='#FF6D00';tc='#FFB74D';r=2;} // deep orange
+    else if(ev.type==='tsunami'){dc='#06B6D4';tc='#A5F3FC';r=8;}  // cian
+    if(ev.src==='SSN'){r=(ev.mag||0)>=3.8?5:4;}                     // sismos locales: puntos chicos
 
     // Draw satellite orbit trail before the pin
     if(isSat || isISS) drawSatOrbit(ns, ev, x, y, orbitGroup);
@@ -2682,7 +2694,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       }
     }
 
-    if(!isSat && !isFire){
+    if(!isSat && !isFire && !(ev.src==='SSN' && (ev.mag||0)<4)){
       const lbl=document.createElementNS(ns,'text');
       lbl.setAttribute('x',x+(isStorm?12:r+3));
       lbl.setAttribute('y',y+4);
@@ -2708,6 +2720,8 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       if(ev.type === 'quake') titleHtml = `<strong>⚠️ EARTHQUAKE: ${ev.label || ''}</strong>`;
       if(isStorm) titleHtml = `<strong>🌀 ${ev.classLabel||'STORM'}: ${ev.label}</strong>`;
       if(isFlood) titleHtml = `<strong>🌊 FLOOD: ${ev.label}</strong>`;
+      if(ev.src==='SSN') titleHtml = `<strong>⚠️ SISMO MÉXICO (SSN): ${ev.label || ''}</strong>`;
+      if(ev.type==='tsunami') titleHtml = `<strong>🌊 TSUNAMI: ${ev.label || ''}</strong>`;
       
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
       if(st) bodyHtml = stormTooltipHtml(st, c);
@@ -2781,14 +2795,14 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
 async function fetchEvents(){
   try{
     const d=await(await fetch('http://localhost:19234/events')).json();_evts=d.events||[];_correlations=d.correlations||[];renderEventPins();
-    const qc=_evts.filter(e=>e.type==='quake').length;
+    const qc=_evts.filter(e=>e.type==='quake'&&e.src!=='SSN').length,mxc=_evts.filter(e=>e.src==='SSN').length;
     const fc=_evts.filter(e=>e.type==='fire').length;
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
     const nc=_evts.filter(e=>e.type==='news').length;
     const stc=_evts.filter(e=>e.type==='storm').length;
     const flc=_evts.filter(e=>e.type==='flood').length;
     const eqc=document.getElementById('eq-count');
-    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${flc>0?' · 🌊FL:'+flc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
+    if(eqc){eqc.textContent=`EQ:${qc} · SAT:${sc}${fc>0?' · 🔥'+fc:''}${stc>0?' · 🌀TC:'+stc:''}${flc>0?' · 🌊FL:'+flc:''}${mxc>0?' · MX:'+mxc:''}${nc>0?' · NW:'+nc:''}`;eqc.style.color=_pal.mut;}
     const eqf=document.getElementById('eq-footer');if(eqf){eqf.textContent='EQ '+qc;eqf.style.color=_pal.fH;}
     // Feed news headlines to ticker
     const newsTitles=_evts.filter(e=>e.type==='news').map(e=>e.title||e.info).filter(Boolean);
@@ -2999,7 +3013,7 @@ function renderGSPulseAndEvents(events) {
   const c = currentPalette();
   // 24H PULSE — counts by type
   const counts = {quake:0, fire:0, news:0, volcano:0, storm:0, flood:0, satellite:0};
-  events.forEach(e => { if(counts[e.type]!==undefined) counts[e.type]++; });
+  events.forEach(e => { if(e.src==='SSN') return; if(counts[e.type]!==undefined) counts[e.type]++; });
   const pulseEl = document.getElementById('gs-pulse');
   if (pulseEl) {
     pulseEl.innerHTML = Object.entries(counts).map(([k,v])=>
@@ -3022,7 +3036,7 @@ function renderGSPulseAndEvents(events) {
       .filter(e => {
         if(e.type==='quake') return (e.mag||0)>=4.5;
         if(e.type==='fire') return false;
-        return ['volcano','storm','flood','news'].includes(e.type);
+        return ['volcano','storm','flood','news','tsunami'].includes(e.type);
       })
       .sort((a,b)=>(isCritType(b)?1:0)-(isCritType(a)?1:0))
       .slice(0,12);
@@ -3483,7 +3497,7 @@ window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mr
 
 // ── SETTINGS ────────────────────────────────────────────────────────────────
 var SETTINGS_KEY = 'nexus_settings';
-var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true };
+var _defaultSettings = { username:'SERGIO', city:'', seismicMin:4.5, showFlights:true, showFires:true, showNews:true, showWind:true, seismicMinMX:3, showAurora:true };
 var _settings = Object.assign({}, _defaultSettings, JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'));
 
 function saveSettings() {
@@ -3501,6 +3515,9 @@ function openSettings() {
   document.getElementById('cfg-fires').checked = _settings.showFires;
   document.getElementById('cfg-news').checked = _settings.showNews;
   document.getElementById('cfg-wind').checked = _settings.showWind !== false;
+  document.getElementById('cfg-seismic-mx').value = _settings.seismicMinMX;
+  document.getElementById('cfg-seismic-mx-val').textContent = 'M' + _settings.seismicMinMX;
+  document.getElementById('cfg-aurora').checked = _settings.showAurora !== false;
   fetch('/config').then(function(r){return r.json();}).then(function(c){
     var u=document.getElementById('cfg-os-user');if(u)u.value=c.openskyUser||'';
     var st=document.getElementById('cfg-os-status');if(st)st.textContent=c.hasOpenSkyPass?'✓ password saved':'no password';
@@ -3527,6 +3544,8 @@ function applySettings() {
   _settings.showFires = document.getElementById('cfg-fires').checked;
   _settings.showNews = document.getElementById('cfg-news').checked;
   _settings.showWind = document.getElementById('cfg-wind').checked;applyWindSetting();
+  _settings.seismicMinMX = parseFloat(document.getElementById('cfg-seismic-mx').value);
+  _settings.showAurora = document.getElementById('cfg-aurora').checked;applyAuroraSetting();
   saveSettings();
   var osUser=(document.getElementById('cfg-os-user')?.value||'').trim();
   var osPass=document.getElementById('cfg-os-pass')?.value||'';
@@ -3777,6 +3796,241 @@ async function loadStormWaves(s){
   }catch(e){box.textContent='Sin datos de oleaje del modelo en este momento.';}
 }
 windInit();
+
+// ── WATCH: clima espacial, sismos del SSN, estado de la nube, internet y tsunamis ──
+// Los datos salen de /watch/* (server.js, con caché). La pestaña WATCH muestra el detalle; lo que
+// importa en el fondo de pantalla se ve fuera de ella: pines SSN y capa de aurora en el mapa, aviso
+// crítico de tsunami y las insignias KP / nube del pie.
+var _watch={space:null,quakes:null,cloud:null,internet:null,tsunami:null,errors:{},timer:null};
+var WATCH_API='http://localhost:19234/watch/';
+function watchVars(c){
+  const s=document.documentElement.style;
+  s.setProperty('--wbc',c.lo);s.setProperty('--wfg',c.lbl);s.setProperty('--wmu',c.mut);s.setProperty('--whi',c.hi);
+}
+function wAgo(ms){
+  const m=Math.max(0,Math.round((Date.now()-ms)/60000));
+  return m<1?'ahora':m<60?'hace '+m+' min':m<2880?'hace '+Math.round(m/60)+' h':'hace '+Math.round(m/1440)+' d';
+}
+function wUrl(u){return /^https?:\/\//.test(u||'')?stEsc(u):'';}
+function wLvlCol(n,c){return n>=4?'#E24B4A':n===3?'#F0883E':n===2?c.warn:n===1?'#E8D94C':c.mut;}
+function wSpark(vals,w,h,min,max,col,refs){
+  if(!vals||vals.length<2)return '';
+  const n=vals.length,rng=(max-min)||1,Y=function(v){return (h-(Math.max(min,Math.min(max,v))-min)/rng*h).toFixed(1);};
+  let g=(refs||[]).map(function(r){return '<line x1="0" x2="'+w+'" y1="'+Y(r)+'" y2="'+Y(r)+'" stroke="'+col+'" stroke-opacity=".28" stroke-dasharray="2,2"/>';}).join('');
+  const pts=vals.map(function(v,i){return (i/(n-1)*w).toFixed(1)+','+Y(v);}).join(' ');
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="'+h+'" preserveAspectRatio="none">'+g+'<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+}
+async function watchGet(key,path){
+  try{
+    const r=await fetch(WATCH_API+path);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    _watch[key]=d;_watch.errors[key]=false;
+  }catch(e){_watch.errors[key]=true;}
+  watchRender(key);
+}
+function watchRender(key){
+  if(key==='space')wRenderSpace();
+  else if(key==='quakes')wRenderSsn();
+  else if(key==='cloud'){wRenderCloud();watchBadges();}
+  else if(key==='internet')wRenderNet();
+  else if(key==='tsunami'){wRenderTsu();watchBadges();}
+}
+function wEmpty(key,txt){return '<div class="w-empty">'+(_watch.errors[key]?'Sin datos de '+txt+' por ahora.':'Cargando…')+'</div>';}
+
+// ── Clima espacial ──────────────────────────────────────────────────────────
+function wRenderSpace(){
+  const el=document.getElementById('wc-space-body');if(!el)return;
+  const d=_watch.space,c=_pal;
+  if(!d){el.innerHTML=wEmpty('space','NOAA SWPC');return;}
+  let h='';
+  const sc=d.scales&&d.scales.now,mx=d.scales&&d.scales.max24;
+  if(sc){
+    h+='<div class="w-chips">'+[['G','tormenta geomagnética'],['S','radiación solar'],['R','apagón de radio']].map(function(p){
+      const v=sc[p[0]],m=mx?mx[p[0]]:0,col=wLvlCol(v,c);
+      return '<span class="w-chip" style="color:'+col+';border-color:'+col+'" title="Escala NOAA, '+p[1]+': ahora '+p[0]+v+', máximo de 24 h '+p[0]+m+'">'+p[0]+v+'<i>'+p[1].toUpperCase()+'</i></span>';
+    }).join('')+'</div>';
+  }
+  const kp=d.kp,wd=d.wind,xr=d.xray;
+  h+='<div class="w-cols">';
+  if(kp){
+    const bars=(kp.series||[]).map(function(s,i){
+      const v=s.kp,bh=Math.max(2,Math.round(v/9*30)),col=v>=7?'#E24B4A':v>=5?'#F0883E':v>=4?c.warn:c.mid;
+      return '<rect x="'+(i*10)+'" y="'+(32-bh)+'" width="8" height="'+bh+'" fill="'+col+'"><title>'+stEsc(String(s.t).replace('T',' ').slice(0,16))+' UTC · Kp '+v+'</title></rect>';
+    }).join('');
+    h+='<div class="w-box"><div class="k">ÍNDICE Kp</div><div class="v" style="color:'+wLvlCol(kp.value>=8?4:kp.value>=7?3:kp.value>=6?2:kp.value>=5?1:0,c)+'">'+(+kp.value).toFixed(1)+'</div>'+
+      '<div class="s">ahora · máx. 24 h '+(kp.peak24!=null?kp.peak24.toFixed(1):'—')+'</div><svg viewBox="0 0 160 32" width="100%" height="32" preserveAspectRatio="none">'+bars+'</svg><div class="s">48 h, cada 3 h</div></div>';
+  }
+  if(wd){
+    const bzc=wd.bz!=null&&wd.bz<=-10?'#E24B4A':wd.bz!=null&&wd.bz<=-5?c.warn:c.hi,spc=wd.speed>=600?'#E24B4A':wd.speed>=500?c.warn:c.hi;
+    h+='<div class="w-box"><div class="k">VIENTO SOLAR</div><div class="v" style="color:'+spc+'">'+(wd.speed!=null?wd.speed:'—')+'<span class="u"> km/s</span></div>'+
+      '<div class="s">'+(wd.density!=null?wd.density+' p/cm³':'')+' · Bz <b style="color:'+bzc+'">'+(wd.bz!=null?wd.bz:'—')+' nT</b> · Bt '+(wd.bt!=null?wd.bt:'—')+'</div>'+
+      wSpark(wd.speedSeries,160,22,250,800,c.hi)+'<div class="s">Bz (el sur, &lt; 0, alimenta tormentas)</div>'+wSpark(wd.bzSeries,160,16,-15,15,bzc,[0])+'</div>';
+  }
+  if(xr){
+    const k=(xr.cls||'')[0],xc=k==='X'?'#E24B4A':k==='M'?'#F0883E':k==='C'?c.warn:c.hi;
+    h+='<div class="w-box"><div class="k">RAYOS X SOLARES</div><div class="v" style="color:'+xc+'">'+stEsc(xr.cls||'—')+'</div><div class="s">flujo GOES, últimas 6 h</div>'+
+      wSpark(xr.series,160,32,-8,-3,xc,[-6,-5,-4])+'<div class="s">líneas: C · M · X</div></div>';
+  }
+  h+='</div>';
+  const fc=d.scales&&d.scales.forecast;
+  if(fc&&fc.length)h+='<div class="w-row" style="margin-bottom:4px"><span class="t">PRONÓSTICO</span><span class="x">'+fc.map(function(f){return stEsc(String(f.date||'').slice(5))+' G'+f.G+' · R'+f.rMinor+'%';}).join('  |  ')+'</span></div>';
+  if(d.alerts&&d.alerts.length){
+    h+='<div class="w-sub">ÚLTIMOS AVISOS DE NOAA</div>'+d.alerts.slice(0,6).map(function(a){
+      const col=/AVISO|ALERTA/.test(a.kind)&&a.scale?wLvlCol(+(String(a.scale).slice(1))||1,c):c.lbl;
+      return '<div class="w-row" title="'+stEsc(a.en)+'"><span class="t">'+new Date(a.t).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false})+'</span><span class="x" style="color:'+col+'">'+stEsc(a.kind)+' · '+stEsc(a.text)+(a.scale?' ['+stEsc(a.scale)+']':'')+'</span></div>';
+    }).join('');
+  }
+  el.innerHTML=h;
+}
+
+// ── Sismos del SSN ──────────────────────────────────────────────────────────
+function wRenderSsn(){
+  const el=document.getElementById('wc-ssn-body'),sub=document.getElementById('wc-ssn-sub');if(!el)return;
+  const d=_watch.quakes,c=_pal;
+  if(!d){el.innerHTML=wEmpty('quakes','SSN');return;}
+  const hLat=_homeCoords.lat,hLon=_homeCoords.lon;
+  const rows=d.quakes.map(function(q){return {q:q,km:_nxrGeoD(hLat,hLon,q.lat,q.lon),brg:(_nxrGeoB(hLat,hLon,q.lat,q.lon)*180/Math.PI+360)%360};});
+  const near=rows.slice().sort(function(a,b){return a.km-b.km;})[0];
+  if(sub)sub.textContent=d.quakes.length+' en 24 h'+(near?' · más cercano a '+Math.round(near.km)+' km':'');
+  el.innerHTML=rows.slice(0,10).map(function(r){
+    const q=r.q,col=q.mag>=5?'#E24B4A':q.mag>=4?c.warn:c.lbl;
+    return '<div class="w-row" title="'+stEsc(q.place)+'"><b style="color:'+col+';flex-shrink:0;width:28px">'+q.mag.toFixed(1)+'</b><span class="x" style="flex:1">'+stEsc(q.place)+'</span><span class="t">'+wAgo(q.t)+'</span></div>'+
+      '<div class="w-row meta"><span style="width:28px;flex-shrink:0"></span><span class="x">prof. '+(q.depth!=null?Math.round(q.depth)+' km':'—')+' · '+Math.round(r.km)+' km al '+stormDir(r.brg)+' de casa</span></div>';
+  }).join('');
+}
+
+// ── Estado de la nube ───────────────────────────────────────────────────────
+function wRenderCloud(){
+  const el=document.getElementById('wc-cloud-body'),sub=document.getElementById('wc-cloud-sub');if(!el)return;
+  const d=_watch.cloud,c=_pal;
+  if(!d){el.innerHTML=wEmpty('cloud','los servicios');return;}
+  if(sub)sub.textContent=d.issues?d.issues+' con incidencias':'todo operativo';
+  const NAME={none:'OPERATIVO',unknown:'SIN RESPUESTA',maintenance:'MANTENIMIENTO',minor:'DEGRADADO',major:'FALLA PARCIAL',critical:'FALLA GRAVE'};
+  el.innerHTML='<div class="w-svcs">'+d.services.map(function(s){
+    const col=s.level==='none'?c.mid:s.level==='unknown'?c.lo:(s.level==='minor'||s.level==='maintenance')?c.warn:'#E24B4A';
+    const inc=(s.incidents||[]).slice(0,2).map(function(i){
+      return '<div class="w-inc" style="'+(i.stale?'opacity:.45':'')+'" title="'+stEsc(i.name)+(i.stale?' (sin actualizar hace '+Math.round((Date.now()-i.updated)/864e5)+' días)':'')+'">'+(i.stale?'· viejo: ':'· ')+stEsc(i.name)+'</div>';
+    }).join('');
+    return '<div class="w-svc"><div class="w-row"><span class="w-dot" style="background:'+col+';box-shadow:0 0 5px '+col+'"></span><b style="color:'+c.hi+'">'+stEsc(s.name)+'</b><span class="t" style="margin-left:auto;color:'+col+'">'+NAME[s.level]+'</span></div>'+inc+'</div>';
+  }).join('')+'</div>';
+}
+
+// ── Cortes de internet (IODA) ───────────────────────────────────────────────
+function wRenderNet(){
+  const el=document.getElementById('wc-net-body'),sub=document.getElementById('wc-net-sub');if(!el)return;
+  const d=_watch.internet,c=_pal;
+  if(!d){el.innerHTML=wEmpty('internet','IODA');return;}
+  if(sub)sub.textContent=d.total+' países con anomalías en 24 h';
+  const lg=function(s){return Math.max(.04,Math.min(1,(Math.log10(Math.max(s,1))-1)/6.2));};
+  const mine='<div class="w-row" style="margin-bottom:5px"><span class="t">TU REGIÓN</span><span class="x">'+d.mine.map(function(m){
+    const bad=m.score>0;return '<span style="color:'+(bad?c.warn:c.mid)+'">'+m.code+(bad?' ⚠ '+m.score:' ✓')+'</span>';
+  }).join('  ')+'</span></div>';
+  el.innerHTML=mine+d.countries.slice(0,9).map(function(r){
+    const col=r.score>=1e5?'#E24B4A':r.score>=1e3?c.warn:c.lbl;
+    return '<div class="w-row" title="Puntaje de anomalía IODA '+r.score+' · '+r.events+' evento(s) · señales: '+stEsc(r.sources.join(', '))+'"><b style="color:'+col+';width:24px;flex-shrink:0">'+stEsc(r.code)+'</b>'+
+      '<span class="x" style="flex:1">'+stEsc(r.name)+'</span><span class="t">'+stEsc(r.sources.join(' '))+'</span></div><div class="w-bar" style="width:calc((100% - 30px) * '+lg(r.score).toFixed(3)+');background:'+col+';opacity:.7"></div>';
+  }).join('')+'<div class="w-empty" style="font-size:9px">Puntaje de anomalía (escala log.) de IODA, Georgia Tech: BGP, sondeo activo y tráfico de Google. No equivale a un apagón total.</div>';
+}
+
+// ── Tsunamis ────────────────────────────────────────────────────────────────
+function wTsuCol(cat,c){return /warning/i.test(cat)?'#E24B4A':/watch/i.test(cat)?'#F0883E':/advisory/i.test(cat)?c.warn:c.mut;}
+function wRenderTsu(){
+  const el=document.getElementById('wc-tsu-body'),sub=document.getElementById('wc-tsu-sub');if(!el)return;
+  const d=_watch.tsunami,c=_pal;
+  if(!d){el.innerHTML=wEmpty('tsunami','NOAA');return;}
+  const act=d.active.length;
+  if(sub)sub.textContent=act?act+' aviso(s) vigente(s)':'sin amenaza activa';
+  el.innerHTML=(act?'':'<div class="w-row" style="color:'+c.mid+';margin-bottom:3px">● Sin avisos de tsunami vigentes (últimas 48 h)</div>')+
+    d.bulletins.slice(0,5).map(function(b){
+      const col=wTsuCol(b.category,c),u=wUrl(b.link);
+      return '<div class="w-row" title="'+stEsc(b.region)+'"><b style="color:'+col+';flex-shrink:0;width:74px">'+stEsc(String(b.category).toUpperCase().slice(0,11))+'</b><span class="x" style="flex:1">'+(u?'<a href="'+u+'" target="_blank" rel="noopener" style="color:inherit">':'')+stEsc(b.region)+(b.mag?' · M'+stEsc(b.mag):'')+(u?'</a>':'')+'</span><span class="t">'+stEsc(b.feed)+' '+wAgo(b.t)+'</span></div>';
+    }).join('')+'<div class="w-empty" style="font-size:9px">NOAA NTWC (Alaska, costa oeste, Atlántico y Caribe) y PTWC (Pacífico). "Information" = hubo un sismo, sin amenaza.</div>';
+}
+
+// ── Insignias del pie ───────────────────────────────────────────────────────
+function watchBadges(){
+  const c=_pal,cb=document.getElementById('cloud-badge'),tb=document.getElementById('tsu-badge');
+  if(cb&&_watch.cloud){
+    const d=_watch.cloud,bad=d.services.filter(function(s){return s.level!=='none'&&s.level!=='unknown'&&s.level!=='maintenance';});
+    const worst=bad.some(function(s){return s.level==='major'||s.level==='critical';});
+    const col=!bad.length?c.mut:worst?'#E24B4A':c.warn;
+    cb.style.display='';cb.style.color=col;cb.style.borderColor=col;
+    document.getElementById('cloud-val').textContent=bad.length?bad.length+' ⚠':'OK';
+    cb.title=bad.length?'Servicios con incidencias: '+bad.map(function(s){return s.name;}).join(', ')+' (clic: detalle)':'Todos los servicios operativos (clic: detalle)';
+  }
+  if(tb){
+    const act=(_watch.tsunami&&_watch.tsunami.active)||[];
+    tb.style.display=act.length?'':'none';
+    if(act.length){const col=wTsuCol(act[0].category,c);tb.style.color=col;tb.style.borderColor=col;document.getElementById('tsu-val').textContent=String(act[0].category).toUpperCase();tb.title='Tsunami: '+act.map(function(b){return b.category+' — '+b.region;}).join(' | ');}
+  }
+}
+
+// ── Capa de aurora (OVATION) sobre el mapa ──────────────────────────────────
+// Lienzo estático, sin bucle: se redibuja al llegar datos nuevos (cada 10 min), al redimensionar
+// o al volver a la pestaña MAP. Mismo encaje que el viento (viewBox 2000×1001 centrado).
+var _aur={bytes:null,obs:null,cv:null,ctx:null,W:0,H:0,drawn:''};
+function auroraDraw(){
+  const a=_aur,cv=a.cv;if(!cv||!a.bytes)return;
+  const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
+  if(!W||!H)return;   // mapa oculto: se redibuja al volver (onShowView)
+  const key=W+'x'+H+'|'+a.obs+'|'+(_settings.showAurora!==false);
+  if(key===a.drawn)return;
+  a.drawn=key;cv.width=W;cv.height=H;a.W=W;a.H=H;
+  const ctx=a.ctx;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
+  if(_settings.showAurora===false)return;
+  const sc=Math.min(W/2000,H/1001),ox=(W-2000*sc)/2,oy=(H-1001*sc)/2;
+  ctx.setTransform(sc,0,0,sc,ox,oy);
+  ctx.beginPath();ctx.rect(0,0,2000,1001);ctx.clip();   // las celdas del polo sur caían por debajo del borde del mapa
+  const bands=[[5,'rgba(61,255,138,.16)'],[15,'rgba(61,255,138,.30)'],[30,'rgba(120,255,170,.45)'],[50,'rgba(190,255,150,.58)'],[70,'rgba(255,90,208,.66)']];
+  const paths=bands.map(function(){return [];});
+  for(let la=90;la>=-89;la--){
+    for(let lo=0;lo<360;lo++){
+      const v=a.bytes[(90-la)*360+lo];if(v<5)continue;
+      let b=0;while(b<bands.length-1&&v>=bands[b+1][0])b++;
+      const lon=lo>180?lo-360:lo,p=ll2xy(lon,la),p2=ll2xy(lon+1,la),p3=ll2xy(lon,la-1);
+      paths[b].push(Math.min(p[0],p2[0]),Math.min(p[1],p3[1]),Math.abs(p2[0]-p[0])+.9,Math.abs(p3[1]-p[1])+.9);
+    }
+  }
+  paths.forEach(function(r,i){
+    if(!r.length)return;
+    ctx.fillStyle=bands[i][1];ctx.beginPath();
+    for(let j=0;j<r.length;j+=4)ctx.rect(r[j],r[j+1],r[j+2],r[j+3]);
+    ctx.fill();
+  });
+}
+async function fetchAurora(){
+  try{
+    const r=await fetch(WATCH_API+'aurora');if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json(),bin=atob(d.b64),u=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    _aur.bytes=u;_aur.obs=d.obs;_aur.drawn='';auroraDraw();
+  }catch(e){setTimeout(fetchAurora,60000);}
+}
+function applyAuroraSetting(){_aur.drawn='';auroraDraw();}
+
+// ── Ciclo de vida ───────────────────────────────────────────────────────────
+function watchLoadAll(){
+  watchGet('space','space');watchGet('quakes','quakes');watchGet('cloud','cloud');watchGet('internet','internet');watchGet('tsunami','tsunami');
+}
+function watchInit(){
+  _aur.cv=document.getElementById('aurora-cv');
+  if(_aur.cv)_aur.ctx=_aur.cv.getContext('2d');
+  window.addEventListener('resize',function(){clearTimeout(window._aut);window._aut=setTimeout(auroraDraw,300);});
+  const prev=window.onShowView;
+  window.onShowView=function(name){
+    if(prev)prev(name);
+    if(_watch.timer){clearInterval(_watch.timer);_watch.timer=null;}
+    if(name==='watch'){watchLoadAll();_watch.timer=setInterval(watchLoadAll,60000);}
+    if(name==='map')setTimeout(auroraDraw,60);
+  };
+  // en segundo plano: insignias del pie (nube, tsunami) y capa de aurora
+  setTimeout(function(){watchGet('cloud','cloud');watchGet('tsunami','tsunami');fetchAurora();},3500);
+  setInterval(function(){watchGet('cloud','cloud');watchGet('tsunami','tsunami');},3*60*1000);
+  setInterval(fetchAurora,10*60*1000);
+}
+watchInit();
 
 // ── PANEL TOGGLE (Radar ↔ Lluvia ↔ Log) ─────────────────────────────────────
 var NXP_MODES=['radar','wx','log'];
@@ -4109,7 +4363,7 @@ _applyNxPanel();
 var CRIT_KEY='nexus_crit_alert';
 var CRIT_TTL=72*3600*1000;
 function checkCriticalEvents(events){
-  const crits=events.filter(e=>(e.type==='quake'&&e.mag>=6.0)||e.type==='volcano'||e.type==='storm'||e.type==='flood')
+  const crits=events.filter(e=>(e.type==='quake'&&e.mag>=6.0)||e.type==='volcano'||e.type==='storm'||e.type==='flood'||e.type==='tsunami')
     .sort((a,b)=>(b.mag||5)-(a.mag||5));
   if(!crits.length)return;
   const top=crits[0];
@@ -4444,6 +4698,34 @@ function initSnake(canvas){
 #wx-icons .ci { position:absolute; line-height:0; }
 #wind-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:2; }
 #wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
+/* ── WATCH ── */
+#view-watch { font-family:monospace; overflow-y:auto; padding:6px 8px; }
+.w-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-content:start; }
+.w-card { border:1px solid var(--wbc,#085041); border-radius:4px; padding:6px 8px; min-width:0; }
+.w-card.wide { grid-column:1/-1; }
+.w-h { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:10px; letter-spacing:1.5px; margin-bottom:5px; color:var(--whi,#5DCAA5); }
+.w-h b { font-weight:600; white-space:nowrap; }
+.w-h i { font-style:normal; opacity:.55; font-size:9px; letter-spacing:.5px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.w-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:6px; }
+.w-box .k { font-size:9px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
+.w-box .v { font-size:17px; font-weight:600; line-height:1.15; }
+.w-box .v .u { font-size:10px; font-weight:400; opacity:.7; }
+.w-box .s { font-size:9px; color:var(--wmu,#1D9E75); opacity:.85; }
+.w-chips { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+.w-chip { border:1px solid; border-radius:3px; padding:1px 6px; font-size:11px; font-weight:700; }
+.w-chip i { font-style:normal; font-weight:400; font-size:8px; margin-left:5px; opacity:.75; }
+.w-row { display:flex; gap:6px; align-items:baseline; font-size:10px; line-height:1.55; overflow:hidden; color:var(--wfg,#38B891); }
+.w-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); opacity:.8; font-size:9px; }
+.w-row .x { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.w-row.meta { font-size:9px; opacity:.65; margin-top:-2px; margin-bottom:2px; }
+.w-sub { font-size:9px; letter-spacing:1.5px; color:var(--wmu,#1D9E75); margin:6px 0 2px; }
+.w-empty { font-size:10px; color:var(--wmu,#1D9E75); opacity:.75; padding:4px 0; line-height:1.4; }
+.w-svcs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 10px; }
+.w-svc { min-width:0; }
+.w-inc { font-size:9px; color:var(--wmu,#1D9E75); padding-left:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.w-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; align-self:center; }
+.w-bar { height:3px; border-radius:2px; margin:0 0 3px 30px; }
+#aurora-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; filter:blur(2px); }
 .st-kv { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
 .st-kv > div { background:#161b22; border:1px solid #30363d; border-radius:4px; padding:6px 8px; }
 .st-kv .k { font-size:9px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
@@ -4538,11 +4820,20 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
       </div>
     </div>
     <div class="cfg-row">
+      <label>Sismos de México (SSN) desde — <span id="cfg-seismic-mx-val">M3</span></label>
+      <div class="range-row">
+        <span style="font-size:11px;opacity:.6;">M2.5</span>
+        <input type="range" id="cfg-seismic-mx" min="2.5" max="5" step="0.5" oninput="document.getElementById('cfg-seismic-mx-val').textContent='M'+this.value">
+        <span style="font-size:11px;opacity:.6;">M5</span>
+      </div>
+    </div>
+    <div class="cfg-row">
       <label>Map Layers</label>
       <div class="cfg-toggle-row"><span>✈ Live Flights</span><input type="checkbox" id="cfg-flights"></div>
       <div class="cfg-toggle-row"><span>🔥 Wildfires (FIRMS)</span><input type="checkbox" id="cfg-fires"></div>
       <div class="cfg-toggle-row"><span>📰 Geolocated News</span><input type="checkbox" id="cfg-news"></div>
       <div class="cfg-toggle-row"><span>🌬 Wind layer (GFS)</span><input type="checkbox" id="cfg-wind"></div>
+      <div class="cfg-toggle-row"><span>🌌 Aurora oval (NOAA)</span><input type="checkbox" id="cfg-aurora"></div>
     </div>
     <div class="cfg-actions">
       <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
