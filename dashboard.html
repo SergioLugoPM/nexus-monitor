@@ -2167,6 +2167,10 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <canvas id="nxr-canvas" style="flex:1;min-height:0;width:100%;display:block;min-height:120px"></canvas>
       <div id="nxr-contacts" style="font-size:10px;line-height:1.5;margin-top:3px;flex-shrink:0;max-height:55px;overflow-y:auto;letter-spacing:.03em"></div>
     </div>
+    <div id="nxp-wx" style="flex:1;display:none;flex-direction:column;min-height:0;">
+      <canvas id="wx-canvas" onclick="wxCycleLayer()" title="Clic: radar + IR / solo IR" style="flex:1;min-height:0;width:100%;display:block;min-height:120px;cursor:pointer"></canvas>
+      <div id="wx-info" style="font-size:10px;line-height:15px;height:30px;margin-top:3px;flex-shrink:0;letter-spacing:.03em;overflow:hidden"></div>
+    </div>
     <div id="nxp-log" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden;">
       <div class="log-scroll" id="nx-scroll" style="flex:1;overflow-y:auto;max-height:100%;"><div id="nx-content"></div></div>
     </div>
@@ -3843,7 +3847,7 @@ setInterval(fetchFlights,30000);setInterval(fetchSpace,300000);setInterval(fetch
 setInterval(fetchGlobalStats,120000);
 setInterval(updateTerminator,60000);
 initPanelRadar();fetchStats();fetchNetwork();fetchWeather();fetchCrypto();fetchNexusLog();
-_applyNxPanel();initCritAlert();
+initCritAlert();
 (function(){const hn=document.getElementById('hostname');if(hn&&_settings&&_settings.username)hn.textContent=_settings.username+'@NEXUS';})();
 setTimeout(fetchEvents,800);setTimeout(fetchStorms,1500);
 setTimeout(fetchFlights,2000);setTimeout(fetchSpace,3000);setTimeout(fetchISSLive,1500);
@@ -3928,22 +3932,264 @@ var _nxrRaf=null,_nxrContacts=[];
 function _nxrGeoB(la1,lo1,la2,lo2){const f1=la1*Math.PI/180,f2=la2*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;return Math.atan2(Math.sin(dl)*Math.cos(f2),Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl));}
 function _nxrGeoD(la1,lo1,la2,lo2){const Rr=6371,f1=la1*Math.PI/180,f2=la2*Math.PI/180,df=(la2-la1)*Math.PI/180,dl=(lo2-lo1)*Math.PI/180;const a=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;return Rr*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 
-// ── PANEL TOGGLE (Radar ↔ Log) ──────────────────────────────────────────────
+// ── PANEL TOGGLE (Radar ↔ Lluvia ↔ Log) ─────────────────────────────────────
+var NXP_MODES=['radar','wx','log'];
 var _nxPanelMode=localStorage.getItem('nexus_nxpanel')||'radar';
+if(NXP_MODES.indexOf(_nxPanelMode)<0)_nxPanelMode='radar';
 function _applyNxPanel(){
-  const isR=_nxPanelMode==='radar';
-  const rd=document.getElementById('nxp-radar'),lg=document.getElementById('nxp-log');
-  const tog=document.getElementById('nxp-toggle'),lbl=document.getElementById('l-nxlog');
-  if(rd)rd.style.display=isR?'flex':'none';
-  if(lg)lg.style.display=isR?'none':'flex';
-  if(tog)tog.textContent=isR?'[ LOG ]':'[ RADAR ]';
-  if(lbl)lbl.textContent=isR?'NEXUS RADAR':'NEXUS LOG';
+  const m=_nxPanelMode,ids={radar:'nxp-radar',wx:'nxp-wx',log:'nxp-log'};
+  Object.keys(ids).forEach(function(k){const el=document.getElementById(ids[k]);if(el)el.style.display=(k===m)?'flex':'none';});
+  const next=NXP_MODES[(NXP_MODES.indexOf(m)+1)%NXP_MODES.length];
+  const tog=document.getElementById('nxp-toggle'),lbl=document.getElementById('l-nxlog'),st=document.getElementById('nxr-status');
+  if(tog)tog.textContent='[ '+{radar:'RADAR',wx:'CLIMA',log:'LOG'}[next]+' ]';
+  if(lbl)lbl.textContent={radar:'NEXUS RADAR',wx:'RADAR DE LLUVIA',log:'NEXUS LOG'}[m];
+  if(st&&m!=='radar')st.textContent='';
+  wxActivate(m==='wx');
 }
 function toggleNxPanel(){
-  _nxPanelMode=_nxPanelMode==='radar'?'log':'radar';
+  _nxPanelMode=NXP_MODES[(NXP_MODES.indexOf(_nxPanelMode)+1)%NXP_MODES.length];
   localStorage.setItem('nexus_nxpanel',_nxPanelMode);
   _applyNxPanel();
 }
+
+// ── PANEL LLUVIA: radar real (RainViewer) sobre IR de NASA GIBS ──────────────
+// Tercer modo del panel NEXUS RADAR. Los mosaicos de RainViewer (Web Mercator,
+// z6) se alinean con el IR que sirve /wx/sat (también Mercator). La lluvia más
+// cercana y su tendencia salen de leer los píxeles de esos mismos mosaicos.
+var WX_API='http://localhost:19234',WX_Z=6,WX_HALF_KM=300,WX_MAX_FRAMES=12;
+var WX_STEP_MS=650,WX_HOLD_MS=1800,WX_REFRESH_MS=300000;
+var WX_CITIES=[['Cd. de México',19.43,-99.13],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Acapulco',16.86,-99.89],['Veracruz',19.17,-96.13],['Tampico',22.23,-97.86],['S.L. Potosí',22.15,-100.98]];
+var _wx={frames:[],host:'',tiles:{},sat:null,satBox:null,satKey:'',satTs:0,satTime:'',satLayer:'',satUrl:null,
+  idx:0,timer:null,refresh:null,active:false,layer:'radar',err:false,loading:false,view:null,W:0,H:0,infoHtml:'',_off:null};
+try{_wx.layer=localStorage.getItem('nexus_wxlayer')==='ir'?'ir':'radar';}catch(e){}
+
+function wxMerc(lat,lon){const s=Math.sin(lat*Math.PI/180);return{x:(lon+180)/360,y:0.5-Math.log((1+s)/(1-s))/(4*Math.PI)};}
+function wxView(W,H){
+  const hLat=_homeCoords.lat,hLon=_homeCoords.lon,c=wxMerc(hLat,hLon);
+  const wpp=(2*WX_HALF_KM/W)/(40075.017*Math.cos(hLat*Math.PI/180));   // unidades de mundo por píxel
+  return{lat:hLat,lon:hLon,x0:c.x-W/2*wpp,y0:c.y-H/2*wpp,wpp:wpp,kmpp:2*WX_HALF_KM/W};
+}
+function wxSize(){
+  const cv=document.getElementById('wx-canvas');if(!cv)return false;
+  const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+  if(w<60||h<60)return false;
+  const v=_wx.view;
+  if(v&&w===_wx.W&&h===_wx.H&&v.lat===_homeCoords.lat&&v.lon===_homeCoords.lon)return false;
+  cv.width=w;cv.height=h;_wx.W=w;_wx.H=h;_wx.view=wxView(w,h);
+  return true;
+}
+function wxTileList(v,W,H){
+  const n=1<<WX_Z,out=[];
+  for(let tx=Math.floor(v.x0*n);tx<=Math.floor((v.x0+W*v.wpp)*n);tx++)
+    for(let ty=Math.floor(v.y0*n);ty<=Math.floor((v.y0+H*v.wpp)*n);ty++)
+      if(tx>=0&&tx<n&&ty>=0&&ty<n)out.push([tx,ty]);
+  return out;
+}
+function wxKey(f){const v=_wx.view;return f.path+'|'+_wx.W+'x'+_wx.H+'|'+v.lat+','+v.lon;}
+function wxHM(sec){return new Date(sec*1000).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false});}
+function wxDir(brg){return['N','NE','E','SE','S','SO','O','NO'][Math.round(brg/45)%8];}
+function wxNowIdx(){let i=_wx.frames.length-1;while(i>0&&_wx.frames[i].fc)i--;return i;}
+
+// Carga los mosaicos de cada cuadro (2 por cuadro en un panel normal) y los
+// analiza cuando el cuadro está completo. Lo ya cargado se reutiliza por clave.
+function wxLoadFrames(){
+  const v=_wx.view,W=_wx.W,H=_wx.H,list=wxTileList(v,W,H),keep={};
+  _wx.frames.forEach(function(f){
+    const k=wxKey(f);keep[k]=true;
+    if(_wx.tiles[k])return;
+    const rec={n:list.length,done:0,imgs:[],ready:false,echo:null};
+    _wx.tiles[k]=rec;
+    list.forEach(function(t){
+      const img=new Image();img.crossOrigin='anonymous';
+      const fin=function(ok){
+        rec.done++;if(ok)rec.imgs.push({img:img,tx:t[0],ty:t[1]});
+        if(rec.done===rec.n){rec.ready=true;wxAnalyze(rec);if(_wx.active){wxInfoUpdate();wxDraw();}}
+      };
+      img.onload=function(){fin(true);};img.onerror=function(){fin(false);};
+      img.src=_wx.host+f.path+'/256/'+WX_Z+'/'+t[0]+'/'+t[1]+'/2/1_1.png';
+    });
+  });
+  Object.keys(_wx.tiles).forEach(function(k){if(!keep[k])delete _wx.tiles[k];});
+}
+
+function wxPaintTiles(g,rec,alpha){
+  const v=_wx.view,n=1<<WX_Z,s=1/n/v.wpp;
+  g.globalAlpha=alpha;
+  rec.imgs.forEach(function(t){g.drawImage(t.img,(t.tx/n-v.x0)/v.wpp,(t.ty/n-v.y0)/v.wpp,s+0.6,s+0.6);});
+  g.globalAlpha=1;
+}
+// Celdas de 4×4 px con ≥5 px de eco cuentan como lluvia (descarta puntos sueltos)
+function wxAnalyze(rec){
+  try{
+    const W=_wx.W,H=_wx.H,v=_wx.view,C=4;
+    const cv=_wx._off||(_wx._off=document.createElement('canvas'));cv.width=W;cv.height=H;
+    const g=cv.getContext('2d');g.clearRect(0,0,W,H);
+    wxPaintTiles(g,rec,1);
+    const d=g.getImageData(0,0,W,H).data,cw=Math.floor(W/C),ch=Math.floor(H/C);
+    let best=null,act=0;
+    for(let cy=0;cy<ch;cy++)for(let cx=0;cx<cw;cx++){
+      let cnt=0;
+      for(let y=0;y<C;y++){const row=((cy*C+y)*W+cx*C)*4;for(let x=0;x<C;x++)if(d[row+x*4+3]>40)cnt++;}
+      if(cnt<5)continue;
+      act++;
+      const dx=cx*C+C/2-W/2,dy=cy*C+C/2-H/2,km=Math.hypot(dx,dy)*v.kmpp;
+      if(!best||km<best.km)best={km:km,brg:(Math.atan2(dx,-dy)*180/Math.PI+360)%360};
+    }
+    rec.echo={near:best,cover:act/(cw*ch),cells:act};
+  }catch(e){rec.echo=null;}
+}
+// Compara el eco más cercano de ahora con el de hace 30 min
+function wxRain(){
+  const c=currentPalette(),fr=_wx.frames;
+  if(!fr.length)return null;
+  const ni=wxNowIdx(),cur=_wx.tiles[wxKey(fr[ni])],pr=_wx.tiles[wxKey(fr[Math.max(0,ni-3)])];
+  if(!cur||!cur.ready)return{txt:'CARGANDO CUADROS DE RADAR…',col:c.mut};
+  if(!cur.echo)return{txt:'NO SE PUDO LEER EL RADAR',col:c.warn};
+  const e=cur.echo,p=pr&&pr.ready?pr.echo:null;
+  if(!e.near)return{txt:'SIN PRECIPITACIÓN EN EL ÁREA ('+(2*WX_HALF_KM)+' km)',col:c.hi};
+  let tr='';
+  // la tendencia solo se dice con ecos de al menos 3 celdas en ambos instantes; una mota suelta es ruido
+  if(p&&p.near&&e.cells>=3&&p.cells>=3){const dd=e.near.km-p.near.km;tr=dd<-8?' · ACERCÁNDOSE':dd>8?' · ALEJÁNDOSE':' · ESTACIONARIA';}
+  else if(p&&!p.near&&e.cells>=3)tr=' · NUEVA';
+  const km=Math.round(e.near.km);
+  if(km<8)return{txt:'LLUVIA SOBRE LA ZONA'+tr,col:c.warn};
+  const pc=Math.round(e.cover*100);
+  return{txt:'LLUVIA A '+km+' km '+wxDir(e.near.brg)+tr+(pc>=1?' · '+pc+'% DEL ÁREA':''),col:km<25?c.warn:c.pulse};
+}
+function wxInfoUpdate(){
+  const el=document.getElementById('wx-info');if(!el)return;
+  const c=currentPalette();
+  let a,b;
+  if(_wx.err&&!_wx.frames.length){a={txt:'SIN DATOS DE RADAR',col:c.warn};b='RainViewer no responde; se reintenta cada 5 min';}
+  else{
+    a=wxRain()||{txt:'CARGANDO…',col:c.mut};
+    b=(_wx.sat?'IR '+_wx.satLayer+' '+(_wx.satTime.indexOf('T')>0?wxHM(Date.parse(_wx.satTime)/1000):_wx.satTime):'sin IR de fondo')+' · radar RainViewer · clic = capas';
+  }
+  const css='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+  const html='<div style="'+css+'color:'+a.col+'">'+a.txt+'</div><div style="'+css+'color:'+c.mut+';opacity:.7">'+b+'</div>';
+  if(html!==_wx.infoHtml){el.innerHTML=html;_wx.infoHtml=html;}
+}
+
+function wxDraw(){
+  const cv=document.getElementById('wx-canvas'),v=_wx.view;
+  if(!cv||!v)return;
+  const ctx=cv.getContext('2d'),W=_wx.W,H=_wx.H,c=currentPalette(),fr=_wx.frames,cx=W/2,cy=H/2;
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;
+  ctx.fillStyle=c.base;ctx.fillRect(0,0,W,H);
+  // fondo IR: en gris tintado con el tema para que el radar resalte; en modo IR, a color
+  if(_wx.sat&&_wx.satBox){
+    const s=_wx.sat,b=_wx.satBox,bw=b.x1-b.x0,bh=b.y1-b.y0,iw=s.naturalWidth,ih=s.naturalHeight;
+    const rad=_wx.layer==='radar';
+    ctx.save();
+    if(rad){if('filter' in ctx)ctx.filter='grayscale(1) brightness(.8) contrast(1.05)';else ctx.globalAlpha=.55;}
+    ctx.drawImage(s,(v.x0-b.x0)/bw*iw,(v.y0-b.y0)/bh*ih,W*v.wpp/bw*iw,H*v.wpp/bh*ih,0,0,W,H);
+    ctx.restore();
+    if(rad){ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle=ca(c.hi,1);ctx.fillRect(0,0,W,H);ctx.restore();}
+  }
+  // radar del cuadro actual
+  const f=fr.length?fr[_wx.idx%fr.length]:null,rec=f?_wx.tiles[wxKey(f)]:null;
+  if(_wx.layer==='radar'&&rec&&rec.ready)wxPaintTiles(ctx,rec,.92);
+  // referencias: anillos, ciudades, casa
+  const lab=function(t,x,y,col,al){ctx.textAlign=al||'left';ctx.lineWidth=2.5;ctx.strokeStyle=ca(c.base,.9);ctx.strokeText(t,x,y);ctx.fillStyle=col;ctx.fillText(t,x,y);};
+  ctx.font='9px monospace';ctx.lineJoin='round';
+  ctx.lineWidth=.7;ctx.strokeStyle=ca(c.hi,.4);ctx.setLineDash([2,3]);
+  [100,200].forEach(function(km){const r=km/v.kmpp;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();if(cx+r+26<W)lab(km+' km',cx+r+3,cy-2,c.mut);});
+  ctx.setLineDash([]);
+  WX_CITIES.forEach(function(ct){
+    const m=wxMerc(ct[1],ct[2]),x=(m.x-v.x0)/v.wpp,y=(m.y-v.y0)/v.wpp;
+    if(x<6||x>W-6||y<22||y>H-14||Math.hypot(x-cx,y-cy)<16)return;
+    ctx.fillStyle=c.lbl;ctx.fillRect(x-1,y-1,3,3);
+    if(x>W-70)lab(ct[0],x-4,y+3,c.lbl,'right');else lab(ct[0],x+5,y+3,c.lbl);
+  });
+  ctx.strokeStyle=c.hi;ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(cx,cy,5,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle=c.hi;ctx.beginPath();ctx.arc(cx,cy,1.8,0,Math.PI*2);ctx.fill();
+  // HUD: hora del cuadro, capa y línea de tiempo
+  ctx.font='10px monospace';
+  if(f){
+    const ni=wxNowIdx(),rel=Math.round((fr[ni].t-f.t)/60);
+    lab(wxHM(f.t)+(f.fc?' PRONÓSTICO':rel>0?'  -'+rel+' min':'  AHORA'),6,12,rec&&rec.ready?c.hi:c.mut);
+    const tl=Math.min(W-12,fr.length*9),tx0=W-6-tl;
+    fr.forEach(function(g,i){ctx.fillStyle=(i===_wx.idx%fr.length)?c.hi:ca(c.hi,.28);ctx.fillRect(tx0+i*(tl/fr.length),H-7,Math.max(2,tl/fr.length-2),3);});
+  }else if(_wx.err){lab('SIN DATOS DE RADAR',cx,cy,c.warn,'center');}
+  else lab('CARGANDO RADAR…',cx,cy,c.mut,'center');
+  lab(_wx.layer==='radar'?'RADAR + IR':'IR GOES',W-6,12,c.mut,'right');
+  const st=document.getElementById('nxr-status');
+  if(st&&f){const late=(Date.now()/1000-fr[wxNowIdx()].t)>1800;const t='LLUVIA · '+wxHM(f.t)+(late?' · RETRASO':'');if(st.textContent!==t)st.textContent=t;}
+}
+// Pasa al siguiente cuadro ya cargado; el último (ahora) se queda más tiempo
+function wxStep(){
+  _wx.timer=null;
+  if(!_wx.active)return;
+  const n=_wx.frames.length;
+  if(n){
+    for(let k=0;k<n;k++){
+      _wx.idx=(_wx.idx+1)%n;
+      const r=_wx.tiles[wxKey(_wx.frames[_wx.idx])];
+      if(r&&r.ready)break;
+    }
+    wxDraw();
+  }
+  _wx.timer=setTimeout(wxStep,(n&&_wx.idx===wxNowIdx())?WX_HOLD_MS:WX_STEP_MS);
+}
+async function wxLoad(){
+  if(_wx.loading)return;
+  _wx.loading=true;
+  try{
+    wxSize();
+    if(!_wx.view)throw new Error('sin lienzo');
+    const r=await fetch(WX_API+'/wx');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    _wx.host=d.host;_wx.frames=d.frames.slice(-WX_MAX_FRAMES);_wx.err=false;
+    if(_wx.idx>=_wx.frames.length)_wx.idx=wxNowIdx();
+    wxLoadFrames();
+  }catch(e){_wx.err=true;}
+  // fondo IR: no bloquea el radar; se renueva cada 10 min o al cambiar la casa
+  try{
+    const v=_wx.view;
+    if(v){
+      const key=v.lat.toFixed(1)+','+v.lon.toFixed(1);
+      if(!_wx.sat||_wx.satKey!==key||Date.now()-_wx.satTs>600000){
+        const r=await fetch(WX_API+'/wx/sat?lat='+v.lat+'&lon='+v.lon);
+        if(r.ok){
+          const bb=(r.headers.get('X-Bbox')||'').split(',').map(Number);
+          const url=URL.createObjectURL(await r.blob()),img=new Image();
+          await new Promise(function(ok,ko){img.onload=ok;img.onerror=ko;img.src=url;});
+          if(_wx.satUrl)URL.revokeObjectURL(_wx.satUrl);
+          const E=20037508.34,W2=2*E;
+          _wx.satUrl=url;_wx.sat=img;_wx.satKey=key;_wx.satTs=Date.now();
+          _wx.satBox={x0:(bb[0]+E)/W2,x1:(bb[2]+E)/W2,y0:(E-bb[3])/W2,y1:(E-bb[1])/W2};
+          _wx.satTime=r.headers.get('X-Sat-Time')||'';_wx.satLayer=(r.headers.get('X-Sat-Layer')||'').split('_')[0];
+        }
+      }
+    }
+  }catch(e){}
+  _wx.loading=false;
+  wxInfoUpdate();wxDraw();
+}
+function wxActivate(on){
+  _wx.active=on;
+  if(_wx.timer){clearTimeout(_wx.timer);_wx.timer=null;}
+  if(_wx.refresh){clearInterval(_wx.refresh);_wx.refresh=null;}
+  if(!on)return;
+  if(wxSize()&&_wx.frames.length)wxLoadFrames();
+  wxInfoUpdate();wxDraw();wxLoad();
+  _wx.refresh=setInterval(wxLoad,WX_REFRESH_MS);
+  _wx.timer=setTimeout(wxStep,WX_STEP_MS);
+}
+function wxCycleLayer(){
+  _wx.layer=_wx.layer==='radar'?'ir':'radar';
+  try{localStorage.setItem('nexus_wxlayer',_wx.layer);}catch(e){}
+  wxDraw();
+}
+window.addEventListener('resize',function(){
+  if(!_wx.active)return;
+  clearTimeout(window._wxrt);
+  window._wxrt=setTimeout(function(){if(wxSize()){if(_wx.frames.length)wxLoadFrames();wxDraw();}},250);
+});
+// Antes se aplicaba al arrancar, cuando _nxPanelMode aún no estaba asignada y el
+// panel siempre quedaba en LOG; ahora se aplica aquí, con todo ya definido.
+_applyNxPanel();
 
 // ── CRITICAL ALERT ───────────────────────────────────────────────────────────
 var CRIT_KEY='nexus_crit_alert';
@@ -4074,12 +4320,13 @@ function initPanelRadar(){
     ctx.fillStyle=c.neg;ctx.beginPath();ctx.arc(CX,CY,1.5,0,Math.PI*2);ctx.fill();
     // Status
     const el=document.getElementById('nxr-status');
-    if(el){const evts=(typeof _evts!=='undefined'?_evts:[])||[];el.textContent=`${evts.length} CONTACTS`;}
+    if(el&&_nxPanelMode==='radar'){const evts=(typeof _evts!=='undefined'?_evts:[])||[];el.textContent=`${evts.length} CONTACTS`;}
   }
 
   let _nxrLastTs=0;
   function nxrLoop(ts){
     _nxrRaf=requestAnimationFrame(nxrLoop);
+    if(_nxPanelMode!=='radar')return;
     if(ts-_nxrLastTs<BG_ANIM_FRAME_MS)return;
     _nxrLastTs=ts;
     nxrUpdate();

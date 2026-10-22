@@ -975,6 +975,19 @@ app.get('/storms', async (req, res) => {
   res.json({ storms: _stormsCache.storms, ts: _stormsCache.ts });
 });
 
+// Franjas de tiempo a probar contra GIBS, de la más reciente a la más vieja:
+// el IR geoestacionario sale cada 10 min con ~40 min de retraso; VIIRS es diario.
+function gibsSlots(layer) {
+  const slots = [];
+  if (layer.startsWith('VIIRS')) {
+    for (let i = 0; i < 3; i++) slots.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+  } else {
+    const base = Math.floor((Date.now() - 40 * 60e3) / 600e3) * 600e3;
+    for (let i = 0; i < 10; i++) slots.push(new Date(base - i * 600e3).toISOString().slice(0, 19) + 'Z');
+  }
+  return slots;
+}
+
 // Imagen satelital real (NASA GIBS, IR de geoestacionario o VIIRS color) del
 // área de la tormenta. Capa y bbox salen de la caché propia, nunca del cliente.
 async function fetchStormSat(storm) {
@@ -982,14 +995,7 @@ async function fetchStormSat(storm) {
   if (c && Date.now() - c.ts < SAT_TTL) return c;
   const [w, s, e, n] = storm.sat.bbox;
   const W = 640, H = Math.max(200, Math.min(900, Math.round(W * (n - s) / (e - w))));
-  const slots = [];
-  if (storm.sat.layer.startsWith('VIIRS')) {
-    for (let i = 0; i < 3; i++) slots.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
-  } else {
-    const base = Math.floor((Date.now() - 40 * 60e3) / 600e3) * 600e3;
-    for (let i = 0; i < 10; i++) slots.push(new Date(base - i * 600e3).toISOString().slice(0, 19) + 'Z');
-  }
-  for (const t of slots) {
+  for (const t of gibsSlots(storm.sat.layer)) {
     const url = `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${storm.sat.layer}&STYLES=&CRS=EPSG:4326&BBOX=${s},${w},${n},${e}&WIDTH=${W}&HEIGHT=${H}&FORMAT=image/jpeg&TIME=${t}`;
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
@@ -1012,6 +1018,79 @@ app.get('/storms/:id/sat', async (req, res) => {
   res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Sat-Time': img.time,
             'X-Sat-Layer': storm.sat.layer, 'Access-Control-Expose-Headers': 'X-Sat-Time, X-Sat-Layer' });
   res.send(img.buf);
+});
+
+// ── Radar de lluvia (RainViewer) + IR de fondo (NASA GIBS) ───────────────────
+// El cliente pide los mosaicos de RainViewer directo (traen CORS abierto); aquí
+// solo se cachea el índice de cuadros y se sirve el IR de fondo en Web Mercator,
+// que es la misma proyección de los mosaicos, para que ambos queden alineados.
+const WX_TTL = 2 * 60 * 1000;
+const WX_SAT_HALF_KM = 420;
+const WX_R = 6378137;
+let _wxCache = { ts: 0, data: null };
+let _wxInFlight = null;
+const _wxSatCache = new Map();
+
+async function refreshWx() {
+  if (_wxInFlight) return _wxInFlight;
+  _wxInFlight = (async () => {
+    try {
+      const r = await fetch('https://api.rainviewer.com/public/weather-maps.json', { signal: AbortSignal.timeout(12000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      const ok = f => f && Number.isFinite(f.time) && /^\/v2\/radar\/[0-9a-f]+$/.test(f.path);
+      const frames = [
+        ...(j.radar?.past || []).filter(ok).map(f => ({ t: f.time, path: f.path, fc: false })),
+        ...(j.radar?.nowcast || []).filter(ok).map(f => ({ t: f.time, path: f.path, fc: true }))
+      ];
+      if (!frames.length) throw new Error('sin cuadros');
+      const host = /^https:\/\/[a-z0-9.-]*rainviewer\.com$/.test(j.host || '') ? j.host : 'https://tilecache.rainviewer.com';
+      _wxCache = { ts: Date.now(), data: { host, frames } };
+    } catch (e) { nxLog('Radar de lluvia: ' + e.message, 'warn'); }
+    finally { _wxInFlight = null; }
+    return _wxCache;
+  })();
+  return _wxInFlight;
+}
+
+app.get('/wx', async (req, res) => {
+  if (!_wxCache.data || Date.now() - _wxCache.ts > WX_TTL) await refreshWx();
+  if (!_wxCache.data) return res.status(503).json({ error: 'sin radar de lluvia' });
+  res.json({ ..._wxCache.data, ts: _wxCache.ts });
+});
+
+async function fetchWxSat(lat, lon, key) {
+  const layer = satLayerFor(lon);
+  const x0 = lon * Math.PI / 180 * WX_R;
+  const y0 = Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * WX_R;
+  const E = WX_SAT_HALF_KM * 1000 / Math.cos(lat * Math.PI / 180);
+  const bbox = [x0 - E, y0 - E, x0 + E, y0 + E].map(v => v.toFixed(1)).join(',');
+  for (const t of gibsSlots(layer)) {
+    const url = `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer},Reference_Features_15m,Coastlines_15m&STYLES=&CRS=EPSG:3857&BBOX=${bbox}&WIDTH=640&HEIGHT=640&FORMAT=image/jpeg&TIME=${t}`;
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) continue;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length < 8000) continue;
+      const out = { buf, ts: Date.now(), time: t, layer, bbox };
+      _wxSatCache.set(key, out);
+      if (_wxSatCache.size > 4) _wxSatCache.delete(_wxSatCache.keys().next().value);
+      return out;
+    } catch (_) { /* siguiente franja */ }
+  }
+  return null;
+}
+
+app.get('/wx/sat', async (req, res) => {
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1);
+  let c = _wxSatCache.get(key);
+  if (!c || Date.now() - c.ts > SAT_TTL) c = (await fetchWxSat(lat, lon, key)) || c;
+  if (!c) return res.status(503).json({ error: 'sin imagen satelital reciente' });
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Bbox': c.bbox, 'X-Sat-Time': c.time,
+            'X-Sat-Layer': c.layer, 'Access-Control-Expose-Headers': 'X-Bbox, X-Sat-Time, X-Sat-Layer' });
+  res.send(c.buf);
 });
 
 let _eventsInFlight = null;
