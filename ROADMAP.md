@@ -1122,6 +1122,15 @@ El viento saturaba el mapa y el único control era un clic en un rótulo de 9 px
   respecto a su caja (borde izquierdo del ecuador en x=-22, derecho en x=1959, polo sur en y=1121 > 1001), por eso el
   recorte usa el contorno proyectado y no un óvalo ideal.
 
+- **Bordes difuminados (en vez de recorte duro).** El `clip-path` solo dejaba un filo nítido y los escalones de las
+  celdas de 1° de la aurora; arriba se veía como un polígono más claro dentro del contorno ("espacio disparejo").
+  Ahora `mapEdgeMask(W,H,sc,ox,oy,f)` rellena el mismo contorno, lo erosiona `f` px hacia dentro (trazo con
+  `destination-out`) y lo desenfoca; esa máscara se cachea por tamaño y multiplica la opacidad de la capa con
+  `destination-in`: el viento al final de cada cuadro (las estelas se apagan al acercarse al borde) y la aurora al
+  final de `auroraDraw`. `f = max(16, 5 % del lado menor)`. El `clip-path` se queda como red de seguridad y el
+  blur de la aurora sube de 2 a 3 px. Verificado a 1:1 en un mapa de 1500×830: las cuatro esquinas se desvanecen sin
+  filo.
+
 Universal (`dashboard.html`) — cruza a `master`.
 
 ## Temas visuales

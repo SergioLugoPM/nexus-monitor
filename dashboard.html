@@ -4087,6 +4087,7 @@ function windResize(){
   if(!W||!H)return;
   w.sc=Math.min(W/2000,H/1001);w.ox=(W-2000*w.sc)/2;w.oy=(H-1001*w.sc)/2;
   cv.style.clipPath=mapOutlineCss(w.sc,w.ox,w.oy);
+  w.mask=mapEdgeMask(W,H,w.sc,w.ox,w.oy,mapEdgeFeather(W,H));
   const soft=windMode()==='soft',n=Math.max(soft?240:500,Math.min(soft?1000:2200,Math.round(W*H/(soft?1150:520))));
   w.p=[];for(let i=0;i<n;i++){const p={};windSpawn(p);p.age=Math.random()*p.max;w.p.push(p);}
 }
@@ -4118,6 +4119,8 @@ function windFrame(){
     for(let j=0;j<s.length;j+=4){ctx.moveTo(s[j],s[j+1]);ctx.lineTo(s[j+2],s[j+3]);}
     ctx.stroke();
   }
+  // desvanecido hacia el borde del mapa: las estelas cercanas se acortan y se apagan en vez de cortarse
+  if(w.mask){ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='destination-in';ctx.drawImage(w.mask,0,0);ctx.globalCompositeOperation='source-over';}
 }
 function windLoop(ts){
   _wind.raf=requestAnimationFrame(windLoop);
@@ -4155,6 +4158,26 @@ function mapOutlineCss(sc,ox,oy){
   for(let la=90;la>=-90;la-=3)pts.push(cl(ll2xy(-180,la)));
   for(let la=-90;la<=90;la+=3)pts.push(cl(ll2xy(180,la)));
   return 'polygon('+pts.join(',')+')';
+}
+// Un recorte duro deja un filo (y los escalones de las celdas de 1° de la aurora) que se nota como una forma más clara
+// dentro del contorno. En vez de eso las capas se desvanecen hacia el borde: se rellena el contorno, se erosiona
+// 'f' px hacia dentro y se desenfoca; el resultado multiplica la opacidad de la capa (destination-in).
+var _edge={cv:null,key:''};
+function mapEdgeFeather(W,H){return Math.max(16,Math.round(Math.min(W,H)*0.05));}
+function mapEdgeMask(W,H,sc,ox,oy,f){
+  const key=[W,H,sc.toFixed(4),f].join('|');
+  if(_edge.cv&&_edge.key===key)return _edge.cv;
+  const cl=function(p){return [ox+Math.max(0,Math.min(2000,p[0]))*sc,oy+Math.max(0,Math.min(1001,p[1]))*sc];};
+  const pts=[];
+  for(let la=90;la>=-90;la-=3)pts.push(cl(ll2xy(-180,la)));
+  for(let la=-90;la<=90;la+=3)pts.push(cl(ll2xy(180,la)));
+  const a=document.createElement('canvas');a.width=W;a.height=H;const g=a.getContext('2d');
+  g.fillStyle='#fff';g.beginPath();pts.forEach(function(p,i){if(i)g.lineTo(p[0],p[1]);else g.moveTo(p[0],p[1]);});g.closePath();g.fill();
+  g.globalCompositeOperation='destination-out';g.lineWidth=f*2;g.lineJoin='round';g.stroke();   // erosiona f px hacia dentro
+  const b=document.createElement('canvas');b.width=W;b.height=H;const o=b.getContext('2d');
+  o.filter='blur('+(f*0.5).toFixed(1)+'px)';o.drawImage(a,0,0);o.filter='none';
+  _edge={cv:b,key:key};
+  return b;
 }
 function windMode(){const S=_settings||{};return S.showWind===false?'off':(S.windMode==='normal'?'normal':'soft');}
 // normal -> tenue -> oculto -> normal. Tenue: ~45 % de las partículas y de la opacidad (saturaba el mapa).
@@ -4562,6 +4585,8 @@ function auroraDraw(){
     for(let j=0;j<r.length;j+=4)ctx.rect(r[j],r[j+1],r[j+2],r[j+3]);
     ctx.fill();
   });
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='destination-in';
+  ctx.drawImage(mapEdgeMask(W,H,sc,ox,oy,mapEdgeFeather(W,H)),0,0);ctx.globalCompositeOperation='source-over';
 }
 async function fetchAurora(){
   try{
@@ -5608,7 +5633,7 @@ body.spot-on .pnl:not(.spot) { opacity:.55; }
 .w-inc { font-size:9px; color:var(--wmu,#1D9E75); padding-left:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .w-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; align-self:center; }
 .w-bar { height:3px; border-radius:2px; margin:0 0 3px 30px; }
-#aurora-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; filter:blur(2px); }
+#aurora-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; filter:blur(3px); }
 .st-kv { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
 .st-kv > div { background:#161b22; border:1px solid #30363d; border-radius:4px; padding:6px 8px; }
 .st-kv .k { font-size:9px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
