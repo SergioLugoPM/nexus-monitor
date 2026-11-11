@@ -1184,6 +1184,29 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   tsunami o ciclón no visto (`nexus_zfocus`, 72 h). Espera a que el escritorio esté libre (`spotDeskFree`), acerca x4
   25 s (`_mz.hold`) y regresa; cualquier interacción lo cancela (`mzUser`). Clic en un pin (no noticia/ciclón) acerca.
 
+### Radar de lluvia: zoom, mapa debajo y registro (11-nov-2026)
+
+- Zoom del panel (−/+ en el encabezado, rueda fuera de WE): medio ancho `WX_ZOOMS` 600…75 km. Mosaicos RainViewer al
+  nivel que da ~1:1 (máx. z7: z8 ya no lo sirve). IR de `/wx/sat?km=` del tamaño de la vista y `bare=1` (sin costas
+  de GIBS). `rainScan` conserva su vista fija (300 km, z6). Cada `rec` guarda su vista (`rec.v`).
+- Mapa base: CARTO ya pide clave ("API KEY REQUIRED"), así que se dibuja Natural Earth 1:10M: `/wx/basemap` baja
+  una vez tierra, lagos, manchas urbanas, fronteras, estados y carreteras (~116 MB), recorta ±8° alrededor de la casa
+  y guarda `.ne-basemap-<lat>,<lon>.json` (~300 KB). `wxBase` lo pinta con el tema en un lienzo aparte; las nubes
+  IR se suman encima con `screen` (cielo despejado = negro → se ve el mapa).
+- Análisis por cuadro (`wxAnalyze`): intensidad por color (escala Universal Blue: rojo = muy fuerte, amarillo =
+  fuerte), ciudades con eco encima (`wet`) y posición del eco más cercano. `wxLogCheck` anota cambios entre cuadros
+  "ahora" (empieza/deja de llover en X, lluvia nueva, se acerca/aleja, núcleo muy fuerte) y sismos de 24 h en la vista;
+  `wxLogDraw` lo pinta abajo a la izquierda (≤40 % del alto).
+
+### Alertas al centro (11-nov-2026)
+
+- `spotStart`: las alertas de eventos (key que no empieza con `amb-`) salen al centro como ventana (`.spot-c`,
+  translate+scale), con barra de título `⚠ motivo` + ✕ (`spotHead`) y barra que se vacía hasta el cierre automático
+  (`.spot-time`). El pulso en reposo (`amb-*`) sigue creciendo en su sitio y se cierra con clic como antes.
+- `o.hl(el)` devuelve qué resaltar (`.spot-hl`, se re-aplica cada 1.5 s); `o.ws` pone la sección/fila del evento al
+  frente de la franja WATCH (`wsFocusApply`, porque `wsFit` borra lo que no cabe); en RECENT EVENTS la fila sube.
+  Lluvia: `_wx.hl` dibuja un anillo que late sobre el eco y una línea desde la casa.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
