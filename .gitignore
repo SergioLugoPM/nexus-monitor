@@ -12,3 +12,4 @@ agent-backups/
 .history/
 .wind-cache.json
 .geo-countries-*.json
+.ne-places.json
