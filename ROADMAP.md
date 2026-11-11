@@ -1161,6 +1161,26 @@ Universal (`dashboard.html`) — cruza a `master`.
 
 Universal (`dashboard.html` + `server.js`) — cruza a `master`.
 
+**En Wallpaper Engine (probado 10-nov):** la rueda NO llega al fondo; los clics sí. El doble clic se arma con dos
+clics simples y, si Windows convierte el segundo en WM_LBUTTONDBLCLK que WE no reenvía, con "clic + soltar sin
+presionar". Los últimos eventos del mouse salen en el latido `/debug/client` (`zoom.ev`) para diagnosticar.
+
+### Zona al hacer zoom (11-nov-2026)
+
+Módulo `_zn` en dashboard.html; se rehace en `mzSettle → znUpdate`. Capas en `#zoom-detail` (debajo de los pines),
+dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para el trazo, no el atributo).
+- x1.6+: nombres de países; x2+: ciudades (Natural Earth 1:50M en español, `/zone/places`, archivo `.ne-places.json`).
+  Colisión simple por cajas; tope 30 países y 20+12k ciudades.
+- x2+: sismos de todas las magnitudes 24 h (`/zone/quakes`, USGS all_day) menos los que ya son pines, y todos los
+  incendios de la vista (`/zone/fires`; buildEvents guarda la lista completa en `_firesAll`).
+- x3+: aviones en vivo de adsb.lol (`/zone/flights`, hasta 4 consultas de 250 mn; militares en rojo, emergencias en
+  ámbar); se ocultan los 250 de OpenSky mientras tanto. Se refresca cada 20 s.
+- Ficha `#zone-card` (x2+): país bajo el centro (contorno con `data-n` → nombre en español), ciudad cercana, hora
+  local, clima y AQI (`/zone/now`, Open-Meteo), internet (IODA `byCode`) y conteos de la vista.
+- Enfoque automático (`zfCheck` tras cada `/events`, botón ENFOQUE): sismo M6+ (SSN M5+) de menos de 3 h,
+  tsunami o ciclón no visto (`nexus_zfocus`, 72 h). Espera a que el escritorio esté libre (`spotDeskFree`), acerca x4
+  25 s (`_mz.hold`) y regresa; cualquier interacción lo cancela (`mzUser`). Clic en un pin (no noticia/ciclón) acerca.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
