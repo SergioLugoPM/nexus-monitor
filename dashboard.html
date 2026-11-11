@@ -2581,12 +2581,13 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
   orbitGroup.appendChild(dot);
 }
 
-// Ubicación de casa: CP 55883, Geovillas de Terranova, Acolman (Edomex). El CP no está en OpenStreetMap; se usa
-// el punto medio de los CP vecinos de Acolman (55884: 19.615,-98.957 · 55885: 19.613,-98.936), error de 2-3 km.
-// Antes estaba en Toluca (19.28,-99.66) por error. La usan el radar del panel (distancia/rumbo de eventos), el
-// radar de lluvia, el pin del clima y el radar grande sobre el mapa (estos dos se recorren a esta posición con
-// mzRadarGeo y mcSwapBase; en el SVG siguen dibujados en 428,442).
-var _homeCoords={lat:19.62,lon:-98.95,city:'Acolman',country:'MX'};
+// Ubicación de casa: CP 55883, Geovillas de Terranova, Acolman (Edomex). El fraccionamiento no está como zona en
+// OpenStreetMap; el punto es la central TELMEX "Acolman, Real del Valle - Geovillas de Terranova" (nodo de OSM,
+// 19.5954,-98.9756), la que da servicio a esos fraccionamientos. Antes: Toluca (19.28,-99.66) por error y luego el
+// punto medio de los CP vecinos (19.62,-98.95, ~3.5 km al NE). La usan el radar del panel (distancia/rumbo de
+// eventos), el radar de lluvia, el pin del clima y el radar grande sobre el mapa (estos dos se recorren a esta
+// posición con mzRadarGeo y mcSwapBase; en el SVG siguen dibujados en 428,442).
+var _homeCoords={lat:19.595,lon:-98.976,city:'Acolman',country:'MX'};
 
 function renderEventPins(){
 const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
