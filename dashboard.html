@@ -4110,9 +4110,11 @@ function mzInit(){
   },true);
   // Registro corto de eventos del mouse para el latido de diagnóstico (/debug/client): qué reenvía WE
   _mz.ev=[];
-  ['pointerdown','pointerup','click','dblclick'].forEach(function(t){
-    wrap.addEventListener(t,function(e){
-      _mz.ev.push([t,Math.round(performance.now()),Math.round(e.clientX),Math.round(e.clientY),e.detail||0]);
+  // En toda la página (no solo el mapa) y con el elemento que lo recibió: si algo tapa el mapa, aquí se ve
+  ['pointerdown','pointerup','mousedown','click','dblclick'].forEach(function(t){
+    document.addEventListener(t,function(e){
+      const tg=e.target,id=tg&&tg.nodeType===1?(tg.id||(tg.tagName+'.'+String(tg.getAttribute('class')||'').split(' ')[0])):'?';
+      _mz.ev.push([t,Math.round(performance.now()),Math.round(e.clientX),Math.round(e.clientY),e.detail||0,id,wrap.contains(tg)?1:0]);
       if(_mz.ev.length>16)_mz.ev.shift();
       clearTimeout(_mz.pingT);_mz.pingT=setTimeout(function(){if(typeof spotPing==='function')spotPing();},1500);
     },true);
@@ -4300,6 +4302,22 @@ function znLabels(){
   const boxes=[],hit=function(b){for(let i=0;i<boxes.length;i++){const o=boxes[i];if(b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1])return true;}return false;};
   const L=document.getElementById('zd-lbl'),C=document.getElementById('zd-city');
   let nc=0,np=0;const maxC=30,maxP=Math.min(90,Math.round(20+12*k));   // menos nombres con poco zoom
+  // Los pines (y sus rótulos "M4.0", "NEWS"...) van primero: los nombres los esquivan en vez de encimarse.
+  // Cada pin está contraescalado alrededor de su punto (__mza), así que su caja real es la de getBBox escalada por s.
+  document.querySelectorAll('#event-pins > g.mz-m, #mx-weather-group').forEach(function(g){
+    const a=g.__mza;if(!a)return;let b;
+    try{
+      if(g.id==='mx-weather-group'){   // sin el pulso animado (crece hasta r=42): solo el anillo y la etiqueta del clima
+        const r1=document.getElementById('pin-ring').getBBox(),r2=document.getElementById('wx-bg').getBBox();
+        const x0=Math.min(r1.x,r2.x),y0=Math.min(r1.y,r2.y);b={x:x0,y:y0,width:Math.max(r1.x+r1.width,r2.x+r2.width)-x0,height:Math.max(r1.y+r1.height,r2.y+r2.height)-y0};
+      }else b=g.getBBox();
+    }catch(_){return;}
+    if(!b.width&&!b.height)return;
+    const o=g.__mzo||[0,0],ex=function(x,ax){return ax+(x-ax)*s;};
+    const bx=[ex(b.x,a[0])+o[0],ex(b.y,a[1])+o[1],ex(b.x+b.width,a[0])+o[0],ex(b.y+b.height,a[1])+o[1]];
+    if(bx[2]<v.x0||bx[0]>v.x1||bx[3]<v.y0||bx[1]>v.y1)return;
+    boxes.push(bx);
+  });
   _zn.countries.filter(function(r){return r[4]<=z;}).sort(function(a,b){return a[4]-b[4];}).forEach(function(r){
     if(nc>=maxC)return;
     const p=ll2xyF(r[3],r[2]);if(!znIn(v,p[0],p[1]))return;
