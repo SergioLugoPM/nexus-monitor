@@ -1784,7 +1784,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <div class="lbl" id="l-nxlog" style="margin-bottom:0">NEXUS RADAR</div>
       <span id="nxr-status" style="font-size:10px;letter-spacing:1px;opacity:.65;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"></span>
       <span id="wx-zctl" style="display:none;align-items:center;gap:3px;margin-left:auto;font-size:9px;letter-spacing:1px;user-select:none"><span class="btn-mini mz-btn" id="wx-zout" onclick="wxZoom(-1)" title="Alejar el radar de lluvia">−</span><span id="wx-zlbl" style="opacity:.7;min-width:44px;text-align:center"></span><span class="btn-mini mz-btn" id="wx-zin" onclick="wxZoom(1)" title="Acercar el radar de lluvia">+</span></span>
-      <span class="btn-mini" id="nxp-toggle" onclick="toggleNxPanel()" style="margin-left:6px">[ LOG ]</span>
+      <span class="btn-mini" id="nxp-toggle" onclick="toggleNxPanel()" style="margin-left:6px;white-space:nowrap;flex-shrink:0">[ LOG ]</span>
     </div>
     <div id="nxp-radar" style="flex:1;display:flex;flex-direction:column;min-height:0;">
       <canvas id="nxr-canvas" style="flex:1;min-height:0;width:100%;display:block;min-height:120px"></canvas>
@@ -4674,7 +4674,18 @@ function wStripRender(){
     }).join('')));
   }else parts.push(sec('SISMOS · 24 H','',wait));
   el.innerHTML=parts.join('');
+  if(typeof _spot!=='undefined'&&_spot.wsFocus)wsFocusApply(el,_spot.wsFocus);
   wsFit(el);
+}
+// Durante una alerta, la sección del evento pasa a ser la primera (wsFit nunca recorta la primera) y su fila
+// queda arriba; así lo que disparó la alerta siempre se ve en la ventana.
+function wsFocusApply(el,f){
+  const sec=Array.prototype.find.call(el.children,function(s){return s.getAttribute('data-k')===f.k;});if(!sec)return;
+  el.insertBefore(sec,el.firstChild);
+  if(f.place){
+    const row=Array.prototype.find.call(sec.querySelectorAll('.ws-row'),function(r){return (r.title||'').indexOf(f.place)===0;});
+    const hd=sec.querySelector('.ws-k');if(row&&hd)sec.insertBefore(row,hd.nextSibling);
+  }
 }
 function wEmpty(key,txt){return '<div class="w-empty">'+(_watch.errors[key]?'Sin datos de '+txt+' por ahora.':'Cargando…')+'</div>';}
 
@@ -4928,37 +4939,81 @@ async function spotDeskFree(){
 }
 function spotEnd(){
   const cur=_spot.cur;if(!cur)return;
-  clearTimeout(_spot.timer);clearInterval(_spot.poll);_spot.timer=_spot.poll=null;
+  clearTimeout(_spot.timer);clearInterval(_spot.poll);clearInterval(_spot.hlT);_spot.timer=_spot.poll=_spot.hlT=null;
   const el=document.getElementById(cur.panel);
-  if(el){el.classList.remove('spot');el.style.background='';el.style.removeProperty('--spot-s');const tg=el.querySelector('.spot-tag');if(tg)tg.remove();}
+  if(el){
+    el.classList.remove('spot','spot-c');el.style.background='';el.style.removeProperty('--spot-s');
+    el.querySelectorAll('.spot-tag,.spot-head,.spot-time').forEach(function(t){t.remove();});
+    el.querySelectorAll('.spot-hl').forEach(function(t){t.classList.remove('spot-hl');});
+    if(cur.clk)el.removeEventListener('click',cur.clk);
+  }
+  if(typeof _wx!=='undefined')_wx.hl=false;
+  if(_spot.wsFocus){_spot.wsFocus=null;try{wStripRender();}catch(e){}}
   _spot.cur=null;
-  document.body.classList.remove('spot-on');
+  document.body.classList.remove('spot-on','spot-center');
   if(cur.onEnd){try{cur.onEnd();}catch(e){}}
-  setTimeout(function(){if(el&&!(_spot.cur&&_spot.cur.panel===cur.panel))el.style.transformOrigin='';},800);   // el origen se suelta cuando termina la animación de vuelta
+  setTimeout(function(){if(el&&!(_spot.cur&&_spot.cur.panel===cur.panel)){el.style.transformOrigin='';el.style.removeProperty('--spot-tx');el.style.removeProperty('--spot-ty');}},800);   // el origen se suelta cuando termina la animación de vuelta
 }
+// Marca dentro del panel lo que disparó la alerta (o.hl devuelve los elementos). Se re-aplica cada 1.5 s porque
+// varios paneles rehacen su HTML mientras están al frente.
+function spotApplyHl(el,o){
+  if(!o.hl)return;
+  let list=[];try{list=o.hl(el)||[];}catch(e){}
+  if(!list.length&&!list.nodeType)return;
+  (list.nodeType?[list]:Array.prototype.slice.call(list)).forEach(function(t){
+    if(!t||!t.classList)return;
+    if(!t.classList.contains('spot-hl'))t.classList.add('spot-hl');
+    // en RECENT EVENTS la fila sube al primer lugar para que no quede fuera de la vista
+    const p=t.parentNode;if(p&&p.id==='gs-events'&&p.firstElementChild!==t)p.insertBefore(t,p.firstElementChild);
+  });
+}
+// Ventana de la alerta: barra de título con el motivo y ✕, y una barra que se vacía hasta el cierre automático
+function spotHead(el,o,ms){
+  el.querySelectorAll('.spot-head,.spot-time').forEach(function(t){t.remove();});
+  const col=o.color||_pal.hi,h=document.createElement('div');h.className='spot-head';h.style.color=col;h.style.borderColor=col;
+  const t=document.createElement('span');t.className='spot-reason';t.textContent='⚠ '+o.reason;h.appendChild(t);
+  const x=document.createElement('span');x.className='spot-x';x.textContent='✕';x.title='Cerrar (se cierra solo al terminar la barra)';
+  x.addEventListener('click',function(e){e.stopPropagation();spotLog(o.key,'cerrado a mano');spotEnd();});
+  h.appendChild(x);el.appendChild(h);
+  const b=document.createElement('div');b.className='spot-time';b.style.background=col;b.style.animationDuration=(ms/1000).toFixed(1)+'s';el.appendChild(b);
+}
+// Dos modos: las alertas de eventos (centered) salen al centro de la pantalla como ventana con ✕; el pulso en
+// reposo (amb-*) sigue creciendo en su sitio, y un clic sobre el panel lo cierra como antes.
 function spotStart(o){
   const el=document.getElementById(o.panel);if(!el)return;
   if(_spot.cur)spotEnd();
   const r=el.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,cx=r.left+r.width/2,cy=r.top+r.height/2;
-  // crece hacia donde hay sitio: el origen es el borde más cercano al borde de la pantalla
-  const ox=cx<vw*.33?'left':cx>vw*.67?'right':'center',oy=cy<vh*.33?'top':cy>vh*.67?'bottom':'center';
-  const aw=ox==='left'?vw-r.left-14:ox==='right'?r.right-14:Math.min(cx,vw-cx)*2-28;
-  const ah=oy==='top'?vh-r.top-64:oy==='bottom'?r.bottom-14:Math.min(cy,vh-cy)*2-28;
-  const sc=Math.max(1.15,Math.min(o.scale||1.8,aw/r.width,ah/r.height));
+  const centered=!/^amb-/.test(o.key||'')&&vw>200&&vh>200,ms=o.ms||22000;   // sin medidas de ventana (página oculta) se queda en su sitio
   const root=document.documentElement.style;
-  root.setProperty('--spot-bg',_pal.base);root.setProperty('--spot-glow',ca(_pal.hi,.45));
-  el.style.transformOrigin=ox+' '+oy;el.style.setProperty('--spot-s',sc.toFixed(3));el.style.background=_pal.base;
-  const tag=document.createElement('div');tag.className='spot-tag';tag.style.color=o.color||_pal.hi;tag.textContent=o.reason;el.appendChild(tag);
-  document.body.classList.add('spot-on');
+  root.setProperty('--spot-bg',_pal.base);root.setProperty('--spot-glow',ca(o.color||_pal.hi,.5));root.setProperty('--spot-hl',o.color||_pal.hi);
+  let sc,clk=null;
+  if(centered){
+    sc=Math.max(1.1,Math.min(o.scale||2.2,vw*.6/r.width,vh*.66/r.height));
+    el.style.transformOrigin='center center';
+    el.style.setProperty('--spot-tx',Math.round(vw/2-cx)+'px');el.style.setProperty('--spot-ty',Math.round(vh/2-cy)+'px');
+    spotHead(el,o,ms);
+  }else{
+    // crece hacia donde hay sitio: el origen es el borde más cercano al borde de la pantalla
+    const ox=cx<vw*.33?'left':cx>vw*.67?'right':'center',oy=cy<vh*.33?'top':cy>vh*.67?'bottom':'center';
+    const aw=ox==='left'?vw-r.left-14:ox==='right'?r.right-14:Math.min(cx,vw-cx)*2-28;
+    const ah=oy==='top'?vh-r.top-64:oy==='bottom'?r.bottom-14:Math.min(cy,vh-cy)*2-28;
+    sc=Math.max(1.15,Math.min(o.scale||1.8,aw/r.width,ah/r.height));
+    el.style.transformOrigin=ox+' '+oy;
+    const tag=document.createElement('div');tag.className='spot-tag';tag.style.color=o.color||_pal.hi;tag.textContent=o.reason;el.appendChild(tag);
+    clk=function(){spotEnd();};el.addEventListener('click',clk);
+  }
+  el.style.setProperty('--spot-s',sc.toFixed(3));el.style.background=_pal.base;
+  document.body.classList.add('spot-on');if(centered)document.body.classList.add('spot-center');
   void el.offsetWidth;                       // la transición parte de la escala 1
-  el.classList.add('spot');
-  _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key,onEnd:o.onEnd};
+  el.classList.add('spot');if(centered)el.classList.add('spot-c');
+  _spot.cur={panel:o.panel,pri:o.pri||0,key:o.key,onEnd:o.onEnd,clk:clk,o:o};
   _spot.lastAny=Date.now();_spot.shown[o.panel]=Date.now();
   if(o.onStart){try{o.onStart();}catch(e){}}
-  _spot.timer=setTimeout(spotEnd,o.ms||22000);
+  if(o.ws){_spot.wsFocus=o.ws;try{wStripRender();}catch(e){}}
+  spotApplyHl(el,o);_spot.hlT=setInterval(function(){spotApplyHl(el,o);},1500);
+  _spot.timer=setTimeout(spotEnd,ms);
   // si aparece una ventana encima, se acaba al instante
   if(spotMode()==='auto'&&!o.force)_spot.poll=setInterval(async function(){if(!(await spotDeskFree()))spotEnd();},2500);
-  el.addEventListener('click',spotEnd,{once:true});
 }
 function spotTrigger(o){
   if(spotMode()==='off')return;
@@ -4966,15 +5021,25 @@ function spotTrigger(o){
   if((_spot.cool[o.key]||0)>now){spotLog(o.key,'enfriamiento');return;}
   if(cur&&cur.panel!==o.panel&&cur.pri>=(o.pri||0)){spotLog(o.key,'ya hay uno de mayor prioridad al frente');return;}
   _spot.cool[o.key]=now+(o.cool||600000);
-  if(cur&&cur.panel===o.panel){                                      // mismo panel: se alarga y se actualiza la etiqueta
+  const cen=function(k){return !/^amb-/.test(k||'');};
+  if(cur&&cur.panel===o.panel&&cen(cur.key)===cen(o.key)){           // mismo panel y mismo modo: se alarga y se actualiza
     clearTimeout(_spot.timer);_spot.timer=setTimeout(spotEnd,o.ms||22000);
-    const tg=document.getElementById(o.panel).querySelector('.spot-tag');if(tg)tg.textContent=o.reason;
+    const el=document.getElementById(o.panel);
+    const tg=el.querySelector('.spot-tag');if(tg)tg.textContent=o.reason;
+    if(cen(o.key)){spotHead(el,o,o.ms||22000);_spot.cur.key=o.key;_spot.cur.pri=Math.max(cur.pri,o.pri||0);
+      el.querySelectorAll('.spot-hl').forEach(function(t){t.classList.remove('spot-hl');});
+      if(o.ws){_spot.wsFocus=o.ws;try{wStripRender();}catch(e){}}
+      clearInterval(_spot.hlT);_spot.cur.o=o;spotApplyHl(el,o);_spot.hlT=setInterval(function(){spotApplyHl(el,o);},1500);}
     return;
   }
+  if(cur&&cur.panel===o.panel)spotEnd();   // del pulso en reposo a una alerta: se rehace como ventana al centro
   spotDeskFree().then(function(ok){spotLog(o.key,ok?'inicia':'bloqueado: hay ventanas encima o /desktop no responde');if(ok)spotStart(o);else if(/^amb-/.test(o.key))_spot.lastAny=Date.now()-SPOT_T.ambientMs+180000;});   // si el pulso se bloquea, reintenta en 3 min
 }
 // ── Umbrales (en un solo sitio, para afinarlos) ─────────────────────────────
 var SPOT_T={cpu:75,gpu:80,net:8,mxMag:4.0,mxKm:800,wMag:5.5,kp:4,rainNear:40,rainApproach:120,ambientMs:8*60000};
+// Elementos del panel que coinciden (para resaltar el evento que disparó la alerta)
+function spotRows(el,sel,pred){return Array.prototype.filter.call(el.querySelectorAll(sel),function(r){try{return pred(r);}catch(e){return false;}});}
+function spotTxt(r,s){return !!s&&(r.textContent||'').indexOf(s)>=0;}
 function spotLog(k,r){_spot.log.push({t:new Date().toTimeString().slice(0,8),k:k,r:r});if(_spot.log.length>20)_spot.log.shift();}
 // ── Pulso en reposo ─────────────────────────────────────────────────────────
 // Con el escritorio libre la PC suele estar quieta (CPU/GPU/red no se mueven) y los eventos del mundo son raros,
@@ -5041,13 +5106,17 @@ function spotScanEvents(evts){
     if(_spot.seen[key])return;_spot.seen[key]=1;
     if(first&&e.type!=='tsunami')return;                              // el primer pase solo memoriza lo que ya existía
     const km=_nxrGeoD(hLat,hLon,e.lat,e.lon),mag=e.mag||0,recent=e.ts&&Date.now()-e.ts<45*60000;
-    if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4'});
+    // resaltado: la fila del sismo en la franja WATCH (su title empieza con el lugar) o la fila del evento en RECENT EVENTS
+    const hlQuake=function(el){return spotRows(el,'.ws-row',function(r){return (r.title||'').indexOf(e.place||'\u0000')===0;});};
+    const hlEv=function(el){const s=(e.label||'').slice(0,18);return spotRows(el,'#gs-events > div',function(r){return spotTxt(r,s);});};
+    const hlTsu=function(el){return spotRows(el,'.ws-row',function(r){return spotTxt(r,'🌊')&&!spotTxt(r,'sin avisos');});};
+    if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4',hl:hlTsu,ws:{k:''}});
     else if(e.type==='quake'){
-      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR});
-      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A'});
+      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR,hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
+      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A',hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
     }
-    else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6'});
-    else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000});
+    else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6',hl:hlEv});
+    else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000,hl:hlEv});
   });
   _spot.base=true;
 }
@@ -5055,21 +5124,25 @@ function spotScanWatch(key){
   const W=_watch,first=!_spot.wb[key];_spot.wb[key]=true;
   if(key==='space'&&W.space){
     const kp=W.space.kp?W.space.kp.value:0,G=W.space.scales?W.space.scales.now.G:0;
-    if(!first&&((kp>=SPOT_T.kp&&_spot.lastKp<SPOT_T.kp)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:(G>=1?'TORMENTA GEOMAGNÉTICA':'ACTIVIDAD GEOMAGNÉTICA')+' · Kp '+(+kp).toFixed(1),pri:G>=1?60:40,ms:26000,cool:1800000,color:'#F0883E'});
+    if(!first&&((kp>=SPOT_T.kp&&_spot.lastKp<SPOT_T.kp)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:(G>=1?'TORMENTA GEOMAGNÉTICA':'ACTIVIDAD GEOMAGNÉTICA')+' · Kp '+(+kp).toFixed(1),pri:G>=1?60:40,ms:26000,cool:1800000,color:'#F0883E',
+      hl:function(el){return el.querySelectorAll('.ws-sec[data-k="CLIMA ESPACIAL"] .ws-row');}});
     _spot.lastKp=kp;_spot.lastG=G;
   }else if(key==='cloud'&&W.cloud){
     W.cloud.services.forEach(function(sv){
       const sev=(sv.level==='major'||sv.level==='critical'),was=_spot.lastCloud[sv.id];
-      if(!first&&sev&&!was)spotTrigger({panel:'p-watch',key:'cloud-'+sv.id,reason:sv.name.toUpperCase()+' · FALLA',pri:55,ms:26000,cool:1800000,color:'#E24B4A'});
+      if(!first&&sev&&!was)spotTrigger({panel:'p-watch',key:'cloud-'+sv.id,reason:sv.name.toUpperCase()+' · FALLA',pri:55,ms:26000,cool:1800000,color:'#E24B4A',ws:{k:'ESTADO DE LA NUBE'},
+        hl:function(el){const r=spotRows(el,'.ws-sec[data-k="ESTADO DE LA NUBE"] *',function(x){return !x.children.length&&spotTxt(x,sv.name);});return r.length?r:el.querySelectorAll('.ws-sec[data-k="ESTADO DE LA NUBE"]');}});
       _spot.lastCloud[sv.id]=sev;
     });
   }else if(key==='internet'&&W.internet){
     const bad=W.internet.mine.some(function(m){return m.score>0;});
-    if(!first&&bad&&!_spot.lastNet)spotTrigger({panel:'p-watch',key:'net-region',reason:'INTERNET · ANOMALÍA EN TU REGIÓN',pri:45,ms:24000,cool:1800000,color:'#F0883E'});
+    if(!first&&bad&&!_spot.lastNet)spotTrigger({panel:'p-watch',key:'net-region',reason:'INTERNET · ANOMALÍA EN TU REGIÓN',pri:45,ms:24000,cool:1800000,color:'#F0883E',ws:{k:''},
+      hl:function(el){return spotRows(el,'.ws-row > span',function(r){return spotTxt(r,'NET');});}});
     _spot.lastNet=bad;
   }else if(key==='tsunami'&&W.tsunami){
     const act=(W.tsunami.active||[]).length>0;
-    if(act&&!_spot.lastTsu)spotTrigger({panel:'p-watch',key:'tsu-active',reason:'TSUNAMI · '+String(W.tsunami.active[0].category).toUpperCase(),pri:100,ms:30000,cool:1800000,color:'#06B6D4'});
+    if(act&&!_spot.lastTsu)spotTrigger({panel:'p-watch',key:'tsu-active',reason:'TSUNAMI · '+String(W.tsunami.active[0].category).toUpperCase(),pri:100,ms:30000,cool:1800000,color:'#06B6D4',ws:{k:''},
+      hl:function(el){return spotRows(el,'.ws-row',function(r){return spotTxt(r,'🌊')&&!spotTxt(r,'sin avisos');});}});
     _spot.lastTsu=act;
   }
 }
@@ -5126,7 +5199,8 @@ async function fetchAir(){
 function spotScanAir(){
   const d=_air;if(!d)return;
   const lvl=d.aqi>=201?3:d.aqi>=151?2:d.aqi>=101?1:0;           // dañina para sensibles, dañina, muy dañina
-  if(lvl>(_spot.lastAir||0)){const k=airCat(d.aqi,_pal);spotTrigger({panel:'p-wth',key:'air-'+lvl,reason:'AIRE · AQI '+Math.round(d.aqi)+' · '+k.name,pri:52+lvl*4,ms:26000,cool:3*3600000,color:k.col});}
+  if(lvl>(_spot.lastAir||0)){const k=airCat(d.aqi,_pal);spotTrigger({panel:'p-wth',key:'air-'+lvl,reason:'AIRE · AQI '+Math.round(d.aqi)+' · '+k.name,pri:52+lvl*4,ms:26000,cool:3*3600000,color:k.col,
+    hl:function(el){return el.querySelectorAll('#w-air');}});}
   _spot.lastAir=lvl;
 }
 
@@ -5186,7 +5260,8 @@ function spotScanRain(r){
   if(!reason)return;
   // al destacar el radar se cambia a CLIMA mientras dure y se vuelve al modo que estaba (sin guardarlo como preferencia)
   spotTrigger({panel:'p-nxlog',key:'rain',reason:reason,pri:pri,ms:28000,cool:2700000,color:'#38BDF8',
-    onStart:spotRadarStart,onEnd:spotRadarEnd});
+    onStart:spotRadarStart,onEnd:spotRadarEnd,
+    hl:function(el){_wx.hl=true;return el.querySelectorAll('#wx-info');}});   // _wx.hl: anillo que late sobre el eco en el lienzo
 }
 setTimeout(fetchAir,5000);setInterval(fetchAir,15*60*1000);
 setTimeout(rainScan,9000);setInterval(rainScan,5*60*1000);
@@ -5309,16 +5384,26 @@ function wxAnalyze(rec){
     const g=cv.getContext('2d');g.clearRect(0,0,W,H);
     wxPaintTiles(g,rec,1);
     const d=g.getImageData(0,0,W,H).data,cw=Math.floor(W/C),ch=Math.floor(H/C);
-    let best=null,act=0;
+    let best=null,act=0,strong=0,severe=0,sx=0,sy=0;
     for(let cy=0;cy<ch;cy++)for(let cx=0;cx<cw;cx++){
       let cnt=0;
-      for(let y=0;y<C;y++){const row=((cy*C+y)*W+cx*C)*4;for(let x=0;x<C;x++)if(d[row+x*4+3]>40)cnt++;}
+      for(let y=0;y<C;y++){const row=((cy*C+y)*W+cx*C)*4;for(let x=0;x<C;x++){const o=row+x*4;if(d[o+3]>40){cnt++;
+        // escala "Universal Blue" de RainViewer: azules = ligera/moderada, amarillo-naranja = fuerte, rojo-magenta = muy fuerte
+        const r=d[o],gg=d[o+1],b=d[o+2];if(r>190&&gg<110){severe++;sx+=cx*C+x;sy+=cy*C+y;}else if(r>190&&gg>=110&&b<140)strong++;}}}
       if(cnt<5)continue;
       act++;
       const dx=cx*C+C/2-W/2,dy=cy*C+C/2-H/2,km=Math.hypot(dx,dy)*v.kmpp;
-      if(!best||km<best.km)best={km:km,brg:(Math.atan2(dx,-dy)*180/Math.PI+360)%360};
+      if(!best||km<best.km)best={km:km,brg:(Math.atan2(dx,-dy)*180/Math.PI+360)%360,x:cx*C+C/2,y:cy*C+C/2};
     }
-    rec.echo={near:best,cover:act/(cw*ch),cells:act};
+    // ciudades con eco encima (ventana de 5×5 px alrededor de su punto)
+    const wet=[],cities=_wx.now?_wx.now.cities:WX_CITIES.map(function(c){return{n:c[0],lat:c[1],lon:c[2]};});
+    cities.forEach(function(ct){
+      const m=wxMerc(ct.lat,ct.lon),x=Math.round((m.x-v.x0)/v.wpp),y=Math.round((m.y-v.y0)/v.wpp);
+      if(x<2||y<2||x>W-3||y>H-3)return;
+      let n=0;for(let yy=-2;yy<=2;yy++)for(let xx=-2;xx<=2;xx++)if(d[((y+yy)*W+x+xx)*4+3]>40)n++;
+      if(n>=4)wet.push(ct.home?'CASA':ct.n);
+    });
+    rec.echo={near:best,cover:act/(cw*ch),cells:act,strong:strong,severe:severe,wet:wet,sev:severe?{x:sx/severe,y:sy/severe}:null};
   }catch(e){rec.echo=null;}
 }
 // Compara el eco más cercano de ahora con el de hace 30 min
@@ -5340,6 +5425,7 @@ function wxRain(){
   return{txt:'LLUVIA A '+km+' km '+wxDir(e.near.brg)+tr+(pc>=1?' · '+pc+'% DEL ÁREA':''),col:km<25?c.warn:c.pulse};
 }
 function wxInfoUpdate(){
+  try{wxLogCheck();}catch(e){}
   const el=document.getElementById('wx-info');if(!el)return;
   const c=currentPalette();
   let a,b;
@@ -5359,15 +5445,20 @@ function wxDraw(){
   const ctx=cv.getContext('2d'),W=_wx.W,H=_wx.H,c=currentPalette(),fr=_wx.frames,cx=W/2,cy=H/2;
   ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;
   ctx.fillStyle=c.base;ctx.fillRect(0,0,W,H);
-  // fondo IR: en gris tintado con el tema para que el radar resalte; en modo IR, a color
+  // mapa de la zona (Natural Earth) debajo de todo; las nubes se suman encima con "screen": el cielo
+  // despejado del IR queda negro y deja ver el mapa, las nubes frías lo cubren en claro
+  const bm=wxBase(c);if(bm)ctx.drawImage(bm,0,0);
   if(_wx.sat&&_wx.satBox){
     const s=_wx.sat,b=_wx.satBox,bw=b.x1-b.x0,bh=b.y1-b.y0,iw=s.naturalWidth,ih=s.naturalHeight;
-    const rad=_wx.layer==='radar';
-    ctx.save();
-    if(rad){if('filter' in ctx)ctx.filter='grayscale(1) brightness(.8) contrast(1.05)';else ctx.globalAlpha=.55;}
-    ctx.drawImage(s,(v.x0-b.x0)/bw*iw,(v.y0-b.y0)/bh*ih,W*v.wpp/bw*iw,H*v.wpp/bh*ih,0,0,W,H);
-    ctx.restore();
-    if(rad){ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle=ca(c.hi,1);ctx.fillRect(0,0,W,H);ctx.restore();}
+    const rad=_wx.layer==='radar',ir=_wx._ir||(_wx._ir=document.createElement('canvas'));
+    if(ir.width!==W||ir.height!==H){ir.width=W;ir.height=H;}
+    const g=ir.getContext('2d');g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.globalAlpha=1;g.clearRect(0,0,W,H);
+    g.save();
+    if('filter' in g)g.filter=rad?'grayscale(1) contrast(1.9) brightness(.62)':'contrast(1.35) brightness(.8)';
+    g.drawImage(s,(v.x0-b.x0)/bw*iw,(v.y0-b.y0)/bh*ih,W*v.wpp/bw*iw,H*v.wpp/bh*ih,0,0,W,H);
+    g.restore();
+    if(rad){g.globalCompositeOperation='multiply';g.fillStyle=ca(c.hi,1);g.fillRect(0,0,W,H);g.globalCompositeOperation='source-over';}
+    ctx.save();ctx.globalCompositeOperation='screen';ctx.globalAlpha=bm?(rad?.85:.9):1;ctx.drawImage(ir,0,0);ctx.restore();
   }
   // radar del cuadro actual
   const f=fr.length?fr[_wx.idx%fr.length]:null,rec=f?_wx.tiles[wxKey(f)]:null;
@@ -5410,6 +5501,17 @@ function wxDraw(){
       lab(t,rt?x+3:x-3,y+3,c.mut,rt?'left':'right');break;
     }
   });
+  // resaltado cuando el panel está al frente por una alerta de lluvia: anillo que late sobre el eco más cercano
+  const nrec=fr.length?_wx.tiles[wxKey(fr[wxNowIdx()])]:null,ne=nrec&&nrec.ready&&nrec.echo?nrec.echo:null;
+  if(_wx.hl&&ne&&ne.near){
+    const ph=(Date.now()%1300)/1300,ex=ne.near.x,ey=ne.near.y;
+    ctx.strokeStyle='#38BDF8';ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ex,ey);ctx.stroke();ctx.setLineDash([]);
+    ctx.globalAlpha=1-ph;ctx.lineWidth=2;ctx.beginPath();ctx.arc(ex,ey,6+ph*18,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+    ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(ex,ey,5,0,Math.PI*2);ctx.stroke();
+    ctx.font='bold 10px monospace';lab(Math.round(ne.near.km)+' km',ex+(ex>W-60?-9:9),ey-8,'#38BDF8',ex>W-60?'right':'left');
+  }
+  // registro superpuesto (abajo a la izquierda): estado de casa, dónde llueve y los cambios recientes
+  wxLogDraw(ctx,W,H,c,ne,lab);
   // HUD: hora del cuadro, capa y línea de tiempo
   ctx.font='10px monospace';
   if(f){
@@ -5422,6 +5524,84 @@ function wxDraw(){
   lab(_wx.layer==='radar'?'RADAR + IR':'IR GOES',W-6,12,c.mut,'right');
   const st=document.getElementById('nxr-status');
   if(st&&f){const late=(Date.now()/1000-fr[wxNowIdx()].t)>1800;const t='LLUVIA · '+wxHM(f.t)+(late?' · RETRASO':'');if(st.textContent!==t)st.textContent=t;}
+}
+// ── Mapa base del radar (Natural Earth vía /wx/basemap) ──
+// Se dibuja una vez por vista/tema en un lienzo aparte y se reutiliza en cada cuadro de la animación.
+async function wxLoadBasemap(){
+  const v=_wx.view;if(_wx.bm||_wx.bmLoading||!v)return;
+  _wx.bmLoading=true;
+  try{
+    const r=await fetch(WX_API+'/wx/basemap?lat='+v.lat+'&lon='+v.lon);
+    if(r.status===200){_wx.bm=await r.json();_wx._bmKey='';if(_wx.active)wxDraw();}
+    else setTimeout(function(){_wx.bmLoading=false;wxLoadBasemap();},60000);   // 202: el servidor aún lo está armando
+  }catch(e){setTimeout(function(){_wx.bmLoading=false;wxLoadBasemap();},120000);return;}
+  _wx.bmLoading=false;
+}
+function wxBase(c){
+  const bm=_wx.bm,v=_wx.view;if(!bm||!v)return null;
+  const W=_wx.W,H=_wx.H,key=[W,H,v.half,v.lat,v.lon,c.hi,c.base,c.warn].join('|');
+  if(_wx._bmKey===key&&_wx._bmCv)return _wx._bmCv;
+  const cv=_wx._bmCv||(_wx._bmCv=document.createElement('canvas'));cv.width=W;cv.height=H;
+  const g=cv.getContext('2d');g.lineJoin='round';
+  const path=function(a,close){g.beginPath();for(let i=0;i<a.length;i+=2){const m=wxMerc(a[i+1],a[i]),x=(m.x-v.x0)/v.wpp,y=(m.y-v.y0)/v.wpp;if(i)g.lineTo(x,y);else g.moveTo(x,y);}if(close)g.closePath();};
+  const zoomW=Math.max(.6,Math.min(1.3,300/v.half));   // trazos algo más gruesos al acercar
+  g.fillStyle=ca(c.hi,.09);(bm.land||[]).forEach(function(r){path(r,true);g.fill();});
+  g.fillStyle=ca(c.hi,.2);(bm.urban||[]).forEach(function(r){path(r,true);g.fill();});
+  g.fillStyle=c.base;g.strokeStyle=ca(c.hi,.3);g.lineWidth=.7;(bm.lakes||[]).forEach(function(r){path(r,true);g.fill();g.stroke();});
+  g.strokeStyle=ca(c.hi,.34);g.lineWidth=.8;(bm.land||[]).forEach(function(r){path(r,true);g.stroke();});   // costa
+  g.setLineDash([3,3]);g.strokeStyle=ca(c.hi,.3);g.lineWidth=.7*zoomW;(bm.states||[]).forEach(function(l){path(l,false);g.stroke();});
+  g.setLineDash([6,3]);g.strokeStyle=ca(c.pulse,.5);g.lineWidth=1.1;(bm.borders||[]).forEach(function(l){path(l,false);g.stroke();});
+  g.setLineDash([]);
+  (bm.roads||[]).forEach(function(r){g.strokeStyle=ca(c.warn,r[0]===1?.38:.2);g.lineWidth=(r[0]===1?.9:.6)*zoomW;path(r[1],false);g.stroke();});
+  _wx._bmKey=key;return cv;
+}
+// ── Registro del radar: cambios entre cuadros "ahora" sucesivos y sismos dentro de la vista ──
+_wx.log=[];_wx.logSt={t:0,half:0,near:null,wet:[],sev:false,seen:{}};
+function wxBrg(lat,lon){const v=_wx.view,m=wxMerc(lat,lon),c=wxMerc(v.lat,v.lon);return(Math.atan2(m.x-c.x,-(m.y-c.y))*180/Math.PI+360)%360;}
+function wxLogPush(t,txt,col){_wx.log.push({t:t,txt:txt,col:col});_wx.log.sort(function(a,b){return b.t-a.t;});if(_wx.log.length>10)_wx.log.length=10;}
+function wxLogCheck(){
+  const fr=_wx.frames,v=_wx.view;if(!fr.length||!v)return;
+  const f=fr[wxNowIdx()],rec=_wx.tiles[wxKey(f)];if(!rec||!rec.ready||!rec.echo)return;
+  const s=_wx.logSt,e=rec.echo,c=currentPalette();
+  if(s.t===f.t&&s.half===v.half)return;
+  const near=e.near&&e.cells>=3?e.near:null,km=near?Math.round(near.km):0,dir=near?wxDir(near.brg):'',sev=e.severe>20;
+  if(s.t&&s.half===v.half){   // mismo zoom: se anotan los cambios desde el cuadro anterior
+    e.wet.forEach(function(n){if(s.wet.indexOf(n)<0)wxLogPush(f.t,'empezó a llover en '+n,'#38BDF8');});
+    s.wet.forEach(function(n){if(e.wet.indexOf(n)<0)wxLogPush(f.t,'dejó de llover en '+n,c.mut);});
+    if(near&&!s.near)wxLogPush(f.t,'lluvia nueva a '+km+' km '+dir,c.pulse);
+    else if(!near&&s.near)wxLogPush(f.t,'ya no hay lluvia en el área',c.mut);
+    else if(near&&s.near){const dd=near.km-s.near.km;if(dd<-15)wxLogPush(f.t,'se acerca: '+km+' km '+dir+' ('+Math.round(-dd)+' km menos)',c.warn);else if(dd>15)wxLogPush(f.t,'se aleja: '+km+' km '+dir,c.mut);}
+    if(sev&&!s.sev)wxLogPush(f.t,'núcleo de lluvia muy fuerte en el área','#F87171');
+  }else if(!_wx.log.length)wxLogPush(f.t,near?'lluvia más cercana a '+km+' km '+dir:'sin lluvia en '+(2*v.half)+' km',near?c.pulse:c.mut);
+  s.t=f.t;s.half=v.half;s.near=near;s.wet=e.wet.slice();s.sev=sev;
+  (_evts||[]).forEach(function(ev){
+    if(ev.type!=='quake'||!ev.ts||Date.now()-ev.ts>864e5)return;
+    const d=_nxrGeoD(v.lat,v.lon,ev.lat,ev.lon);if(d>v.half*1.1)return;
+    const k=ev.lat.toFixed(2)+','+ev.lon.toFixed(2)+','+ev.mag;if(s.seen[k])return;s.seen[k]=1;
+    wxLogPush(ev.ts/1000,'sismo M'+(ev.mag||0).toFixed(1)+' a '+Math.round(d)+' km '+wxDir(wxBrg(ev.lat,ev.lon))+(ev.src==='SSN'?' · SSN':''),MX_QUAKE_COLOR);
+  });
+}
+function wxLogDraw(ctx,W,H,c,ne,lab){
+  const rows=[],home=_wx.now&&_wx.now.cities.find(function(k){return k.home;});
+  if(home)rows.push({txt:'CASA '+home.t+'° · viento '+home.wind+' km/h del '+wxDir(home.dir)+(home.precip>0?' · '+home.precip+' mm':''),col:c.hi});
+  if(ne){
+    const desc=ne.severe>20?'muy fuerte':ne.strong>20?'fuerte':'ligera a moderada';
+    if(ne.wet.length)rows.push({txt:'LLUEVE EN: '+ne.wet.join(', '),col:'#38BDF8'});
+    rows.push(ne.near&&ne.cells>=3?{txt:'ECOS '+Math.max(1,Math.round(ne.cover*100))+'% del área · '+desc,col:ne.severe>20?'#F87171':ne.strong>20?c.warn:c.pulse}:{txt:'SIN ECOS EN '+(2*_wx.view.half)+' km',col:c.mut});
+  }
+  // en lienzos bajos caben menos renglones: el registro no debe tapar más del ~40 % del alto
+  const maxRows=Math.max(2,Math.floor(H*.4/11));
+  _wx.log.slice(0,Math.max(0,Math.min(4,maxRows-rows.length))).forEach(function(l){rows.push({txt:wxHM(l.t)+'  '+l.txt,col:l.col,dim:Date.now()/1000-l.t>3*3600});});
+  rows.length=Math.min(rows.length,maxRows);
+  if(!rows.length)return;
+  ctx.font='9px monospace';
+  const lh=11,maxW=Math.min(W*(W<420?.58:.68),330),fit=function(t){if(ctx.measureText(t).width<=maxW)return t;while(t.length>4&&ctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);return t+'…';};
+  rows.forEach(function(r){r.txt=fit(r.txt);});
+  const bw=Math.max.apply(null,rows.map(function(r){return ctx.measureText(r.txt).width;}))+10,bh=rows.length*lh+6,x0=4,y0=H-14-bh;
+  ctx.fillStyle=ca(c.base,.72);ctx.fillRect(x0,y0,bw,bh);
+  ctx.strokeStyle=ca(c.hi,.22);ctx.lineWidth=1;ctx.strokeRect(x0+.5,y0+.5,bw-1,bh-1);
+  rows.forEach(function(r,i){ctx.globalAlpha=r.dim?.55:1;lab(r.txt,x0+5,y0+11+i*lh,r.col);});
+  ctx.globalAlpha=1;
 }
 // Pasa al siguiente cuadro ya cargado; el último (ahora) se queda más tiempo
 function wxStep(){
@@ -5478,7 +5658,7 @@ async function wxLoad(){
   try{
     wxSize();
     if(!_wx.view)throw new Error('sin lienzo');
-    wxLoadNow();
+    wxLoadNow();wxLoadBasemap();
     const r=await fetch(WX_API+'/wx');
     if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
@@ -5490,9 +5670,10 @@ async function wxLoad(){
   try{
     const v=_wx.view;
     if(v){
-      const skm=Math.round(v.half*1.08),key=v.lat.toFixed(1)+','+v.lon.toFixed(1)+','+skm;   // recorte del tamaño de la vista
+      const skm=Math.round(v.half*1.08),key=v.lat.toFixed(1)+','+v.lon.toFixed(1)+','+skm+',b';   // recorte del tamaño de la vista
       if(!_wx.sat||_wx.satKey!==key||Date.now()-_wx.satTs>600000){
-        const r=await fetch(WX_API+'/wx/sat?lat='+v.lat+'&lon='+v.lon+'&km='+skm);
+        // bare=1: solo nubes; costas, fronteras y estados los pone el mapa base (wxBase)
+        const r=await fetch(WX_API+'/wx/sat?lat='+v.lat+'&lon='+v.lon+'&km='+skm+'&bare=1');
         if(r.ok){
           const bb=(r.headers.get('X-Bbox')||'').split(',').map(Number);
           const url=URL.createObjectURL(await r.blob()),img=new Image();
@@ -5912,6 +6093,20 @@ body.spot-on .pnl:not(.spot) { opacity:.55; }
 .pnl.spot { position:relative; z-index:60; transform:scale(var(--spot-s,1.8)); box-shadow:0 0 0 1px var(--whi,#5DCAA5), 0 0 26px 4px var(--spot-glow,rgba(93,202,165,.45)), 0 20px 60px rgba(0,0,0,.75); }
 .spot-tag { position:absolute; top:-9px; right:12px; padding:1px 8px; border-radius:3px; font-size:10px; font-weight:700; letter-spacing:1.5px; background:var(--spot-bg,#050e09); border:1px solid currentColor; z-index:2; pointer-events:none; animation:spot-pulse 1.4s ease-in-out infinite; }
 @keyframes spot-pulse { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+/* Alertas de eventos: el panel sale al centro como ventana, con título, ✕ y barra del cierre automático */
+.pnl.spot.spot-c { z-index:80; transform:translate(var(--spot-tx,0),var(--spot-ty,0)) scale(var(--spot-s,2)); box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 30px 6px var(--spot-glow,rgba(93,202,165,.5)), 0 30px 90px rgba(0,0,0,.85); }
+body.spot-center .pnl:not(.spot) { opacity:.22; }
+/* dentro del panel, arriba a la derecha: los paneles recortan lo que se sale (overflow) */
+.spot-head { position:absolute; right:0; top:0; max-width:78%; height:14px; display:flex; align-items:center; gap:6px; padding:0 2px 0 7px; border:1px solid; border-top:none; border-right:none; border-radius:0 0 0 4px;
+  background:var(--spot-bg,#050e09); font-size:8px; font-weight:700; letter-spacing:1.2px; z-index:3; }
+.spot-reason { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:spot-pulse 1.4s ease-in-out infinite; }
+.spot-x { flex-shrink:0; cursor:pointer; padding:0 4px; font-size:9px; line-height:12px; border-radius:2px; pointer-events:auto; }
+.spot-x:hover { background:currentColor; color:var(--spot-bg,#050e09); }
+.spot-time { position:absolute; left:0; bottom:0; height:2px; width:100%; transform-origin:left; z-index:3; pointer-events:none; animation:spot-timer linear forwards; opacity:.85; }
+@keyframes spot-timer { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+/* Lo que disparó la alerta, dentro del panel */
+.spot-hl { position:relative; border-radius:2px; box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 8px var(--spot-hl,#5DCAA5); animation:spot-hl 1.1s ease-in-out infinite; }
+@keyframes spot-hl { 0%,100% { box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 8px var(--spot-hl,#5DCAA5); } 50% { box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 2px transparent; } }
 /* ── Columna izquierda compacta: STORAGE y franja WATCH ── */
 .dk { display:flex; align-items:center; gap:5px; font-size:10.5px; line-height:1.75; min-width:0; }
 .dk-n { width:17px; flex-shrink:0; }
