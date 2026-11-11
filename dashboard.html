@@ -4487,6 +4487,22 @@ function mzInit(){
     if(p&&now-p.t<450&&Math.abs(e.clientX-p.x)<12&&Math.abs(e.clientY-p.y)<12){_mz.lastClk=null;dbl(e);}
     else _mz.lastClk={t:now,x:e.clientX,y:e.clientY};
   });
+  // En el escritorio, Windows convierte el segundo clic rápido en WM_LBUTTONDBLCLK y Wallpaper Engine puede
+  // no reenviarlo: llega el clic completo y luego un "soltar" sin "presionar". Eso también cuenta como doble clic.
+  wrap.addEventListener('pointerdown',function(){_mz.downT=performance.now();},true);
+  wrap.addEventListener('pointerup',function(e){
+    const now=performance.now(),p=_mz.lastClk;
+    if(p&&(_mz.downT||0)<=p.t&&now-p.t<600&&Math.abs(e.clientX-p.x)<12&&Math.abs(e.clientY-p.y)<12){_mz.lastClk=null;dbl(e);}
+  },true);
+  // Registro corto de eventos del mouse para el latido de diagnóstico (/debug/client): qué reenvía WE
+  _mz.ev=[];
+  ['pointerdown','pointerup','click','dblclick'].forEach(function(t){
+    wrap.addEventListener(t,function(e){
+      _mz.ev.push([t,Math.round(performance.now()),Math.round(e.clientX),Math.round(e.clientY),e.detail||0]);
+      if(_mz.ev.length>16)_mz.ev.shift();
+      clearTimeout(_mz.pingT);_mz.pingT=setTimeout(function(){if(typeof spotPing==='function')spotPing();},1500);
+    },true);
+  });
   // Mientras el mouse anda sobre el mapa (leyendo tooltips) no se regresa solo al mundo
   wrap.addEventListener('mousemove',function(){
     if(_mz.k===1)return;const now=performance.now();if(now-(_mz.mvT||0)<1000)return;_mz.mvT=now;
@@ -5085,7 +5101,8 @@ function spotRadarEnd(){if(_spot.rainPrev){_nxPanelMode=_spot.rainPrev;_spot.rai
 function spotPing(){
   try{
     const d={v:3,mode:spotMode(),pulse:_settings.spotPulse!==false,vis:document.visibilityState,w:innerWidth,h:innerHeight,cur:_spot.cur&&_spot.cur.panel||null,
-      lastAmbientAgoMin:Math.round((Date.now()-_spot.lastAny)/60000),log:_spot.log.slice(-8)};
+      lastAmbientAgoMin:Math.round((Date.now()-_spot.lastAny)/60000),log:_spot.log.slice(-8),
+      zoom:_mz?{k:+_mz.k.toFixed(2),ev:(_mz.ev||[]).slice(-12)}:null};
     fetch('http://localhost:19234/debug/ping?d='+encodeURIComponent(JSON.stringify(d))).catch(function(){});
   }catch(e){}
 }
