@@ -11,3 +11,4 @@ lan-vendor-cache.json
 agent-backups/
 .history/
 .wind-cache.json
+.geo-countries-*.json

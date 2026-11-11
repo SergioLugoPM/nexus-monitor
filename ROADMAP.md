@@ -1133,6 +1133,34 @@ El viento saturaba el mapa y el único control era un clic en un rótulo de 9 px
 
 Universal (`dashboard.html`) — cruza a `master`.
 
+## Zoom del mapa y costas reales (10-nov-2026)
+
+- **Cómo se usa:** rueda del mouse (acerca hacia el cursor), doble clic (x2; en el máximo regresa), arrastrar para
+  moverse, botones `−` `+` y `xN · MUNDO` en el encabezado del mapa. Hasta x8. Sin tocarlo 90 s (`_mz.IDLE_MS`)
+  vuelve solo al mundo; mover el mouse sobre el mapa reinicia esa cuenta.
+- **Cómo está hecho:** `mzInit` mete todo el contenido del SVG en `<g id="map-zoom">` (dentro de
+  `#map-zoom-clip`, recortado a 2000×1001) y le pone `translate+scale`. El viewBox no cambia: leyenda y ticker
+  quedan fijos y todo lo que mide en 2000×1001 sigue igual. Un punto x del mapa queda en `tx + k·x`;
+  `svgToScreen` ya lo incluye (tooltips).
+- Marcas (pines, vuelos, hubs, casa, radar) se contraescalan alrededor de su punto (`MZ_MARKS`, crecen solo k^0.2);
+  puntos y textos sueltos de ciclones y el rótulo EQ igual (`.mz-p`); los trazos de geometría adelgazan con
+  `style.strokeWidth`. Un `MutationObserver` re-aplica todo cuando una capa se redibuja.
+- Viento y aurora componen el zoom con `mzEff(sc,ox,oy)`. El viento limpia y recorta al cambiar `_mzVer`, sus
+  partículas nacen solo en la caja visible (`mzVisibleLL`, inversa de Robinson) y avanzan `WIND_K/k` por cuadro.
+  La aurora no se redibuja a cada paso (65 mil celdas): se estira con CSS (`mzAuroraPreview`) y se redibuja al
+  quedarse quieto (`mzSettle`, 180 ms). La máscara del borde ahora incluye ox/oy en su llave.
+- `ll2xyF` = `ll2xy` sin redondear; viento, aurora y costas lo usan (a x8 el redondeo daba escalones de 8 px).
+- **Costas:** los países del HTML NO usaban la fórmula de `ll2xy`: contra Natural Earth los pines quedaban 5-28
+  unidades corridos (Japón, Nueva Zelanda, Australia), ~100 px a x4. Ahora `/geo/countries/110m|50m` (server.js,
+  world-atlas@2.0.2 bajado una vez a `.geo-countries-*.json`) y el dashboard los proyecta con `ll2xyF`: 110m en
+  vista normal (~10 mil puntos), 50m desde x2.5 (~92 mil, se construye una vez en ~90 ms; dibujarlo con zoom
+  cuesta 2-3 ms porque se descarta lo de fuera). Sin Antártida (el mapa nunca la tuvo). Rusia y Fiyi cruzan el
+  antimeridiano y se parten en un pedazo por lado. Si `/geo` falla se quedan los países del HTML.
+- Al cambiar de países, `mcSwapBase` recorre hubs y rutas lo que se movió el país bajo cada uno, pone la casa en
+  `ll2xy(_homeCoords)` (corrimiento `__mzo`) y mueve la línea EQ a la latitud 0 real (antes estaba en y=500 ≈ 8°N).
+
+Universal (`dashboard.html` + `server.js`) — cruza a `master`.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7

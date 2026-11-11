@@ -390,7 +390,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   <div class="pnl grow" id="p-map">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;">
       <div class="lbl" id="l-map" style="margin-bottom:0;">GLOBAL VIEW</div>
-      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span><span class="btn-mini mz-btn" id="lyr-zout" onclick="mzStep(1/2)" title="Alejar (también rueda del mouse)" style="user-select:none">−</span><span class="btn-mini mz-btn" id="lyr-zin" onclick="mzStep(2)" title="Acercar (también rueda del mouse o doble clic; arrastra para moverte)" style="user-select:none">+</span><span class="btn-mini" id="lyr-zrst" onclick="mzReset()" title="Volver a ver el mundo completo (regresa solo tras 90 s sin tocarlo)" style="user-select:none;display:none">MUNDO</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
     </div>
     <div id="view-tabs">
       <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
@@ -2620,6 +2620,14 @@ function ll2xy(lon,lat){
   const y=574.893-546.47419*yFac;
   return[Math.round(x),Math.round(y)];
 }
+// Igual que ll2xy pero sin redondear. Con zoom, 1 unidad del viewBox llega a ser 8 px y el redondeo
+// hace que las partículas del viento y las celdas de la aurora salten en escalones.
+function ll2xyF(lon,lat){
+  const clampedLat=Math.max(-90,Math.min(90,lat)),idx=Math.abs(clampedLat)/5,i0=Math.min(17,Math.floor(idx)),frac=idx-i0;
+  const xFac=ROBINSON_TABLE[i0][0]+(ROBINSON_TABLE[i0+1][0]-ROBINSON_TABLE[i0][0])*frac;
+  const yFacMag=ROBINSON_TABLE[i0][1]+(ROBINSON_TABLE[i0+1][1]-ROBINSON_TABLE[i0][1])*frac;
+  return[968.6231+315.19926*xFac*(lon*Math.PI/180),574.893-546.47419*(clampedLat>=0?yFacMag:-yFacMag)];
+}
 
 // Converts a point in the map SVG's viewBox space (0-2000, 0-1001, same
 // space ll2xy() returns) into actual on-screen CSS pixels relative to
@@ -2637,6 +2645,7 @@ function ll2xy(lon,lat){
 // a typical window size) — enough to park a tooltip nowhere near the pin
 // it's for, arrow included, instead of pointing at it like a speech bubble.
 function svgToScreen(vx,vy){
+  if(_mz&&_mz.k!==1){vx=_mz.tx+_mz.k*vx;vy=_mz.ty+_mz.k*vy;}   // zoom del mapa (#map-zoom)
   const svg=document.getElementById('wmap');
   const wrap=document.getElementById('wmap-wrap');
   const sRect=svg.getBoundingClientRect();
@@ -4079,15 +4088,23 @@ function windSample(lon,lat){
   _wU=w.u[a+x0]*w00+w.u[a+x1]*w10+w.u[b+x0]*w01+w.u[b+x1]*w11;
   _wV=w.v[a+x0]*w00+w.v[a+x1]*w10+w.v[b+x0]*w01+w.v[b+x1]*w11;
 }
-function windSpawn(p){p.lon=Math.random()*360-180;p.lat=(Math.random()*2-1)*78;p.age=0;p.max=WIND_AGE_MIN+Math.random()*WIND_AGE_SPAN;p.x=NaN;p.y=0;}
+// Con zoom, las partículas nacen solo en la zona visible (mzVisibleLL) para que no se vea vacío al acercar.
+function windSpawn(p){
+  const bb=(_mz&&_mz.k>1)?_mz.bb:null;
+  if(bb){p.lon=bb[0]+Math.random()*(bb[1]-bb[0]);p.lat=bb[2]+Math.random()*(bb[3]-bb[2]);}
+  else{p.lon=Math.random()*360-180;p.lat=(Math.random()*2-1)*78;}
+  p.age=0;p.max=WIND_AGE_MIN+Math.random()*WIND_AGE_SPAN;p.x=NaN;p.y=0;
+}
 function windResize(){
   const w=_wind,cv=w.cv;if(!cv)return;
   const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
   w.W=W;w.H=H;cv.width=W;cv.height=H;
   if(!W||!H)return;
+  // w.sc/ox/oy = encaje del mapa sin zoom; el zoom se compone en windFrame (mzEff)
   w.sc=Math.min(W/2000,H/1001);w.ox=(W-2000*w.sc)/2;w.oy=(H-1001*w.sc)/2;
-  cv.style.clipPath=mapOutlineCss(w.sc,w.ox,w.oy);
-  w.mask=mapEdgeMask(W,H,w.sc,w.ox,w.oy,mapEdgeFeather(W,H));
+  const z=mzEff(w.sc,w.ox,w.oy);w.zv=_mzVer;
+  cv.style.clipPath=mapOutlineCss(z[0],z[1],z[2]);
+  w.mask=mapEdgeMask(W,H,z[0],z[1],z[2],mapEdgeFeather(W,H));
   const soft=windMode()==='soft',n=Math.max(soft?240:500,Math.min(soft?1000:2200,Math.round(W*H/(soft?1150:520))));
   w.p=[];for(let i=0;i<n;i++){const p={};windSpawn(p);p.age=Math.random()*p.max;w.p.push(p);}
 }
@@ -4095,21 +4112,32 @@ function windFrame(){
   const w=_wind,ctx=w.ctx,c=_pal;
   const soft=windMode()==='soft';
   if(w.pal!==c||w.soft!==soft){w.pal=c;w.soft=soft;const k=soft?.45:1;w.cols=[ca(c.hi,.30*k),ca(c.hi,.55*k),ca(c.pulse,.9*k)];}
+  const z=mzEff(w.sc,w.ox,w.oy),zk=_mz?_mz.k:1;
   ctx.setTransform(1,0,0,1,0,0);
+  if(w.zv!==_mzVer){
+    // cambió el zoom: las estelas viejas quedarían en otra escala; se limpia, se recorta al nuevo contorno
+    // y la máscara del borde se recalcula cuando el zoom se queda quieto (desenfocarla cuesta)
+    w.zv=_mzVer;ctx.clearRect(0,0,w.W,w.H);
+    w.cv.style.clipPath=mapOutlineCss(z[0],z[1],z[2]);
+    w.mask=null;w.maskAt=performance.now()+200;
+    const bb=zk>1?_mz.bb:null;
+    if(bb)for(let i=0;i<w.p.length;i++){const p=w.p[i];if(p.lon<bb[0]||p.lon>bb[1]||p.lat<bb[2]||p.lat>bb[3]){windSpawn(p);p.age=Math.random()*p.max;}}
+  }
+  if(!w.mask&&performance.now()>w.maskAt)w.mask=mapEdgeMask(w.W,w.H,z[0],z[1],z[2],mapEdgeFeather(w.W,w.H));
   ctx.globalCompositeOperation='destination-out';ctx.fillStyle='rgba(0,0,0,.09)';ctx.fillRect(0,0,w.W,w.H);
   ctx.globalCompositeOperation='source-over';
-  ctx.setTransform(w.sc,0,0,w.sc,w.ox,w.oy);
-  ctx.lineWidth=1.1/w.sc;ctx.lineCap='round';
-  const b=[[],[],[]];
+  ctx.setTransform(z[0],0,0,z[0],z[1],z[2]);
+  ctx.lineWidth=1.1/z[0];ctx.lineCap='round';
+  const b=[[],[],[]],step=WIND_K/zk;   // con zoom avanzan menos grados por cuadro: misma velocidad en pantalla
   for(let i=0;i<w.p.length;i++){
     const p=w.p[i];
     if(p.age++>p.max){windSpawn(p);continue;}
     windSample(p.lon,p.lat);
     const sp=Math.sqrt(_wU*_wU+_wV*_wV),cl=Math.max(.15,Math.cos(p.lat*Math.PI/180));
-    let lon=p.lon+_wU*WIND_K/cl;const lat=p.lat+_wV*WIND_K;
+    let lon=p.lon+_wU*step/cl;const lat=p.lat+_wV*step;
     if(lat>84||lat<-84){windSpawn(p);continue;}
     if(lon>180)lon-=360;else if(lon<-180)lon+=360;
-    const xy=ll2xy(lon,lat);
+    const xy=ll2xyF(lon,lat);
     if(p.x===p.x&&Math.abs(xy[0]-p.x)<150)b[sp<5?0:sp<12?1:2].push(p.x,p.y,xy[0],xy[1]);
     p.lon=lon;p.lat=lat;p.x=xy[0];p.y=xy[1];
   }
@@ -4165,7 +4193,7 @@ function mapOutlineCss(sc,ox,oy){
 var _edge={cv:null,key:''};
 function mapEdgeFeather(W,H){return Math.max(16,Math.round(Math.min(W,H)*0.05));}
 function mapEdgeMask(W,H,sc,ox,oy,f){
-  const key=[W,H,sc.toFixed(4),f].join('|');
+  const key=[W,H,sc.toFixed(4),ox.toFixed(1),oy.toFixed(1),f].join('|');   // ox/oy cambian al mover el mapa con zoom
   if(_edge.cv&&_edge.key===key)return _edge.cv;
   const cl=function(p){return [ox+Math.max(0,Math.min(2000,p[0]))*sc,oy+Math.max(0,Math.min(1001,p[1]))*sc];};
   const pts=[];
@@ -4258,6 +4286,325 @@ async function loadStormWaves(s){
     }
   }catch(e){box.textContent='Sin datos de oleaje del modelo en este momento.';}
 }
+
+// ── ZOOM DEL MAPA ────────────────────────────────────────────────────────────
+// Todo el contenido del mapa vive en <g id="map-zoom"> (lo arma mzInit) con transform translate+scale; el
+// viewBox no cambia, así la leyenda, el ticker y todo lo que mide con 2000×1001 sigue igual. Estado en
+// unidades del viewBox: un punto x del mapa queda en tx + k·x. Marcas (pines, vuelos, casa, radar) se
+// contraescalan alrededor de su punto para que no crezcan como el mapa (crecen solo k^0.2); los trazos
+// de geometría (arcos, órbitas, ciclones, terminador) adelgazan igual. Viento y aurora componen el zoom con
+// mzEff. Sin interacción por IDLE_MS, vuelve solo a la vista mundial (es un fondo de pantalla).
+var _mz={k:1,tx:0,ty:0,bb:null,busy:false,K_MAX:8,IDLE_MS:90000,g:null,drag:null,tw:0,settleT:0,idleT:0,obsT:0,dec:false};
+var _mzVer=0;
+var MZ_MARKS='#event-pins > g:not(#sat-orbits):not(.storm-zones), #flight-pins > circle, #hubs > circle, #mx-weather-group, #radar-g';
+function mzEff(sc,ox,oy){const m=_mz;if(!m||m.k===1)return[sc,ox,oy];return[sc*m.k,ox+sc*m.tx,oy+sc*m.ty];}
+function mzClamp(k,tx,ty){
+  k=Math.max(1,Math.min(_mz.K_MAX,k));
+  return[k,Math.max(2000*(1-k),Math.min(0,tx)),Math.max(1001*(1-k),Math.min(0,ty))];
+}
+// Latitud de una y del viewBox (inversa de la tabla Robinson de ll2xy)
+function mzLatOfY(y){
+  const f=(574.893-y)/546.47419,a=Math.abs(f),T=ROBINSON_TABLE;
+  if(a>=1)return f>0?90:-90;
+  let i=0;while(i<17&&T[i+1][1]<a)i++;
+  const lat=5*(i+(a-T[i][1])/(T[i+1][1]-T[i][1]));
+  return f>=0?lat:-lat;
+}
+function mzLonOf(x,lat){
+  const idx=Math.abs(lat)/5,i0=Math.min(17,Math.floor(idx)),fr=idx-i0;
+  const xf=ROBINSON_TABLE[i0][0]+(ROBINSON_TABLE[i0+1][0]-ROBINSON_TABLE[i0][0])*fr;
+  return (x-968.6231)/(315.19926*xf)*180/Math.PI;
+}
+// Caja lon/lat que cubre lo visible (aproximación por exceso): ahí nacen las partículas del viento
+function mzVisibleLL(){
+  const m=_mz,x0=-m.tx/m.k,x1=(2000-m.tx)/m.k,y0=-m.ty/m.k,y1=(1001-m.ty)/m.k;
+  const la1=mzLatOfY(y0),la0=mzLatOfY(y1),lats=[la0,la1];if(la0<0&&la1>0)lats.push(0);
+  let lo0=180,lo1=-180;
+  lats.forEach(function(la){lo0=Math.min(lo0,mzLonOf(x0,la));lo1=Math.max(lo1,mzLonOf(x1,la));});
+  const pl=(lo1-lo0)*.05,pa=(la1-la0)*.05;
+  return[Math.max(-180,lo0-pl),Math.min(180,lo1+pl),Math.max(-84,la0-pa),Math.min(84,la1+pa)];
+}
+// Contraescala las marcas y adelgaza los trazos. Corre en cada cambio de zoom y cuando una capa se redibuja.
+function mzDecorate(){
+  const g=_mz.g;if(!g)return;
+  const k=_mz.k;if(k===1&&!_mz.dec&&!_mz.off)return;
+  const s=k===1?1:Math.pow(k,-0.8);
+  g.querySelectorAll(MZ_MARKS).forEach(function(el){
+    if(!el.__mza){
+      const c=el.tagName==='circle'?el:el.querySelector('circle');
+      if(!c)return;
+      el.__mza=[+c.getAttribute('cx')||0,+c.getAttribute('cy')||0];
+      el.classList.add('mz-m');
+    }
+    // __mzo: corrimiento fijo (la casa, que estaba en pixeles del mapa viejo; lo pone mcSwapBase)
+    const o=el.__mzo,pre=o?'translate('+o[0].toFixed(2)+' '+o[1].toFixed(2)+') ':'';
+    if(s===1){if(o)el.setAttribute('transform',pre);else el.removeAttribute('transform');}
+    else{const a=el.__mza;el.setAttribute('transform',pre+'translate('+a[0]+' '+a[1]+') scale('+s.toFixed(4)+') translate('+(-a[0])+' '+(-a[1])+')');}
+  });
+  // Puntos y textos sueltos dentro de capas de geometría (fechas y puntos del pronóstico de ciclones,
+  // rótulo EQ): se contraescalan alrededor de su punto; un texto pegado a un punto usa el del punto.
+  g.querySelectorAll('#event-pins circle, #event-pins text, #lbl-eq').forEach(function(el){
+    if(el.closest('.mz-m')||el.closest('#sat-orbits'))return;
+    if(!el.__mzp){
+      const pv=el.tagName==='text'?el.previousElementSibling:null,src=(pv&&pv.tagName==='circle')?pv:el;
+      el.__mzp=src.tagName==='circle'?[+src.getAttribute('cx')||0,+src.getAttribute('cy')||0]:[+el.getAttribute('x')||0,+el.getAttribute('y')||0];
+      el.classList.add('mz-p');
+    }
+    const a=el.__mzp;
+    if(s===1)el.removeAttribute('transform');
+    else el.setAttribute('transform','translate('+a[0]+' '+a[1]+') scale('+s.toFixed(4)+') translate('+(-a[0])+' '+(-a[1])+')');
+  });
+  g.querySelectorAll('[stroke-width]').forEach(function(el){
+    if(el.closest('.mz-m')||el.classList.contains('mz-p'))return;
+    el.style.strokeWidth=s===1?'':(parseFloat(el.getAttribute('stroke-width'))*s).toFixed(3);
+  });
+  g.querySelectorAll('#sat-orbits > circle').forEach(function(el){   // puntos con animateMotion: un transform movería su trayectoria
+    if(el.__mzr==null)el.__mzr=+el.getAttribute('r')||1.5;
+    el.setAttribute('r',(el.__mzr*s).toFixed(3));
+  });
+  _mz.dec=k!==1;
+}
+function mzSet(k,tx,ty){
+  const m=_mz;if(!m.g)return;
+  const c=mzClamp(k,tx,ty);
+  if(c[0]===m.k&&c[1]===m.tx&&c[2]===m.ty)return;
+  m.k=c[0];m.tx=c[1];m.ty=c[2];_mzVer++;
+  if(m.k<1.0005){m.k=1;m.tx=0;m.ty=0;}
+  m.g.setAttribute('transform',m.k===1?'':'translate('+m.tx.toFixed(2)+' '+m.ty.toFixed(2)+') scale('+m.k.toFixed(4)+')');
+  m.bb=m.k>1?mzVisibleLL():null;
+  mzDecorate();mzButtons();
+  const wrap=document.getElementById('wmap-wrap');if(wrap)wrap.classList.toggle('mz-on',m.k>1);
+  const t=document.getElementById('map-tooltip');if(t)t.style.display='none';
+  m.busy=true;mzAuroraPreview();
+  clearTimeout(m.settleT);m.settleT=setTimeout(mzSettle,180);
+  clearTimeout(m.idleT);if(m.k>1)m.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},m.IDLE_MS);
+}
+function mzSettle(){_mz.busy=false;if(typeof auroraDraw==='function')auroraDraw();mcPick();}
+// La aurora no se redibuja a cada paso del zoom: se estira con CSS el dibujo hecho en el estado a.z
+function mzAuroraPreview(){
+  const a=_aur;if(!a||!a.cv||!a.z||!a.W)return;
+  const sc=Math.min(a.W/2000,a.H/1001),ox=(a.W-2000*sc)/2,r=_mz.k/a.z[0];
+  const oy=(a.H-1001*sc)/2;
+  const dx=ox+sc*_mz.tx-r*(ox+sc*a.z[1]),dy=oy+sc*_mz.ty-r*(oy+sc*a.z[2]);
+  a.cv.style.transformOrigin='0 0';
+  a.cv.style.transform=(r===1&&!dx&&!dy)?'':'translate('+dx.toFixed(1)+'px,'+dy.toFixed(1)+'px) scale('+r.toFixed(4)+')';
+}
+// Zoom alrededor de un punto del viewBox (vx,vy): ese punto se queda bajo el cursor
+function mzZoomAt(vx,vy,k){
+  const m=_mz,nk=Math.max(1,Math.min(m.K_MAX,k));
+  const mx=(vx-m.tx)/m.k,my=(vy-m.ty)/m.k;   // punto del mapa bajo el cursor
+  mzSet(nk,vx-nk*mx,vy-nk*my);
+}
+function mzAnimate(k,tx,ty,ms){
+  const m=_mz,k0=m.k,x0=m.tx,y0=m.ty,c=mzClamp(k,tx,ty),t0=performance.now();
+  cancelAnimationFrame(m.tw);
+  const step=function(now){
+    const p=Math.min(1,(now-t0)/ms),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    // interpolación logarítmica del zoom para que acercar y alejar se sientan parejos
+    const kk=Math.exp(Math.log(k0)+(Math.log(c[0])-Math.log(k0))*e);
+    const f=(kk-k0)/((c[0]-k0)||1);
+    mzSet(kk,c[0]===k0?x0+(c[1]-x0)*e:x0+(c[1]-x0)*f,c[0]===k0?y0+(c[2]-y0)*e:y0+(c[2]-y0)*f);
+    if(p<1)m.tw=requestAnimationFrame(step);
+  };
+  m.tw=requestAnimationFrame(step);
+}
+// Botones: zoom al centro de lo que se ve
+function mzStep(f){const m=_mz;mzAnimate(m.k*f,1000-(1000-m.tx)*f,500.5-(500.5-m.ty)*f,260);}
+function mzReset(){mzAnimate(1,0,0,500);}
+function mzButtons(){
+  const r=document.getElementById('lyr-zrst'),o=document.getElementById('lyr-zout'),c=_pal||{};
+  if(r){r.style.display=_mz.k>1?'':'none';r.textContent='x'+_mz.k.toFixed(_mz.k<10?1:0)+' · MUNDO';r.style.color=c.hi||'';}
+  if(o){o.style.opacity=_mz.k>1?'1':'.4';}
+}
+// Punto del viewBox bajo el cursor (respeta letterbox y el escalado del spotlight)
+function mzClientToVb(cx,cy){
+  const svg=document.getElementById('wmap'),ctm=svg.getScreenCTM();if(!ctm)return null;
+  const p=svg.createSVGPoint();p.x=cx;p.y=cy;const q=p.matrixTransform(ctm.inverse());
+  return[q.x,q.y];
+}
+function mzInit(){
+  const svg=document.getElementById('wmap'),wrap=document.getElementById('wmap-wrap');if(!svg||!wrap||_mz.g)return;
+  const ns='http://www.w3.org/2000/svg',keep={'map-bg':1,'map-legend':1,'map-ticker':1};
+  const defs=document.createElementNS(ns,'defs'),cp=document.createElementNS(ns,'clipPath'),cr=document.createElementNS(ns,'rect');
+  cp.setAttribute('id','mz-clip');cr.setAttribute('width','2000');cr.setAttribute('height','1001');cp.appendChild(cr);defs.appendChild(cp);
+  const outer=document.createElementNS(ns,'g'),g=document.createElementNS(ns,'g');
+  outer.setAttribute('id','map-zoom-clip');outer.setAttribute('clip-path','url(#mz-clip)');g.setAttribute('id','map-zoom');outer.appendChild(g);
+  const kids=Array.prototype.slice.call(svg.childNodes);
+  const bg=document.getElementById('map-bg');
+  svg.insertBefore(defs,svg.firstChild);
+  if(bg&&bg.nextSibling)svg.insertBefore(outer,bg.nextSibling);else svg.appendChild(outer);
+  kids.forEach(function(n){if(n.nodeType===1&&keep[n.id])return;if(n.nodeType===1||n.nodeType===3)g.appendChild(n);});
+  // la leyenda y el ticker deben quedar encima del mapa
+  ['map-legend','map-ticker'].forEach(function(id){const e=document.getElementById(id);if(e)svg.appendChild(e);});
+  _mz.g=g;
+  // Capas que se redibujan solas (eventos cada 2 min, vuelos, terminador): se decoran al cambiar
+  if(window.MutationObserver)new MutationObserver(function(){
+    if(_mz.k===1&&!_mz.dec&&!_mz.off)return;
+    clearTimeout(_mz.obsT);_mz.obsT=setTimeout(mzDecorate,0);
+  }).observe(g,{childList:true,subtree:true});
+  wrap.addEventListener('wheel',function(e){
+    if(e.target.closest&&e.target.closest('#crit-alert-wrap'))return;
+    const v=mzClientToVb(e.clientX,e.clientY);if(!v)return;
+    e.preventDefault();
+    cancelAnimationFrame(_mz.tw);
+    const d=e.deltaY*(e.deltaMode===1?40:e.deltaMode===2?400:1);
+    mzZoomAt(v[0],v[1],_mz.k*Math.pow(1.0018,-d));
+  },{passive:false});
+  // Arrastre solo con zoom; arranca a los 4 px para no robarle el clic a los pines
+  wrap.addEventListener('pointerdown',function(e){
+    if(e.button!==0||_mz.k===1||(e.target.closest&&e.target.closest('#crit-alert-wrap')))return;
+    const ctm=svg.getScreenCTM();if(!ctm)return;
+    _mz.drag={x:e.clientX,y:e.clientY,tx:_mz.tx,ty:_mz.ty,u:ctm.a,id:e.pointerId,on:false};
+  });
+  wrap.addEventListener('pointermove',function(e){
+    const d=_mz.drag;if(!d||e.pointerId!==d.id)return;
+    const dx=e.clientX-d.x,dy=e.clientY-d.y;
+    if(!d.on){if(dx*dx+dy*dy<16)return;d.on=true;cancelAnimationFrame(_mz.tw);try{wrap.setPointerCapture(d.id);}catch(_){}wrap.classList.add('mz-drag');}
+    mzSet(_mz.k,d.tx+dx/d.u,d.ty+dy/d.u);
+  });
+  const end=function(e){
+    const d=_mz.drag;if(!d||e.pointerId!==d.id)return;
+    _mz.drag=null;wrap.classList.remove('mz-drag');
+    if(d.on){try{wrap.releasePointerCapture(d.id);}catch(_){}_mz.noClick=performance.now();}
+  };
+  wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
+  wrap.addEventListener('click',function(e){if(_mz.noClick&&performance.now()-_mz.noClick<300){e.stopPropagation();e.preventDefault();}},true);
+  // Doble clic: acerca x2 en ese punto; en el zoom máximo regresa al mundo
+  wrap.addEventListener('dblclick',function(e){
+    if(e.target.closest&&e.target.closest('#crit-alert-wrap'))return;
+    const v=mzClientToVb(e.clientX,e.clientY);if(!v)return;
+    if(_mz.k>=_mz.K_MAX-.01){mzReset();return;}
+    const nk=Math.min(_mz.K_MAX,_mz.k*2),mx=(v[0]-_mz.tx)/_mz.k,my=(v[1]-_mz.ty)/_mz.k;
+    mzAnimate(nk,v[0]-nk*mx,v[1]-nk*my,320);
+  });
+  // Mientras el mouse anda sobre el mapa (leyendo tooltips) no se regresa solo al mundo
+  wrap.addEventListener('mousemove',function(){
+    if(_mz.k===1)return;const now=performance.now();if(now-(_mz.mvT||0)<1000)return;_mz.mvT=now;
+    clearTimeout(_mz.idleT);_mz.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},_mz.IDLE_MS);
+  });
+  mzButtons();
+  mcEnsure('110m');
+}
+
+// ── Contornos de países proyectados con ll2xy ────────────────────────────────
+// Los países que venían en el HTML no usan la misma fórmula que ll2xy: medido contra Natural Earth, los
+// pines quedaban 5-28 unidades corridos (Japón, Nueva Zelanda, Australia). Sin zoom casi no se nota; a x4
+// son ~100 px y los sismos caen en el mar. Por eso al arrancar se reemplazan por Natural Earth proyectado
+// con ll2xyF: 1:110M en vista normal y 1:50M desde x2.5. Si /geo no responde se quedan los del HTML.
+// Los adornos fijos (hubs, rutas, casa) se recorren lo mismo que se movió el país bajo ellos.
+var _mc={g:{},loading:{},active:'',swapped:false};
+var MC_HI_K=2.5;
+function mcPaths(topo,minStep){
+  const t=topo.transform,sc=t?t.scale:[1,1],tr=t?t.translate:[0,0];
+  const arcs=topo.arcs.map(function(a){let x=0,y=0;return a.map(function(p){if(t){x+=p[0];y+=p[1];}else{x=p[0];y=p[1];}return[x*sc[0]+tr[0],y*sc[1]+tr[1]];});});
+  const sub=function(pts){
+    let d='',px=NaN,py=NaN;
+    pts.forEach(function(ll,j){
+      const q=ll2xyF(ll[0],ll[1]);
+      if(j&&Math.abs(q[0]-px)<minStep&&Math.abs(q[1]-py)<minStep&&j<pts.length-1)return;   // puntos que no se ven ni a x8
+      d+=(d?'L':'M')+q[0].toFixed(1)+','+q[1].toFixed(1);px=q[0];py=q[1];
+    });
+    return d+'Z';
+  };
+  // Rusia y Fiyi cruzan el antimeridiano: el anillo salta de +180 a -180 y en un mapa plano cruzaría
+  // todo el mundo. Se parte en un pedazo por lado y cada uno se cierra siguiendo el borde (meridiano ±180).
+  const ring=function(r){
+    let pts=[];
+    r.forEach(function(i){const a=i<0?arcs[~i].slice().reverse():arcs[i];pts=pts.concat(pts.length?a.slice(1):a);});
+    let jumps=0;for(let j=1;j<pts.length;j++)if(Math.abs(pts[j][0]-pts[j-1][0])>180)jumps++;
+    if(!jumps)return sub(pts);
+    const pieces=[];let cur=[pts[0]];
+    for(let j=1;j<pts.length;j++){
+      const p=pts[j-1],q=pts[j];
+      if(Math.abs(q[0]-p[0])>180){
+        const side=p[0]>0?180:-180,qx=q[0]+(side>0?360:-360),f=(side-p[0])/((qx-p[0])||1e-9),lat=p[1]+(q[1]-p[1])*f;
+        cur.push([side,lat]);pieces.push(cur);cur=[[-side,lat],q];
+      }else cur.push(q);
+    }
+    pieces[0]=cur.concat(pieces[0]);   // el último pedazo sigue en el primero (el anillo es cerrado)
+    return pieces.map(function(pc){
+      const a=pc[pc.length-1],b=pc[0];
+      if(Math.abs(Math.abs(a[0])-180)<1e-6&&Math.abs(Math.abs(b[0])-180)<1e-6){
+        const n=Math.max(1,Math.ceil(Math.abs(b[1]-a[1])/2));
+        for(let s=1;s<n;s++)pc.push([a[0],a[1]+(b[1]-a[1])*s/n]);
+      }
+      return sub(pc);
+    }).join('');
+  };
+  const out=[];
+  topo.objects.countries.geometries.forEach(function(g){
+    if(!g.arcs||(g.properties&&g.properties.name==='Antarctica'))return;   // el mapa nunca tuvo Antártida
+    const polys=g.type==='Polygon'?[g.arcs]:g.arcs;
+    let d='',x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    polys.forEach(function(p){p.forEach(function(r){d+=ring(r);});});
+    d.replace(/[ML](-?[\d.]+),(-?[\d.]+)/g,function(_,x,y){x=+x;y=+y;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;return _;});
+    out.push({d:d,bb:[x0,y0,x1,y1]});
+  });
+  return out;
+}
+async function mcEnsure(res){
+  if(_mc.g[res]||_mc.loading[res])return;
+  _mc.loading[res]=true;
+  try{
+    const r=await fetch('http://localhost:19234/geo/countries/'+res);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const feats=mcPaths(await r.json(),res==='50m'?.12:.3);
+    const ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g'),land=(_pal&&_pal.land)||'';
+    g.setAttribute('id','mc-'+res);g.setAttribute('fill-rule','evenodd');g.style.display='none';
+    feats.forEach(function(f){const p=document.createElementNS(ns,'path');p.setAttribute('d',f.d);if(land)p.setAttribute('fill',land);g.appendChild(p);});
+    const host=document.getElementById('map-countries');if(!host)return;
+    host.appendChild(g);_mc.g[res]=g;
+    if(!_mc.swapped)mcSwapBase(feats);
+    mcPick();
+  }catch(e){setTimeout(function(){_mc.loading[res]=false;mcEnsure(res);},120000);return;}
+  _mc.loading[res]=false;
+}
+// Primera vez: recorre adornos fijos según el país que tienen debajo y oculta los contornos del HTML
+function mcSwapBase(feats){
+  const old=Array.prototype.filter.call(document.querySelectorAll('#map-countries > path'),function(p){return p.getAttribute('d');});
+  const iou=function(a,b){const w=Math.min(a[2],b[2])-Math.max(a[0],b[0]),h=Math.min(a[3],b[3])-Math.max(a[1],b[1]);if(w<=0||h<=0)return 0;const i=w*h;return i/((a[2]-a[0])*(a[3]-a[1])+(b[2]-b[0])*(b[3]-b[1])-i);};
+  const ref=[];
+  old.forEach(function(p){
+    const b=p.getBBox(),ob=[b.x,b.y,b.x+b.width,b.y+b.height];let best=null,bi=.3;
+    feats.forEach(function(f){const v=iou(ob,f.bb);if(v>bi){bi=v;best=f;}});
+    if(best)ref.push({p:p,bb:ob,d:[(best.bb[0]+best.bb[2]-ob[0]-ob[2])/2,(best.bb[1]+best.bb[3]-ob[1]-ob[3])/2]});
+  });
+  const svg=document.getElementById('wmap');
+  const shiftOf=function(x,y){
+    if(!ref.length)return[0,0];
+    let hit=null;
+    if(svg.createSVGPoint){const pt=svg.createSVGPoint();pt.x=x;pt.y=y;for(let i=0;i<ref.length&&!hit;i++){try{if(ref[i].p.isPointInFill(pt))hit=ref[i];}catch(_){}}}
+    if(!hit){let bd=1e18;ref.forEach(function(r){const dx=Math.max(r.bb[0]-x,0,x-r.bb[2]),dy=Math.max(r.bb[1]-y,0,y-r.bb[3]),dd=dx*dx+dy*dy;if(dd<bd){bd=dd;hit=r;}});}
+    return hit.d;
+  };
+  document.querySelectorAll('#hubs > circle').forEach(function(c){
+    const x=+c.getAttribute('cx'),y=+c.getAttribute('cy'),d=shiftOf(x,y);
+    c.setAttribute('cx',(x+d[0]).toFixed(1));c.setAttribute('cy',(y+d[1]).toFixed(1));c.__mza=null;
+  });
+  document.querySelectorAll('#arcs > path').forEach(function(p){
+    const n=(p.getAttribute('d')||'').match(/-?[\d.]+/g);if(!n||n.length!==6)return;
+    const v=n.map(Number),a=shiftOf(v[0],v[1]),b=shiftOf(v[4],v[5]);
+    p.setAttribute('d','M'+(v[0]+a[0]).toFixed(1)+','+(v[1]+a[1]).toFixed(1)+' Q'+(v[2]+(a[0]+b[0])/2).toFixed(1)+','+(v[3]+(a[1]+b[1])/2).toFixed(1)+' '+(v[4]+b[0]).toFixed(1)+','+(v[5]+b[1]).toFixed(1));
+  });
+  // Casa (radar grande y pin del clima): a su posición real con ll2xy
+  const h=ll2xyF(_homeCoords.lon,_homeCoords.lat),hd=[h[0]-428,h[1]-442];
+  ['radar-g','mx-weather-group'].forEach(function(id){const e=document.getElementById(id);if(e)e.__mzo=hd;});
+  // La línea "EQ" estaba en y=500, que es ~8°N con esta proyección
+  const eq=ll2xyF(0,0)[1],ml=document.getElementById('ml1'),lb=document.getElementById('lbl-eq');
+  if(ml){ml.setAttribute('y1',eq.toFixed(1));ml.setAttribute('y2',eq.toFixed(1));}
+  if(lb){lb.setAttribute('y',(eq+5).toFixed(1));lb.__mzp=null;}
+  old.forEach(function(p){p.style.display='none';});
+  _mc.swapped=true;_mz.off=true;mzDecorate();
+}
+// Qué contorno se ve: el fino solo con zoom (y solo cuando ya bajó)
+function mcPick(){
+  const want=(_mz.k>=MC_HI_K&&_mc.g['50m'])?'50m':(_mc.g['110m']?'110m':'');
+  if(_mz.k>=MC_HI_K)mcEnsure('50m');
+  if(want===_mc.active)return;
+  Object.keys(_mc.g).forEach(function(r){_mc.g[r].style.display=r===want?'':'none';});
+  _mc.active=want;
+}
+mzInit();
 windInit();
 
 // ── WATCH: clima espacial, sismos del SSN, estado de la nube, internet y tsunamis ──
@@ -4560,12 +4907,18 @@ function auroraDraw(){
   const a=_aur,cv=a.cv;if(!cv||!a.bytes)return;
   const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);
   if(!W||!H)return;   // mapa oculto: se redibuja al volver (onShowView)
-  const key=W+'x'+H+'|'+a.obs+'|'+(_settings.showAurora!==false);
+  // Mientras el zoom se mueve no se redibuja (recorre 65 mil celdas): se estira el dibujo anterior con CSS
+  // (mzAuroraPreview) y se redibuja nítido cuando el zoom se queda quieto (mzSettle).
+  if(_mz&&_mz.busy&&a.drawn){mzAuroraPreview();return;}
+  const zk=_mz?_mz.k:1;
+  const key=W+'x'+H+'|'+a.obs+'|'+(_settings.showAurora!==false)+'|'+_mzVer;
   if(key===a.drawn)return;
-  a.drawn=key;cv.width=W;cv.height=H;a.W=W;a.H=H;
+  a.drawn=key;cv.width=W;cv.height=H;a.W=W;a.H=H;cv.style.transform='';
+  a.z=_mz?[_mz.k,_mz.tx,_mz.ty]:[1,0,0];
   const ctx=a.ctx;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
   if(_settings.showAurora===false)return;
-  const sc=Math.min(W/2000,H/1001),ox=(W-2000*sc)/2,oy=(H-1001*sc)/2;
+  const z=mzEff(Math.min(W/2000,H/1001),(W-2000*Math.min(W/2000,H/1001))/2,(H-1001*Math.min(W/2000,H/1001))/2);
+  const sc=z[0],ox=z[1],oy=z[2],pad=.9/zk;   // el traslape entre celdas se mide en pantalla, no crece con el zoom
   cv.style.clipPath=mapOutlineCss(sc,ox,oy);
   ctx.setTransform(sc,0,0,sc,ox,oy);
   ctx.beginPath();ctx.rect(0,0,2000,1001);ctx.clip();   // las celdas del polo sur caían por debajo del borde del mapa
@@ -4575,8 +4928,8 @@ function auroraDraw(){
     for(let lo=0;lo<360;lo++){
       const v=a.bytes[(90-la)*360+lo];if(v<5)continue;
       let b=0;while(b<bands.length-1&&v>=bands[b+1][0])b++;
-      const lon=lo>180?lo-360:lo,p=ll2xy(lon,la),p2=ll2xy(lon+1,la),p3=ll2xy(lon,la-1);
-      paths[b].push(Math.min(p[0],p2[0]),Math.min(p[1],p3[1]),Math.abs(p2[0]-p[0])+.9,Math.abs(p3[1]-p[1])+.9);
+      const lon=lo>180?lo-360:lo,p=ll2xyF(lon,la),p2=ll2xyF(lon+1,la),p3=ll2xyF(lon,la-1);
+      paths[b].push(Math.min(p[0],p2[0]),Math.min(p[1],p3[1]),Math.abs(p2[0]-p[0])+pad,Math.abs(p3[1]-p[1])+pad);
     }
   }
   paths.forEach(function(r,i){
@@ -5568,6 +5921,10 @@ function initSnake(canvas){
 #wx-icons { position:absolute; left:0; top:0; pointer-events:none; overflow:hidden; }
 #wx-icons .ci { position:absolute; line-height:0; }
 #wind-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+/* ── Zoom del mapa ── */
+#wmap-wrap.mz-on #wmap { cursor:grab; }
+#wmap-wrap.mz-drag #wmap, #wmap-wrap.mz-drag #wmap * { cursor:grabbing !important; }
+.mz-btn { min-width:9px; text-align:center; font-weight:bold; }
 #wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
 /* ── Calidad del aire en el panel del clima ── */
 .wair { display:flex; align-items:center; gap:8px; margin-top:6px; padding:3px 8px 3px 7px; border-radius:4px; border-left:3px solid transparent; background:var(--wdeep,#03280F); font-size:11px; white-space:nowrap; overflow:hidden; }
