@@ -2581,16 +2581,12 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
   orbitGroup.appendChild(dot);
 }
 
-// Ubicación fija (Estado de México) — usada tanto por el pin de HOME en el
-// mapa como por el radar del panel (initPanelRadar), así siempre coinciden
-// en el mismo punto. Deliberadamente NO se geolocaliza por IP: esa
-// aproximación por ISP puede caer lejos del punto real. Declarada aquí
-// (antes de su primer uso) porque renderEventPins/initPanelRadar corren
-// de forma síncrona durante la carga inicial de la página. El anillo de
-// radar grande sobre el mapa (#radar-g) y el pin del clima
-// (#mx-weather-group) son elementos SVG estáticos con su propia posición
-// fija en pixeles (428,442) — no se derivan de _homeCoords.
-var _homeCoords={lat:19.28,lon:-99.66,city:'Estado de México',country:'MX'};
+// Ubicación de casa: CP 55883, Geovillas de Terranova, Acolman (Edomex). El CP no está en OpenStreetMap; se usa
+// el punto medio de los CP vecinos de Acolman (55884: 19.615,-98.957 · 55885: 19.613,-98.936), error de 2-3 km.
+// Antes estaba en Toluca (19.28,-99.66) por error. La usan el radar del panel (distancia/rumbo de eventos), el
+// radar de lluvia, el pin del clima y el radar grande sobre el mapa (estos dos se recorren a esta posición con
+// mzRadarGeo y mcSwapBase; en el SVG siguen dibujados en 428,442).
+var _homeCoords={lat:19.62,lon:-98.95,city:'Acolman',country:'MX'};
 
 function renderEventPins(){
 const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML='';const ns='http://www.w3.org/2000/svg';
@@ -3910,7 +3906,7 @@ var _mz={k:1,tx:0,ty:0,bb:null,busy:false,K_MAX:8,IDLE_MS:90000,g:null,drag:null
 var _mzVer=0;
 var MZ_MARKS='#event-pins > g:not(#sat-orbits):not(.storm-zones), #flight-pins > circle, #hubs > circle, #mx-weather-group';
 // El radar que gira sobre la casa ya no es una marca de tamaño fijo: cubre un radio real alrededor de la casa
-// (Estado de México y vecinos hasta Puebla, que queda a ~155 km de Toluca) y crece con el zoom como el mapa.
+// (Estado de México y vecinos hasta Puebla, a ~100 km de Acolman) y crece con el zoom como el mapa.
 var MZ_RADAR_KM=170;
 function mzRadarGeo(){
   const g=document.getElementById('radar-g');if(!g)return;
@@ -5293,7 +5289,7 @@ function toggleNxPanel(){
 // cercana y su tendencia salen de leer los píxeles de esos mismos mosaicos.
 var WX_API='http://localhost:19234',WX_Z=6,WX_HALF_KM=300,WX_MAX_FRAMES=12;
 var WX_STEP_MS=650,WX_HOLD_MS=1800,WX_REFRESH_MS=300000;
-var WX_CITIES=[['Cd. de México',19.43,-99.13],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Acapulco',16.86,-99.89],['Veracruz',19.17,-96.13],['Tampico',22.23,-97.86],['S.L. Potosí',22.15,-100.98]];
+var WX_CITIES=[['Cd. de México',19.43,-99.13],['Texcoco',19.51,-98.88],['Zumpango',19.80,-99.10],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Acapulco',16.86,-99.89],['Veracruz',19.17,-96.13],['Tampico',22.23,-97.86],['S.L. Potosí',22.15,-100.98]];
 var _wx={frames:[],host:'',tiles:{},sat:null,satBox:null,satKey:'',satTs:0,satTime:'',satLayer:'',satUrl:null,
   idx:0,timer:null,refresh:null,active:false,layer:'radar',err:false,loading:false,view:null,W:0,H:0,infoHtml:'',_off:null,now:null,nowKey:'',nowTs:0,nowRetry:null,nowLoading:false};
 try{_wx.layer=localStorage.getItem('nexus_wxlayer')==='ir'?'ir':'radar';}catch(e){}
@@ -5473,15 +5469,24 @@ function wxDraw(){
   // ciudades y casa: con datos de /wx/now cada una lleva un icono animado (HTML encima) y la etiqueta junto a él
   const boxes=[[cx-16,cy-16,cx+16,cy+16]];   // rectángulos ocupados, para ubicar los rótulos de los anillos
   const now=_wx.now,home=now&&now.cities.find(function(k){return k.home;});
+  if(home)boxes.push([cx-34,cy+20,cx+34,cy+35]);   // el rótulo "CASA 15°" va primero: las ciudades lo esquivan
+  const hit=function(b){return boxes.some(function(o){return b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1];});};
   const list=now?now.cities.filter(function(k){return !k.home;}).map(function(k){return [k.n,k.lat,k.lon,k.t];}):WX_CITIES;
   list.forEach(function(ct){
     const m=wxMerc(ct[1],ct[2]),x=(m.x-v.x0)/v.wpp,y=(m.y-v.y0)/v.wpp;
     if(x<12||x>W-12||y<24||y>H-16||Math.hypot(x-cx,y-cy)<(now?34:16))return;
     const txt=ct[0]+(ct[3]!=null?' '+ct[3]+'°':''),gap=now?12:5;
     if(!now){ctx.fillStyle=c.lbl;ctx.fillRect(x-1,y-1,3,3);}
-    const tw=txt.length*5.6,rt=x>W-80,lx=rt?x-gap-tw:x+gap;
-    boxes.push([x-10,y-10,x+10,y+10],[lx,y-10,lx+tw,y+4]);
-    if(rt)lab(txt,x-gap,y+3,c.lbl,'right');else lab(txt,x+gap,y+3,c.lbl);
+    const tw=txt.length*5.6,pref=x>W-80;
+    boxes.push([x-10,y-10,x+10,y+10]);
+    // a la derecha (o a la izquierda junto al borde); si ese lado choca se prueba el otro, y si ambos chocan va sin rótulo
+    for(const rt of [pref,!pref]){
+      const lx=rt?x-gap-tw:x+gap,b=[lx,y-10,lx+tw,y+4];
+      if(lx<2||lx+tw>W-2||hit(b))continue;
+      boxes.push(b);
+      if(rt)lab(txt,x-gap,y+3,c.lbl,'right');else lab(txt,x+gap,y+3,c.lbl);
+      break;
+    }
   });
   if(home){
     ctx.strokeStyle=ca(c.hi,.8);ctx.lineWidth=1;ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(cx,cy,17,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
@@ -5563,17 +5568,23 @@ function wxLogCheck(){
   const fr=_wx.frames,v=_wx.view;if(!fr.length||!v)return;
   const f=fr[wxNowIdx()],rec=_wx.tiles[wxKey(f)];if(!rec||!rec.ready||!rec.echo)return;
   const s=_wx.logSt,e=rec.echo,c=currentPalette();
-  if(s.t===f.t&&s.half===v.half)return;
+  const sz=_wx.W+'x'+_wx.H;
+  if(s.t===f.t&&s.half===v.half&&s.sz===sz)return;
   const near=e.near&&e.cells>=3?e.near:null,km=near?Math.round(near.km):0,dir=near?wxDir(near.brg):'',sev=e.severe>20;
-  if(s.t&&s.half===v.half){   // mismo zoom: se anotan los cambios desde el cuadro anterior
+  // el resumen inicial se rehace si cambia el zoom o el tamaño del lienzo (el conteo de celdas depende de los dos)
+  if(!(s.t&&s.half===v.half&&s.sz===sz)){for(let i=_wx.log.length-1;i>=0;i--)if(_wx.log[i].sum)_wx.log.splice(i,1);}
+  if(s.t&&s.half===v.half&&s.sz===sz){   // misma vista: se anotan los cambios desde el cuadro anterior
     e.wet.forEach(function(n){if(s.wet.indexOf(n)<0)wxLogPush(f.t,'empezó a llover en '+n,'#38BDF8');});
     s.wet.forEach(function(n){if(e.wet.indexOf(n)<0)wxLogPush(f.t,'dejó de llover en '+n,c.mut);});
     if(near&&!s.near)wxLogPush(f.t,'lluvia nueva a '+km+' km '+dir,c.pulse);
     else if(!near&&s.near)wxLogPush(f.t,'ya no hay lluvia en el área',c.mut);
     else if(near&&s.near){const dd=near.km-s.near.km;if(dd<-15)wxLogPush(f.t,'se acerca: '+km+' km '+dir+' ('+Math.round(-dd)+' km menos)',c.warn);else if(dd>15)wxLogPush(f.t,'se aleja: '+km+' km '+dir,c.mut);}
     if(sev&&!s.sev)wxLogPush(f.t,'núcleo de lluvia muy fuerte en el área','#F87171');
-  }else if(!_wx.log.length)wxLogPush(f.t,near?'lluvia más cercana a '+km+' km '+dir:'sin lluvia en '+(2*v.half)+' km',near?c.pulse:c.mut);
-  s.t=f.t;s.half=v.half;s.near=near;s.wet=e.wet.slice();s.sev=sev;
+  }else if(!_wx.log.some(function(l){return l.t>=f.t-1;})){
+    wxLogPush(f.t,near?'lluvia más cercana a '+km+' km '+dir:'sin lluvia en '+(2*v.half)+' km',near?c.pulse:c.mut);
+    const L=_wx.log.find(function(l){return l.t===f.t;});if(L)L.sum=true;
+  }
+  s.t=f.t;s.half=v.half;s.sz=sz;s.near=near;s.wet=e.wet.slice();s.sev=sev;
   (_evts||[]).forEach(function(ev){
     if(ev.type!=='quake'||!ev.ts||Date.now()-ev.ts>864e5)return;
     const d=_nxrGeoD(v.lat,v.lon,ev.lat,ev.lon);if(d>v.half*1.1)return;

@@ -1204,6 +1204,15 @@ app.get('/wx/basemap', async (req, res) => {
   const key = lat.toFixed(1) + ',' + lon.toFixed(1), file = path.join(__dirname, '.ne-basemap-' + key + '.json');
   if (_bmMem && _bmKey === key) return res.set('Cache-Control', 'public, max-age=86400').json(_bmMem);
   try { _bmMem = JSON.parse(fs.readFileSync(file, 'utf8')); _bmKey = key; return res.set('Cache-Control', 'public, max-age=86400').json(_bmMem); } catch (_) {}
+  // Si la casa se movió poco, sirve un recorte ya hecho que cubra ±6.5° alrededor (la vista más amplia del panel
+  // mide ±5.7°) en vez de volver a bajar los 116 MB
+  try {
+    const need = [lon - 6.5, lat - 6.5, lon + 6.5, lat + 6.5];
+    for (const f of fs.readdirSync(__dirname).filter(n => /^\.ne-basemap-.*\.json$/.test(n))) {
+      const o = JSON.parse(fs.readFileSync(path.join(__dirname, f), 'utf8')), b = o.bbox || [];
+      if (b[0] <= need[0] && b[1] <= need[1] && b[2] >= need[2] && b[3] >= need[3]) { _bmMem = o; _bmKey = key; return res.set('Cache-Control', 'public, max-age=86400').json(o); }
+    }
+  } catch (_) {}
   if (!_bmBuilding) _bmBuilding = buildBasemap(+key.split(',')[0], +key.split(',')[1], file)
     .then(o => { _bmMem = o; _bmKey = key; }).catch(e => nxLog('Mapa base del radar: ' + e.message, 'warn')).finally(() => { _bmBuilding = null; });
   res.status(202).json({ building: true });
@@ -1238,6 +1247,7 @@ function kindFromWmo(c) {
 const WX_NOW_TTL = 15 * 60 * 1000;
 const MX_CITIES = [
   ['Cd. de México',19.43,-99.13],['Toluca',19.29,-99.65],['Puebla',19.04,-98.20],['Cuernavaca',18.92,-99.23],
+  ['Texcoco',19.51,-98.88],['Zumpango',19.80,-99.10],['Tulancingo',20.08,-98.37],
   ['Querétaro',20.59,-100.39],['Pachuca',20.12,-98.73],['Morelia',19.70,-101.19],['Tlaxcala',19.32,-98.24],
   ['Acapulco',16.86,-99.89],['Chilpancingo',17.55,-99.50],['Zihuatanejo',17.64,-101.55],['Colima',19.24,-103.72],
   ['Guadalajara',20.67,-103.35],['León',21.12,-101.68],['Aguascalientes',21.88,-102.29],['S.L. Potosí',22.15,-100.98],
