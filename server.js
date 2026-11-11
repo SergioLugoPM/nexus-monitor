@@ -1332,6 +1332,7 @@ app.get('/geo/countries/:res', async (req, res) => {
   if (!GEO_RES[req.params.res]) return res.status(404).json({ error: 'resolución desconocida' });
   try {
     const txt = await loadGeo(req.params.res);
+    nxLog('Contornos ' + req.params.res + ' entregados al mapa (' + (req.get('origin') || 'sin origen') + ')', 'info');
     res.set('Cache-Control', 'public, max-age=604800').type('application/json').send(txt);
   } catch (e) { res.status(503).json({ error: 'sin contornos: ' + e.message }); }
 });

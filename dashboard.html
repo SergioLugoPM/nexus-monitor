@@ -4469,13 +4469,23 @@ function mzInit(){
   };
   wrap.addEventListener('pointerup',end);wrap.addEventListener('pointercancel',end);
   wrap.addEventListener('click',function(e){if(_mz.noClick&&performance.now()-_mz.noClick<300){e.stopPropagation();e.preventDefault();}},true);
-  // Doble clic: acerca x2 en ese punto; en el zoom máximo regresa al mundo
-  wrap.addEventListener('dblclick',function(e){
+  // Doble clic: acerca x2 en ese punto; en el zoom máximo regresa al mundo.
+  // Wallpaper Engine no le pasa la rueda al fondo (probado) y el dblclick no es seguro, así que el doble
+  // clic también se arma con dos clics simples cercanos (< 450 ms, < 12 px); _mz.dblT evita contarlo dos veces.
+  const dbl=function(e){
     if(e.target.closest&&e.target.closest('#crit-alert-wrap'))return;
+    const now=performance.now();if(now-(_mz.dblT||0)<500)return;_mz.dblT=now;
     const v=mzClientToVb(e.clientX,e.clientY);if(!v)return;
     if(_mz.k>=_mz.K_MAX-.01){mzReset();return;}
     const nk=Math.min(_mz.K_MAX,_mz.k*2),mx=(v[0]-_mz.tx)/_mz.k,my=(v[1]-_mz.ty)/_mz.k;
     mzAnimate(nk,v[0]-nk*mx,v[1]-nk*my,320);
+  };
+  wrap.addEventListener('dblclick',dbl);
+  wrap.addEventListener('click',function(e){
+    if(e.target.closest&&e.target.closest('#map-layers'))return;
+    const now=performance.now(),p=_mz.lastClk;
+    if(p&&now-p.t<450&&Math.abs(e.clientX-p.x)<12&&Math.abs(e.clientY-p.y)<12){_mz.lastClk=null;dbl(e);}
+    else _mz.lastClk={t:now,x:e.clientX,y:e.clientY};
   });
   // Mientras el mouse anda sobre el mapa (leyendo tooltips) no se regresa solo al mundo
   wrap.addEventListener('mousemove',function(){
