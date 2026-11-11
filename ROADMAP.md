@@ -1142,7 +1142,10 @@ Universal (`dashboard.html`) — cruza a `master`.
   `#map-zoom-clip`, recortado a 2000×1001) y le pone `translate+scale`. El viewBox no cambia: leyenda y ticker
   quedan fijos y todo lo que mide en 2000×1001 sigue igual. Un punto x del mapa queda en `tx + k·x`;
   `svgToScreen` ya lo incluye (tooltips).
-- Marcas (pines, vuelos, hubs, casa, radar) se contraescalan alrededor de su punto (`MZ_MARKS`, crecen solo k^0.2);
+- El radar que gira sobre la casa (`#radar-g`) NO es marca: desde el 11-nov cubre un radio real de 170 km
+  (`MZ_RADAR_KM`, Edomex y vecinos hasta Puebla, ~155 km de Toluca) con `mzRadarGeo`, crece con el zoom y usa
+  `vector-effect: non-scaling-stroke`. Sin zoom queda casi oculto bajo el pin de la casa.
+- Marcas (pines, vuelos, hubs, casa) se contraescalan alrededor de su punto (`MZ_MARKS`, crecen solo k^0.2);
   puntos y textos sueltos de ciclones y el rótulo EQ igual (`.mz-p`); los trazos de geometría adelgazan con
   `style.strokeWidth`. Un `MutationObserver` re-aplica todo cuando una capa se redibuja.
 - Viento y aurora componen el zoom con `mzEff(sc,ox,oy)`. El viento limpia y recorta al cambiar `_mzVer`, sus
