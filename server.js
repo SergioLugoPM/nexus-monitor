@@ -1601,7 +1601,7 @@ const getInternet = ttlCache(10 * 60 * 1000, async () => {
     code: r.entity.code, name: r.entity.name, score: Math.round(r.scores.overall || 0), events: r.event_cnt || 0,
     sources: Object.keys(r.scores).filter(k => k !== 'overall').map(k => IODA_SRC[k.split('.')[0]] || k.split('.')[0].toUpperCase())
   })).sort((a, b) => b.score - a.score);
-  return { countries: rows.slice(0, 14), total: rows.length, mine: ['MX', 'PR', 'US'].map(c => rows.find(r => r.code === c) || { code: c, score: 0, events: 0, sources: [] }), ts: Date.now() };
+  return { countries: rows.slice(0, 14), total: rows.length, byCode: Object.fromEntries(rows.map(r => [r.code, [r.score, r.events]])), mine: ['MX', 'PR', 'US'].map(c => rows.find(r => r.code === c) || { code: c, score: 0, events: 0, sources: [] }), ts: Date.now() };
 }, 'IODA');
 
 // ── Tsunamis (NOAA NTWC y PTWC) ─────────────────────────────────────────────
@@ -1630,6 +1630,101 @@ app.get('/watch/quakes', async (req, res) => { const s = await getSsn(); s ? res
 app.get('/watch/cloud', async (req, res) => { const c = await getCloud(); c ? res.json(c) : res.status(503).json({ error: 'sin datos' }); });
 app.get('/watch/internet', async (req, res) => { const i = await getInternet(); i ? res.json(i) : res.status(503).json({ error: 'sin datos' }); });
 app.get('/watch/tsunami', async (req, res) => { const t = await getTsunami(); t ? res.json(t) : res.status(503).json({ error: 'sin datos' }); });
+
+// ── Datos de zona para el zoom del mapa ─────────────────────────────────────
+// Al acercar, el mapa pide lo que hay en la parte visible: lugares, sismos chicos, todos los incendios, aviones en
+// vivo y una ficha (clima, hora local, aire). Todo de fuentes sin clave.
+var _firesAll = [], _firesAllTs = 0;   // [lat, lon, frp] de todos los incendios válidos de 24 h (lo llena buildEvents)
+const clampN = (v, a, b, d) => { v = parseFloat(v); return isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
+// Natural Earth 1:50M: ciudades (nombre en español) y puntos de etiqueta de países. Se bajan una vez y se
+// guardan ya reducidos en un archivo con punto (no cambian).
+const NE_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/';
+let _placesMem = null, _placesInFlight = null;
+async function loadPlaces() {
+  if (_placesMem) return _placesMem;
+  const file = path.join(__dirname, '.ne-places.json');
+  try { _placesMem = JSON.parse(fs.readFileSync(file, 'utf8')); if (_placesMem.places && _placesMem.countries) return _placesMem; } catch (_) { _placesMem = null; }
+  if (!_placesInFlight) _placesInFlight = (async () => {
+    try {
+      const [pl, co] = await Promise.all(['ne_50m_populated_places', 'ne_50m_admin_0_countries'].map(n => wget(NE_URL + n + '.geojson', 60000)));
+      const places = pl.features.map(f => { const p = f.properties, c = f.geometry.coordinates;
+        return [p.NAME_ES || p.NAME, +c[1].toFixed(3), +c[0].toFixed(3), p.POP_MAX || 0, p.MIN_ZOOM || 9, /Admin-0 capital/.test(p.FEATURECLA || '') ? 1 : 0, p.ISO_A2 || '']; })
+        .sort((a, b) => b[3] - a[3]);
+      const countries = co.features.map(f => { const p = f.properties;
+        return [p.NAME_ES || p.NAME, (p.ISO_A2_EH && p.ISO_A2_EH !== '-99' ? p.ISO_A2_EH : p.ISO_A2) || '', +(+p.LABEL_Y).toFixed(3), +(+p.LABEL_X).toFixed(3), p.MIN_LABEL || 5, p.NAME]; });
+      const out = { places, countries };
+      try { fs.writeFileSync(file, JSON.stringify(out)); } catch (_) {}
+      _placesMem = out;
+      return out;
+    } finally { _placesInFlight = null; }
+  })();
+  return _placesInFlight;
+}
+app.get('/zone/places', async (req, res) => {
+  try { res.set('Cache-Control', 'public, max-age=604800').json(await loadPlaces()); }
+  catch (e) { res.status(503).json({ error: 'sin lugares: ' + e.message }); }
+});
+// Sismos de todas las magnitudes en 24 h (USGS all_day, ~150 KB)
+const getQuakesDay = ttlCache(5 * 60 * 1000, async () => {
+  const j = await wget('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson', 15000);
+  return { quakes: (j.features || []).filter(f => f.properties.mag != null).map(f => { const c = f.geometry.coordinates, p = f.properties;
+    return [+c[1].toFixed(3), +c[0].toFixed(3), +p.mag.toFixed(1), Math.round(c[2]), p.place || '', p.time]; }), ts: Date.now() };
+}, 'USGS 24 h');
+app.get('/zone/quakes', async (req, res) => { const q = await getQuakesDay(); q ? res.json(q) : res.status(503).json({ error: 'sin datos' }); });
+// Incendios: todos los de las últimas 24 h dentro de la caja (buildEvents guarda la lista completa en _firesAll)
+app.get('/zone/fires', (req, res) => {
+  const la0 = clampN(req.query.la0, -90, 90, -90), la1 = clampN(req.query.la1, -90, 90, 90), lo0 = clampN(req.query.lo0, -180, 180, -180), lo1 = clampN(req.query.lo1, -180, 180, 180);
+  const inBox = _firesAll.filter(f => f[0] >= la0 && f[0] <= la1 && f[1] >= lo0 && f[1] <= lo1);
+  res.json({ total: inBox.length, fires: inBox.slice(0, 2500), ts: _firesAllTs });
+});
+// Aviones en vivo (adsb.lol, sin clave, radio máximo 250 millas náuticas por consulta). El mapa manda hasta 4
+// centros (pts=lat,lon;lat,lon) para cubrir la vista; se juntan por código hex.
+const _acCache = new Map();
+async function adsbPoint(lat, lon, nm) {
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + nm;
+  const c = _acCache.get(key);
+  if (c && Date.now() - c.ts < 15000) return c.ac;
+  const j = await wget('https://api.adsb.lol/v2/point/' + lat.toFixed(3) + '/' + lon.toFixed(3) + '/' + nm, 10000);
+  const ac = (j.ac || []).filter(a => a.lat != null && a.lon != null).map(a => ({
+    hex: a.hex, cs: (a.flight || '').trim(), reg: a.r || '', type: a.t || '', lat: +a.lat.toFixed(4), lon: +a.lon.toFixed(4),
+    alt: a.alt_baro === 'ground' ? 0 : (a.alt_baro || a.alt_geom || 0), gs: Math.round(a.gs || 0), trk: Math.round(a.track || a.true_heading || 0),
+    mil: ((a.dbFlags || 0) & 1) ? 1 : 0, sq: a.squawk || '', emg: a.emergency && a.emergency !== 'none' ? a.emergency : '' }));
+  _acCache.set(key, { ts: Date.now(), ac });
+  if (_acCache.size > 60) _acCache.delete(_acCache.keys().next().value);
+  return ac;
+}
+app.get('/zone/flights', async (req, res) => {
+  const nm = Math.round(clampN(req.query.nm, 10, 250, 250));
+  const pts = String(req.query.pts || '').split(';').slice(0, 4).map(s => s.split(',').map(Number)).filter(p => p.length === 2 && p.every(isFinite));
+  if (!pts.length) return res.status(400).json({ error: 'pts requerido' });
+  const r = await Promise.allSettled(pts.map(p => adsbPoint(Math.max(-89, Math.min(89, p[0])), ((p[1] + 540) % 360) - 180, nm)));
+  const by = new Map();
+  r.forEach(x => { if (x.status === 'fulfilled') x.value.forEach(a => by.set(a.hex, a)); });
+  if (!by.size && r.every(x => x.status === 'rejected')) return res.status(503).json({ error: 'adsb.lol no responde' });
+  res.json({ ac: [...by.values()], ts: Date.now() });
+});
+// Ficha de la zona: clima actual, hora local y calidad del aire en el centro de la vista (Open-Meteo)
+const _zoneNow = new Map();
+app.get('/zone/now', async (req, res) => {
+  const lat = clampN(req.query.lat, -89, 89, NaN), lon = clampN(req.query.lon, -180, 180, NaN);
+  if (!isFinite(lat) || !isFinite(lon)) return res.status(400).json({ error: 'lat/lon' });
+  const key = (Math.round(lat * 4) / 4) + ',' + (Math.round(lon * 4) / 4);
+  const c = _zoneNow.get(key);
+  if (c && Date.now() - c.ts < 10 * 60 * 1000) return res.json(c);
+  try {
+    const q = 'latitude=' + lat.toFixed(3) + '&longitude=' + lon.toFixed(3);
+    const [wx, aq] = await Promise.allSettled([
+      omJson('https://api.open-meteo.com/v1/forecast?' + q + '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day&timezone=auto', 12000),
+      omJson('https://air-quality-api.open-meteo.com/v1/air-quality?' + q + '&current=us_aqi,pm2_5', 12000)]);
+    if (wx.status !== 'fulfilled') throw wx.reason;
+    const w = wx.value, cur = w.current || {}, a = aq.status === 'fulfilled' ? (aq.value.current || {}) : {};
+    const out = { tz: w.timezone, off: w.utc_offset_seconds, t: cur.temperature_2m, rh: cur.relative_humidity_2m, code: cur.weather_code, wind: cur.wind_speed_10m, day: cur.is_day,
+                  aqi: a.us_aqi != null ? a.us_aqi : null, pm25: a.pm2_5 != null ? a.pm2_5 : null, ts: Date.now() };
+    _zoneNow.set(key, out);
+    if (_zoneNow.size > 200) _zoneNow.delete(_zoneNow.keys().next().value);
+    res.json(out);
+  } catch (e) { res.status(503).json({ error: 'sin clima: ' + e.message }); }
+});
 
 // ── ¿Escritorio libre? (para que los paneles solo pasen al frente cuando no hay ventanas encima) ──
 // Wallpaper Engine corre la página dentro de un navegador y desde ahí NO se ven las ventanas del
@@ -2111,11 +2206,13 @@ async function _fetchAllEvents() {
   if (fireRes.status === 'fulfilled') {
     const csv = fireRes.value;
     // CSV cols: latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight
-    const fires = csv.split('\n').slice(1).filter(Boolean)
+    const allFires = csv.split('\n').slice(1).filter(Boolean)
       .map(l => { const c = l.split(','); return { lat: c[0], lon: c[1], frp: parseFloat(c[12]) || 0, brightness: parseFloat(c[2]) || 0, confidence: c[9] }; })
       .filter(f => isValidLandFire({ lat: f.lat, lng: f.lon, confidence: f.confidence }))
-      .sort((a, b) => b.frp - a.frp)
-      .slice(0, 25);
+      .sort((a, b) => b.frp - a.frp);
+    // La lista completa sirve al zoom del mapa (/zone/fires); el mapa mundial sigue mostrando las 25 más fuertes
+    _firesAll = allFires.map(f => [+(+f.lat).toFixed(3), +(+f.lon).toFixed(3), Math.round(f.frp)]); _firesAllTs = Date.now();
+    const fires = allFires.slice(0, 25);
     fires.forEach(f => {
       events.push({
         type: 'fire',

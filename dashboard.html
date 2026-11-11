@@ -390,7 +390,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   <div class="pnl grow" id="p-map">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;">
       <div class="lbl" id="l-map" style="margin-bottom:0;">GLOBAL VIEW</div>
-      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span><span class="btn-mini mz-btn" id="lyr-zout" onclick="mzStep(1/2)" title="Alejar (también rueda del mouse)" style="user-select:none">−</span><span class="btn-mini mz-btn" id="lyr-zin" onclick="mzStep(2)" title="Acercar (también rueda del mouse o doble clic; arrastra para moverte)" style="user-select:none">+</span><span class="btn-mini" id="lyr-zrst" onclick="mzReset()" title="Volver a ver el mundo completo (regresa solo tras 90 s sin tocarlo)" style="user-select:none;display:none">MUNDO</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span><span class="btn-mini" id="lyr-zf" onclick="zfToggle()" style="user-select:none">ENFOQUE</span><span class="btn-mini mz-btn" id="lyr-zout" onclick="mzStep(1/2)" title="Alejar (también rueda del mouse)" style="user-select:none">−</span><span class="btn-mini mz-btn" id="lyr-zin" onclick="mzStep(2)" title="Acercar (también rueda del mouse o doble clic; arrastra para moverte)" style="user-select:none">+</span><span class="btn-mini" id="lyr-zrst" onclick="mzReset()" title="Volver a ver el mundo completo (regresa solo tras 90 s sin tocarlo)" style="user-select:none;display:none">MUNDO</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
     </div>
     <div id="view-tabs">
       <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
@@ -2768,6 +2768,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
         window.open(ev.link, '_blank');
       }
       if(st) openStormModal(st.id);
+      else if(!isNews && typeof mzFocusOn==='function'){ mzUser(); mzFocusOn(ev.lon, ev.lat, 4); }   // acerca al evento
     });
 
     g.appendChild(pinGroup);
@@ -2804,6 +2805,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
 async function fetchEvents(){
   try{
     const d=await(await fetch('http://localhost:19234/events')).json();_evts=d.events||[];_correlations=d.correlations||[];renderEventPins();
+    if(typeof zfCheck==='function')zfCheck(_evts);
     const qc=_evts.filter(e=>e.type==='quake'&&e.src!=='SSN').length,mxc=_evts.filter(e=>e.src==='SSN').length;
     const fc=_evts.filter(e=>e.type==='fire').length;
     const sc=_evts.filter(e=>e.type==='satellite'||e.type==='iss').length;
@@ -3836,6 +3838,7 @@ function syncLayerButtons(){
     ba.style.color=au?c.hi:c.mut;ba.style.opacity=au?'1':'.55';
     ba.title='Óvalo auroral (NOAA): '+(au?'visible':'oculto')+' · clic: '+(au?'ocultar':'mostrar');
   }
+  if(typeof zfSync==='function'&&typeof _mz!=='undefined'&&_mz)zfSync();
 }
 async function fetchWind(){
   try{
@@ -3985,9 +3988,11 @@ function mzSet(k,tx,ty){
   const t=document.getElementById('map-tooltip');if(t)t.style.display='none';
   m.busy=true;mzAuroraPreview();
   clearTimeout(m.settleT);m.settleT=setTimeout(mzSettle,180);
-  clearTimeout(m.idleT);if(m.k>1)m.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},m.IDLE_MS);
+  clearTimeout(m.idleT);
+  if(m.k>1)m.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},m.hold||m.IDLE_MS);
+  else{m.hold=0;if(typeof _zn!=='undefined'&&_zn)_zn.focus=null;}
 }
-function mzSettle(){_mz.busy=false;if(typeof auroraDraw==='function')auroraDraw();mcPick();}
+function mzSettle(){_mz.busy=false;if(typeof auroraDraw==='function')auroraDraw();mcPick();if(typeof znUpdate==='function')znUpdate();}
 // La aurora no se redibuja a cada paso del zoom: se estira con CSS el dibujo hecho en el estado a.z
 function mzAuroraPreview(){
   const a=_aur;if(!a||!a.cv||!a.z||!a.W)return;
@@ -4017,12 +4022,13 @@ function mzAnimate(k,tx,ty,ms){
   m.tw=requestAnimationFrame(step);
 }
 // Botones: zoom al centro de lo que se ve
-function mzStep(f){const m=_mz;mzAnimate(m.k*f,1000-(1000-m.tx)*f,500.5-(500.5-m.ty)*f,260);}
-function mzReset(){mzAnimate(1,0,0,500);}
+function mzStep(f){mzUser();const m=_mz;mzAnimate(m.k*f,1000-(1000-m.tx)*f,500.5-(500.5-m.ty)*f,260);}
+function mzReset(){mzUser();mzAnimate(1,0,0,500);}
 function mzButtons(){
   const r=document.getElementById('lyr-zrst'),o=document.getElementById('lyr-zout'),c=_pal||{};
   if(r){r.style.display=_mz.k>1?'':'none';r.textContent='x'+_mz.k.toFixed(_mz.k<10?1:0)+' · MUNDO';r.style.color=c.hi||'';}
   if(o){o.style.opacity=_mz.k>1?'1':'.4';}
+  if(typeof zfSync==='function')zfSync();
 }
 // Punto del viewBox bajo el cursor (respeta letterbox y el escalado del spotlight)
 function mzClientToVb(cx,cy){
@@ -4054,7 +4060,7 @@ function mzInit(){
     if(e.target.closest&&e.target.closest('#crit-alert-wrap'))return;
     const v=mzClientToVb(e.clientX,e.clientY);if(!v)return;
     e.preventDefault();
-    cancelAnimationFrame(_mz.tw);
+    cancelAnimationFrame(_mz.tw);mzUser();
     const d=e.deltaY*(e.deltaMode===1?40:e.deltaMode===2?400:1);
     mzZoomAt(v[0],v[1],_mz.k*Math.pow(1.0018,-d));
   },{passive:false});
@@ -4067,7 +4073,7 @@ function mzInit(){
   wrap.addEventListener('pointermove',function(e){
     const d=_mz.drag;if(!d||e.pointerId!==d.id)return;
     const dx=e.clientX-d.x,dy=e.clientY-d.y;
-    if(!d.on){if(dx*dx+dy*dy<16)return;d.on=true;cancelAnimationFrame(_mz.tw);try{wrap.setPointerCapture(d.id);}catch(_){}wrap.classList.add('mz-drag');}
+    if(!d.on){if(dx*dx+dy*dy<16)return;d.on=true;cancelAnimationFrame(_mz.tw);mzUser();try{wrap.setPointerCapture(d.id);}catch(_){}wrap.classList.add('mz-drag');}
     mzSet(_mz.k,d.tx+dx/d.u,d.ty+dy/d.u);
   });
   const end=function(e){
@@ -4082,7 +4088,7 @@ function mzInit(){
   // clic también se arma con dos clics simples cercanos (< 450 ms, < 12 px); _mz.dblT evita contarlo dos veces.
   const dbl=function(e){
     if(e.target.closest&&e.target.closest('#crit-alert-wrap'))return;
-    const now=performance.now();if(now-(_mz.dblT||0)<500)return;_mz.dblT=now;
+    const now=performance.now();if(now-(_mz.dblT||0)<500)return;_mz.dblT=now;mzUser();
     const v=mzClientToVb(e.clientX,e.clientY);if(!v)return;
     if(_mz.k>=_mz.K_MAX-.01){mzReset();return;}
     const nk=Math.min(_mz.K_MAX,_mz.k*2),mx=(v[0]-_mz.tx)/_mz.k,my=(v[1]-_mz.ty)/_mz.k;
@@ -4113,7 +4119,7 @@ function mzInit(){
   });
   // Mientras el mouse anda sobre el mapa (leyendo tooltips) no se regresa solo al mundo
   wrap.addEventListener('mousemove',function(){
-    if(_mz.k===1)return;const now=performance.now();if(now-(_mz.mvT||0)<1000)return;_mz.mvT=now;
+    if(_mz.k===1||_mz.hold)return;const now=performance.now();if(now-(_mz.mvT||0)<1000)return;_mz.mvT=now;
     clearTimeout(_mz.idleT);_mz.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},_mz.IDLE_MS);
   });
   mzButtons();
@@ -4172,7 +4178,7 @@ function mcPaths(topo,minStep){
     let d='',x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     polys.forEach(function(p){p.forEach(function(r){d+=ring(r);});});
     d.replace(/[ML](-?[\d.]+),(-?[\d.]+)/g,function(_,x,y){x=+x;y=+y;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;return _;});
-    out.push({d:d,bb:[x0,y0,x1,y1]});
+    out.push({d:d,bb:[x0,y0,x1,y1],n:(g.properties&&g.properties.name)||''});
   });
   return out;
 }
@@ -4185,7 +4191,7 @@ async function mcEnsure(res){
     const feats=mcPaths(await r.json(),res==='50m'?.12:.3);
     const ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g'),land=(_pal&&_pal.land)||'';
     g.setAttribute('id','mc-'+res);g.setAttribute('fill-rule','evenodd');g.style.display='none';
-    feats.forEach(function(f){const p=document.createElementNS(ns,'path');p.setAttribute('d',f.d);if(land)p.setAttribute('fill',land);g.appendChild(p);});
+    feats.forEach(function(f){const p=document.createElementNS(ns,'path');p.setAttribute('d',f.d);if(land)p.setAttribute('fill',land);if(f.n)p.setAttribute('data-n',f.n);p.__bb=f.bb;g.appendChild(p);});
     const host=document.getElementById('map-countries');if(!host)return;
     host.appendChild(g);_mc.g[res]=g;
     if(!_mc.swapped)mcSwapBase(feats);
@@ -4238,6 +4244,267 @@ function mcPick(){
   Object.keys(_mc.g).forEach(function(r){_mc.g[r].style.display=r===want?'':'none';});
   _mc.active=want;
 }
+
+// ── ZONA: lo que el zoom agrega además de agrandar ──────────────────────────
+// Al quedarse quieto el zoom (mzSettle → znUpdate):
+//  · nombres de países (x1.6+) y ciudades (x2+), Natural Earth en español, sin encimarse
+//  · sismos de todas las magnitudes de 24 h y todos los incendios de la vista (x2+)
+//  · aviones en vivo de adsb.lol (x3+; los militares en rojo); los 250 de OpenSky se ocultan mientras tanto
+//  · ficha de la zona (x2+): país, hora local, clima, aire, internet y cuántas cosas hay en la vista
+// Estas capas se dibujan ya al tamaño del zoom actual (no las contraescala mzDecorate) y se rehacen al asentarse.
+// Enfoque automático: con un sismo fuerte, tsunami o ciclón nuevo el mapa se acerca solo 25 s (botón ENFOQUE).
+var _zn={places:null,countries:null,byEn:null,quakes:null,qTs:0,fires:null,firesKey:'',ac:null,acKey:'',acT:0,acTimer:0,
+  now:null,nowKey:'',inet:null,inetTs:0,g:null,card:null,clock:0,req:0,pending:null,focus:null};
+var ZN={LBL_K:1.6,DET_K:2,AC_K:3,CARD_K:2,AC_MS:20000,FOCUS_K:4,FOCUS_MS:25000};
+var ZN_WX={0:'despejado',1:'casi despejado',2:'parcialmente nublado',3:'nublado',45:'niebla',48:'niebla con escarcha',51:'llovizna ligera',53:'llovizna',55:'llovizna intensa',
+  56:'llovizna helada',57:'llovizna helada',61:'lluvia ligera',63:'lluvia',65:'lluvia intensa',66:'lluvia helada',67:'lluvia helada',71:'nieve ligera',73:'nieve',75:'nieve intensa',
+  77:'granizo fino',80:'chubascos',81:'chubascos fuertes',82:'chubascos violentos',85:'chubascos de nieve',86:'chubascos de nieve',95:'tormenta',96:'tormenta con granizo',99:'tormenta con granizo'};
+function znEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function znView(){const m=_mz;return{x0:-m.tx/m.k,x1:(2000-m.tx)/m.k,y0:-m.ty/m.k,y1:(1001-m.ty)/m.k};}
+function znIn(v,x,y,pad){pad=pad||0;return x>=v.x0-pad&&x<=v.x1+pad&&y>=v.y0-pad&&y<=v.y1+pad;}
+function znCenterLL(){const v=znView(),cy=(v.y0+v.y1)/2,lat=mzLatOfY(cy);return[lat,mzLonOf((v.x0+v.x1)/2,lat)];}
+function znKm(a,b,c,d){const r=Math.PI/180,x=(d-b)*r*Math.cos((a+c)/2*r),y=(c-a)*r;return Math.sqrt(x*x+y*y)*6371;}
+function znLayer(){
+  if(_zn.g)return _zn.g;
+  const ns='http://www.w3.org/2000/svg',ev=document.getElementById('event-pins');if(!ev)return null;
+  const g=document.createElementNS(ns,'g');g.setAttribute('id','zoom-detail');
+  ['zd-lbl','zd-fire','zd-quake','zd-ac','zd-city'].forEach(function(id){const s=document.createElementNS(ns,'g');s.setAttribute('id',id);g.appendChild(s);});
+  ev.parentNode.insertBefore(g,ev);   // debajo de los pines principales
+  _zn.g=g;return g;
+}
+function znClear(id){const e=document.getElementById(id);if(e)while(e.firstChild)e.removeChild(e.firstChild);}
+function znSvg(tag,at){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const k in at)e.setAttribute(k,at[k]);return e;}
+// Tooltip compartido (mismo #map-tooltip que los pines)
+function znTip(el,x,y,html){
+  el.addEventListener('mouseover',function(){
+    const t=document.getElementById('map-tooltip'),wr=document.getElementById('wmap-wrap');if(!t||!wr)return;
+    t.style.display='block';t.innerHTML=html();
+    const p=svgToScreen(x,y),tw=t.offsetWidth,th=t.offsetHeight,W=wr.getBoundingClientRect().width;
+    let l=p[0]-tw/2;if(l<4)l=4;if(l+tw>W-4)l=W-tw-4;
+    t.style.left=l+'px';t.style.top=(p[1]-th-12)+'px';t.style.setProperty('--arrow-left',(p[0]-l)+'px');
+  });
+  el.addEventListener('mouseout',function(){const t=document.getElementById('map-tooltip');if(t)t.style.display='none';});
+}
+async function znJson(path){const r=await fetch('http://localhost:19234'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+async function znEnsurePlaces(){
+  if(_zn.places)return true;
+  try{const d=await znJson('/zone/places');_zn.places=d.places;_zn.countries=d.countries;_zn.byEn={};d.countries.forEach(function(c){_zn.byEn[c[5]]=c;});return true;}
+  catch(e){return false;}
+}
+// Nombres de países y ciudades sin encimarse: se colocan por prioridad y se descarta lo que choca
+function znLabels(){
+  znClear('zd-lbl');znClear('zd-city');
+  const k=_mz.k;if(k<ZN.LBL_K||!_zn.places)return;
+  const c=_pal,v=znView(),s=Math.pow(k,-0.8),z=Math.log2(k)+2.6,svg=document.getElementById('wmap'),ctm=svg.getScreenCTM();
+  const px=(ctm?ctm.a:1)*k;   // pixeles de pantalla por unidad del mapa
+  const boxes=[],hit=function(b){for(let i=0;i<boxes.length;i++){const o=boxes[i];if(b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1])return true;}return false;};
+  const L=document.getElementById('zd-lbl'),C=document.getElementById('zd-city');
+  let nc=0,np=0;const maxC=30,maxP=Math.min(90,Math.round(20+12*k));   // menos nombres con poco zoom
+  _zn.countries.filter(function(r){return r[4]<=z;}).sort(function(a,b){return a[4]-b[4];}).forEach(function(r){
+    if(nc>=maxC)return;
+    const p=ll2xyF(r[3],r[2]);if(!znIn(v,p[0],p[1]))return;
+    const fs=11*s,w=r[0].length*fs*0.62+r[0].length*1.6*s,h=fs;
+    const b=[p[0]-w/2,p[1]-h,p[0]+w/2,p[1]+h*.3];if(hit(b))return;boxes.push(b);nc++;
+    const t=znSvg('text',{x:p[0].toFixed(1),y:p[1].toFixed(1),'text-anchor':'middle','font-size':fs.toFixed(2),'font-family':'monospace','letter-spacing':(1.6*s).toFixed(2),fill:c.pulse,'fill-opacity':'.55','pointer-events':'none'});
+    t.textContent=r[0].toUpperCase();L.appendChild(t);
+  });
+  if(k>=ZN.DET_K)_zn.places.forEach(function(r){
+    if(np>=maxP||r[4]>z+1.3)return;
+    const p=ll2xyF(r[2],r[1]);if(!znIn(v,p[0],p[1]))return;
+    const cap=r[5]===1,fs=(cap?10.5:9.5)*s,w=r[0].length*fs*0.62,h=fs;
+    const b=[p[0]-3*s,p[1]-h*.8,p[0]+5*s+w,p[1]+h*.4];if(hit(b))return;boxes.push(b);np++;
+    const g=znSvg('g',{'pointer-events':'none'});
+    g.appendChild(znSvg('circle',{cx:p[0].toFixed(1),cy:p[1].toFixed(1),r:((cap?2.4:1.7)*s).toFixed(2),fill:cap?c.hi:'none',stroke:c.hi,style:'stroke-width:'+(0.9*s).toFixed(2)}));
+    const t=znSvg('text',{x:(p[0]+4.5*s).toFixed(1),y:(p[1]+fs*.35).toFixed(1),'font-size':fs.toFixed(2),'font-family':'monospace',fill:c.hi,'fill-opacity':cap?'.9':'.7'});
+    t.textContent=r[0];g.appendChild(t);C.appendChild(g);
+  });
+  _zn.lblCount=[nc,np];
+  void px;
+}
+async function znQuakes(){
+  znClear('zd-quake');_zn.qView=[];
+  const k=_mz.k;if(k<ZN.DET_K)return;
+  if(!_zn.quakes||Date.now()-_zn.qTs>5*60000){try{_zn.quakes=(await znJson('/zone/quakes')).quakes;_zn.qTs=Date.now();}catch(e){if(!_zn.quakes)return;}}
+  if(_mz.k<ZN.DET_K)return;
+  const c=_pal,v=znView(),s=Math.pow(_mz.k,-0.8),G=document.getElementById('zd-quake'),min=_settings.seismicMin||4.5;
+  _zn.quakes.forEach(function(q){
+    const p=ll2xyF(q[1],q[0]);if(!znIn(v,p[0],p[1]))return;
+    _zn.qView.push(q);
+    if(q[2]>=min||q[2]<1)return;   // los fuertes ya son pines; menos de M1 es ruido
+    const big=q[2]>=3,r=(1.4+q[2]*0.75)*s;
+    const g=znSvg('g',{style:'cursor:pointer'});
+    g.appendChild(znSvg('circle',{cx:p[0].toFixed(1),cy:p[1].toFixed(1),r:r.toFixed(2),fill:big?c.warn:c.hi,'fill-opacity':big?'.55':'.35',stroke:big?c.warn:c.hi,style:'stroke-width:'+(0.7*s).toFixed(2)}));
+    if(_mz.k>=4&&q[2]>=2.5){const t=znSvg('text',{x:(p[0]+r+2*s).toFixed(1),y:(p[1]+3*s).toFixed(1),'font-size':(8.5*s).toFixed(2),'font-family':'monospace',fill:big?c.warn:c.hi,'fill-opacity':'.8'});t.textContent='M'+q[2].toFixed(1);g.appendChild(t);}
+    const ago=Math.round((Date.now()-q[5])/3600000);
+    znTip(g,p[0],p[1],function(){return '<strong>SISMO M'+q[2].toFixed(1)+'</strong><div style="margin-top:4px;color:'+c.hi+'">'+znEsc(q[4])+'</div><div style="font-size:10px;color:'+c.mut+'">'+q[3]+' km de profundidad · hace '+(ago<1?'menos de 1 h':ago+' h')+' · USGS</div>';});
+    G.appendChild(g);
+  });
+}
+async function znFires(){
+  const k=_mz.k;if(k<ZN.DET_K){znClear('zd-fire');_zn.fireTotal=null;return;}
+  const bb=_mz.bb;if(!bb)return;
+  const key=bb.map(function(x){return x.toFixed(1);}).join(',');
+  if(key!==_zn.firesKey){
+    try{const d=await znJson('/zone/fires?lo0='+bb[0].toFixed(2)+'&lo1='+bb[1].toFixed(2)+'&la0='+bb[2].toFixed(2)+'&la1='+bb[3].toFixed(2));_zn.fires=d.fires;_zn.fireTotal=d.total;_zn.firesKey=key;}
+    catch(e){return;}
+  }
+  if(_mz.k<ZN.DET_K)return;
+  znClear('zd-fire');
+  const v=znView(),s=Math.pow(_mz.k,-0.8),G=document.getElementById('zd-fire');
+  (_zn.fires||[]).forEach(function(f){
+    const p=ll2xyF(f[1],f[0]);if(!znIn(v,p[0],p[1]))return;
+    G.appendChild(znSvg('circle',{cx:p[0].toFixed(1),cy:p[1].toFixed(1),r:((1.1+Math.min(2.6,f[2]/120))*s).toFixed(2),fill:'#FF6D00','fill-opacity':(0.35+Math.min(.5,f[2]/400)).toFixed(2),'pointer-events':'none'}));
+  });
+}
+// Aviones: hasta 4 consultas de 250 mn para cubrir la vista
+function znAcPoints(){
+  const bb=_mz.bb;if(!bb)return null;
+  const ll=znCenterLL(),dy=(bb[3]-bb[2])/2*111.2,dx=(bb[1]-bb[0])/2*111.2*Math.cos(ll[0]*Math.PI/180),rkm=Math.hypot(dx,dy);
+  if(rkm<=463)return{pts:[[ll[0],ll[1]]],nm:Math.max(20,Math.round(rkm/1.852))};
+  const la=[(bb[2]*3+bb[3])/4,(bb[2]+bb[3]*3)/4],lo=[(bb[0]*3+bb[1])/4,(bb[0]+bb[1]*3)/4];
+  return{pts:[[la[0],lo[0]],[la[0],lo[1]],[la[1],lo[0]],[la[1],lo[1]]],nm:250,partial:rkm>900};
+}
+async function znFlights(force){
+  clearTimeout(_zn.acTimer);
+  const fp=document.getElementById('flight-pins');
+  if(_mz.k<ZN.AC_K){znClear('zd-ac');_zn.ac=null;if(fp)fp.style.display='';return;}
+  const q=znAcPoints();if(!q)return;
+  const key=q.pts.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(';')+'|'+q.nm;
+  if(force||key!==_zn.acKey||Date.now()-_zn.acT>ZN.AC_MS-500){
+    try{const d=await znJson('/zone/flights?nm='+q.nm+'&pts='+encodeURIComponent(key.split('|')[0]));_zn.ac=d.ac;_zn.acKey=key;_zn.acT=Date.now();_zn.acPartial=!!q.partial;}
+    catch(e){_zn.acErr=true;}
+  }
+  if(_mz.k<ZN.AC_K)return;
+  if(fp)fp.style.display='none';   // los 250 de OpenSky (20 min de antigüedad) estorban junto a los de ahora
+  znClear('zd-ac');
+  const c=_pal,v=znView(),s=Math.pow(_mz.k,-0.8),G=document.getElementById('zd-ac');
+  (_zn.ac||[]).forEach(function(a){
+    const p=ll2xyF(a.lon,a.lat);if(!znIn(v,p[0],p[1]))return;
+    const col=a.mil?'#F87171':(a.emg?'#FBBF24':'#F0F0F0'),g=znSvg('g',{style:'cursor:pointer'});
+    g.appendChild(znSvg('path',{d:'M0,-5 L3.4,3.6 L0,1.8 L-3.4,3.6 Z',fill:col,'fill-opacity':a.alt?'.85':'.4',transform:'translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+') rotate('+a.trk+') scale('+(s*1.1).toFixed(3)+')'}));
+    if(_mz.k>=5&&a.cs){const t=znSvg('text',{x:(p[0]+5*s).toFixed(1),y:(p[1]-3*s).toFixed(1),'font-size':(7.5*s).toFixed(2),'font-family':'monospace',fill:col,'fill-opacity':'.75'});t.textContent=a.cs;g.appendChild(t);}
+    znTip(g,p[0],p[1],function(){
+      return '<strong>'+(a.mil?'✈ MILITAR ':'✈ ')+znEsc(a.cs||a.hex.toUpperCase())+'</strong>'+(a.emg?' <span style="color:#FBBF24">EMERGENCIA '+znEsc(a.emg)+'</span>':'')+
+        '<div style="margin-top:4px;color:'+c.hi+'">'+znEsc([a.type,a.reg].filter(Boolean).join(' · ')||'sin datos del avión')+'</div>'+
+        '<div style="font-size:10px;color:'+c.mut+'">'+(a.alt?a.alt.toLocaleString('es-MX')+' ft':'en tierra')+' · '+a.gs+' kt · rumbo '+a.trk+'° · adsb.lol</div>';
+    });
+    G.appendChild(g);
+  });
+  _zn.acTimer=setTimeout(function(){if(_mz.k>=ZN.AC_K&&!_mz.busy)znFlights(true);},ZN.AC_MS);
+}
+// País bajo el centro de la vista (contorno de Natural Earth que lo contiene)
+function znCountryAt(lon,lat){
+  const g=_mc.g[_mc.active];if(!g)return null;
+  const p=ll2xyF(lon,lat),svg=document.getElementById('wmap'),pt=svg.createSVGPoint();pt.x=p[0];pt.y=p[1];
+  const kids=g.children;
+  for(let i=0;i<kids.length;i++){const e=kids[i],b=e.__bb;if(b&&(p[0]<b[0]||p[0]>b[2]||p[1]<b[1]||p[1]>b[3]))continue;try{if(e.isPointInFill(pt))return e.getAttribute('data-n');}catch(_){}}
+  return null;
+}
+function znNearestPlace(lat,lon){let best=null,bd=1e9;(_zn.places||[]).forEach(function(r){const d=znKm(lat,lon,r[1],r[2]);if(d<bd){bd=d;best=r;}});return best?{n:best[0],km:bd}:null;}
+function znFlag(iso){return iso&&/^[A-Z]{2}$/.test(iso)?String.fromCodePoint(0x1F1E6+iso.charCodeAt(0)-65,0x1F1E6+iso.charCodeAt(1)-65):'';}
+function znCardEl(){
+  if(_zn.card)return _zn.card;
+  const wr=document.getElementById('wmap-wrap');if(!wr)return null;
+  const d=document.createElement('div');d.id='zone-card';wr.appendChild(d);_zn.card=d;return d;
+}
+async function znCard(){
+  const el=znCardEl();if(!el)return;
+  if(_mz.k<ZN.CARD_K&&!_zn.focus){el.style.display='none';clearInterval(_zn.clock);return;}
+  const ll=znCenterLL(),req=++_zn.req,c=_pal;
+  const en=znCountryAt(ll[1],ll[0]),co=en&&_zn.byEn?_zn.byEn[en]:null,iso=co?co[1]:'',near=znNearestPlace(ll[0],ll[1]);
+  const nkey=ll[0].toFixed(1)+','+ll[1].toFixed(1);
+  if(nkey!==_zn.nowKey){_zn.now=null;try{const n=await znJson('/zone/now?lat='+ll[0].toFixed(3)+'&lon='+ll[1].toFixed(3));if(req!==_zn.req)return;_zn.now=n;_zn.nowKey=nkey;}catch(e){}}
+  if(!_zn.inet||Date.now()-_zn.inetTs>10*60000){try{_zn.inet=await znJson('/watch/internet');_zn.inetTs=Date.now();}catch(e){}}
+  if(req!==_zn.req)return;
+  const v=znView(),inV=function(e){const p=ll2xy(e.lon,e.lat);return znIn(v,p[0],p[1]);};
+  const evs=(_evts||[]).filter(inV);
+  const qv=_zn.qView||[],qmax=qv.reduce(function(m,q){return Math.max(m,q[2]);},0);
+  const ssn=evs.filter(function(e){return e.src==='SSN';}).length;
+  const storms=evs.filter(function(e){return e.type==='storm';}).length,news=evs.filter(function(e){return e.type==='news';}).length;
+  const acs=(_zn.ac||[]).filter(inV),mil=acs.filter(function(a){return a.mil;}).length;
+  const n=_zn.now,row=function(k,val){return '<div class="zc-r"><span>'+k+'</span><b>'+val+'</b></div>';};
+  let title=co?(znFlag(iso)+' '+znEsc(co[0])):(en?znEsc(en):'Mar / océano');
+  let sub=near&&near.km<400?'cerca de '+znEsc(near.n)+(near.km>15?' ('+Math.round(near.km)+' km)':''):'';
+  sub+=(sub?' · ':'')+Math.abs(ll[0]).toFixed(1)+'°'+(ll[0]>=0?'N':'S')+' '+Math.abs(ll[1]).toFixed(1)+'°'+(ll[1]>=0?'E':'O');
+  let h='';
+  if(_zn.focus)h+='<div class="zc-focus">ENFOQUE · '+znEsc(_zn.focus.label)+'</div>';
+  h+='<div class="zc-t">'+title+'</div><div class="zc-s">'+sub+'</div>';
+  if(n){
+    h+=row('HORA','<span id="zc-clock"></span>');
+    h+=row('CLIMA',(n.t!=null?Math.round(n.t)+'°C ':'')+znEsc(ZN_WX[n.code]||'')+(n.wind!=null?' · '+Math.round(n.wind)+' km/h':''));
+    if(n.aqi!=null){const a=n.aqi,lab=a<=50?'buena':a<=100?'moderada':a<=150?'mala p/ sensibles':a<=200?'mala':'muy mala';h+=row('AIRE','AQI '+Math.round(a)+' · '+lab);}
+  }
+  const ib=_zn.inet&&_zn.inet.byCode&&iso?_zn.inet.byCode[iso]:null;
+  if(iso)h+=row('INTERNET',ib?'<span style="color:'+c.warn+'">anomalía ('+ib[1]+' evento'+(ib[1]===1?'':'s')+')</span>':'sin anomalías');
+  h+='<div class="zc-h">EN LA VISTA · 24 H</div>';
+  h+=row('SISMOS',qv.length+(qmax?' · máx M'+qmax.toFixed(1):'')+(ssn?' · SSN '+ssn:''));
+  if(_zn.fireTotal!=null)h+=row('INCENDIOS',_zn.fireTotal.toLocaleString('es-MX'));
+  if(_mz.k>=ZN.AC_K)h+=row('AVIONES',acs.length+(mil?' · <span style="color:#F87171">'+mil+' militar'+(mil===1?'':'es')+'</span>':'')+(_zn.acPartial?' · parcial':''));
+  else h+=row('AVIONES','acerca a x3');
+  if(storms)h+=row('CICLONES',storms);
+  if(news)h+=row('NOTICIAS',news);
+  el.innerHTML=h;el.style.display='block';
+  el.style.borderColor=c.mid;el.style.color=c.hi;el.style.background=ca(c.base,.88);
+  clearInterval(_zn.clock);
+  const tick=function(){const ce=document.getElementById('zc-clock');if(!ce||!n)return;const d=new Date(Date.now()+n.off*1000);
+    ce.textContent=d.toISOString().slice(11,16)+' · UTC'+(n.off>=0?'+':'−')+Math.floor(Math.abs(n.off)/3600)+(n.off%3600?':'+String(Math.abs(n.off)%3600/60).padStart(2,'0'):'');};
+  tick();_zn.clock=setInterval(tick,30000);
+}
+async function znUpdate(){
+  const k=_mz.k;
+  if(k<ZN.LBL_K){znClear('zd-lbl');znClear('zd-city');znClear('zd-quake');znClear('zd-fire');znClear('zd-ac');clearTimeout(_zn.acTimer);
+    const fp=document.getElementById('flight-pins');if(fp)fp.style.display='';if(_zn.card&&!_zn.focus){_zn.card.style.display='none';clearInterval(_zn.clock);}return;}
+  if(!znLayer())return;
+  await znEnsurePlaces();
+  znLabels();
+  await Promise.all([znQuakes(),znFires(),znFlights(false)]);
+  znCard();
+}
+// ── Enfoque automático ──
+var ZF_KEY='nexus_zfocus';
+function zfSeen(){try{return JSON.parse(localStorage.getItem(ZF_KEY)||'{}');}catch(e){return{};}}
+function zfMark(key){try{const s=zfSeen(),now=Date.now();Object.keys(s).forEach(function(k){if(now-s[k]>72*3600e3)delete s[k];});s[key]=now;localStorage.setItem(ZF_KEY,JSON.stringify(s));}catch(e){}}
+function zfOn(){return !_settings||_settings.autoFocus!==false;}
+function zfCheck(events){
+  if(!zfOn()||!_mz.g)return;
+  const seen=zfSeen(),now=Date.now();
+  const c=(events||[]).filter(function(e){
+    if(e.lat==null||e.lon==null)return false;
+    if(e.type==='tsunami'||e.type==='storm')return true;
+    if(e.type==='quake')return (e.src==='SSN'?(e.mag||0)>=5:(e.mag||0)>=6)&&(!e.ts||now-e.ts<3*3600e3);
+    return false;
+  }).map(function(e){return{e:e,key:e.type+'|'+e.lat.toFixed(1)+'|'+e.lon.toFixed(1)+'|'+(e.mag||e.label||'')};})
+    .filter(function(x){return !seen[x.key];})
+    .sort(function(a,b){const w=function(e){return e.type==='tsunami'?9:e.type==='quake'?(e.mag||0):5;};return w(b.e)-w(a.e);});
+  if(!c.length)return;
+  _zn.pending=c[0];zfTry();
+}
+async function zfTry(){
+  const p=_zn.pending;if(!p||_zn.focus)return;
+  const vm=document.getElementById('view-map');
+  if(_mz.k!==1||_mz.drag||(vm&&!vm.classList.contains('vp-active'))||!(await spotDeskFree())){
+    clearTimeout(_zn.zfT);_zn.zfT=setTimeout(zfTry,60000);   // se intenta cada minuto hasta que se pueda
+    if(Date.now()-(p.since||(p.since=Date.now()))>30*60000){zfMark(p.key);_zn.pending=null;}
+    return;
+  }
+  _zn.pending=null;zfMark(p.key);
+  const e=p.e,lbl=e.type==='quake'?('M'+(e.mag||0).toFixed(1)+' '+(e.place||e.label||'')):e.type==='tsunami'?('TSUNAMI '+(e.label||'')):('CICLÓN '+(e.label||''));
+  mzFocusOn(e.lon,e.lat,ZN.FOCUS_K,{label:lbl.trim(),hold:ZN.FOCUS_MS});
+}
+// Acerca a un punto (clic en un evento o enfoque automático). hold: ms antes de volver solo al mundo.
+function mzFocusOn(lon,lat,k,o){
+  o=o||{};const p=ll2xyF(lon,lat),nk=Math.max(_mz.k,k);
+  _zn.focus=o.label?{label:o.label}:null;
+  _mz.hold=o.hold||0;
+  mzAnimate(nk,1000-nk*p[0],500.5-nk*p[1],900);
+}
+function mzUser(){   // cualquier interacción de la persona cancela el enfoque automático
+  if(_mz.hold||_zn.focus){_mz.hold=0;_zn.focus=null;}
+}
+function zfToggle(){_settings.autoFocus=!zfOn();saveSettings();zfSync();}
+function zfSync(){const b=document.getElementById('lyr-zf'),c=_pal||{},on=zfOn();if(!b)return;
+  b.textContent='ENFOQUE '+(on?'●':'○');b.style.color=on?(c.hi||''):(c.mut||'');b.style.opacity=on?'1':'.55';
+  b.title='Enfoque automático: con un sismo fuerte, tsunami o ciclón nuevo el mapa se acerca solo 25 s · clic: '+(on?'apagar':'encender');}
 mzInit();
 windInit();
 
@@ -5560,6 +5827,16 @@ function initSnake(canvas){
 #wmap-wrap.mz-on #wmap { cursor:grab; }
 #wmap-wrap.mz-drag #wmap, #wmap-wrap.mz-drag #wmap * { cursor:grabbing !important; }
 .mz-btn { min-width:9px; text-align:center; font-weight:bold; }
+/* Ficha de la zona (arriba a la derecha del mapa, solo con zoom) */
+#zone-card { display:none; position:absolute; top:8px; right:8px; z-index:20; width:230px; padding:8px 10px; border:1px solid; border-radius:4px;
+  font-family:monospace; font-size:11px; line-height:1.45; pointer-events:none; backdrop-filter:blur(2px); }
+#zone-card .zc-t { font-size:13px; font-weight:bold; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#zone-card .zc-s { font-size:10px; opacity:.7; margin-bottom:5px; }
+#zone-card .zc-r { display:flex; justify-content:space-between; gap:8px; }
+#zone-card .zc-r span { opacity:.6; letter-spacing:1px; font-size:10px; padding-top:1px; }
+#zone-card .zc-r b { font-weight:normal; text-align:right; }
+#zone-card .zc-h { margin-top:6px; padding-top:5px; border-top:1px solid currentColor; opacity:.55; font-size:10px; letter-spacing:1px; }
+#zone-card .zc-focus { color:#FBBF24; font-size:10px; letter-spacing:1px; margin-bottom:4px; }
 #wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
 /* ── Calidad del aire en el panel del clima ── */
 .wair { display:flex; align-items:center; gap:8px; margin-top:6px; padding:3px 8px 3px 7px; border-radius:4px; border-left:3px solid transparent; background:var(--wdeep,#03280F); font-size:11px; white-space:nowrap; overflow:hidden; }
