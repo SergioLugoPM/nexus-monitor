@@ -11,3 +11,4 @@ lan-vendor-cache.json
 .history/
 .wind-cache.json
 .geo-countries-*.json
+.ne-places.json
