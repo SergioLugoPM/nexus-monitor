@@ -3908,7 +3908,20 @@ async function loadStormWaves(s){
 // mzEff. Sin interacción por IDLE_MS, vuelve solo a la vista mundial (es un fondo de pantalla).
 var _mz={k:1,tx:0,ty:0,bb:null,busy:false,K_MAX:8,IDLE_MS:90000,g:null,drag:null,tw:0,settleT:0,idleT:0,obsT:0,dec:false};
 var _mzVer=0;
-var MZ_MARKS='#event-pins > g:not(#sat-orbits):not(.storm-zones), #flight-pins > circle, #hubs > circle, #mx-weather-group, #radar-g';
+var MZ_MARKS='#event-pins > g:not(#sat-orbits):not(.storm-zones), #flight-pins > circle, #hubs > circle, #mx-weather-group';
+// El radar que gira sobre la casa ya no es una marca de tamaño fijo: cubre un radio real alrededor de la casa
+// (Estado de México y vecinos hasta Puebla, que queda a ~155 km de Toluca) y crece con el zoom como el mapa.
+var MZ_RADAR_KM=170;
+function mzRadarGeo(){
+  const g=document.getElementById('radar-g');if(!g)return;
+  const lat=_homeCoords.lat,lon=_homeCoords.lon,h=ll2xyF(lon,lat);
+  const dx=ll2xyF(lon+MZ_RADAR_KM/(111.32*Math.cos(lat*Math.PI/180)),lat)[0]-h[0],dy=h[1]-ll2xyF(lon,lat+MZ_RADAR_KM/111.2)[1];
+  const f=((dx+dy)/2)/165;   // el anillo exterior del SVG original mide 165 unidades
+  g.setAttribute('transform','translate('+h[0].toFixed(2)+' '+h[1].toFixed(2)+') scale('+f.toFixed(5)+') translate(-428 -442)');
+  g.classList.add('mz-fixed');
+  // trazos en pixeles de pantalla: escalado a ~5 % se volverían invisibles
+  g.querySelectorAll('circle,line,path').forEach(function(e){e.setAttribute('vector-effect','non-scaling-stroke');});
+}
 function mzEff(sc,ox,oy){const m=_mz;if(!m||m.k===1)return[sc,ox,oy];return[sc*m.k,ox+sc*m.tx,oy+sc*m.ty];}
 function mzClamp(k,tx,ty){
   k=Math.max(1,Math.min(_mz.K_MAX,k));
@@ -3967,7 +3980,7 @@ function mzDecorate(){
     else el.setAttribute('transform','translate('+a[0]+' '+a[1]+') scale('+s.toFixed(4)+') translate('+(-a[0])+' '+(-a[1])+')');
   });
   g.querySelectorAll('[stroke-width]').forEach(function(el){
-    if(el.closest('.mz-m')||el.classList.contains('mz-p'))return;
+    if(el.closest('.mz-m')||el.closest('.mz-fixed')||el.classList.contains('mz-p'))return;
     el.style.strokeWidth=s===1?'':(parseFloat(el.getAttribute('stroke-width'))*s).toFixed(3);
   });
   g.querySelectorAll('#sat-orbits > circle').forEach(function(el){   // puntos con animateMotion: un transform movería su trayectoria
@@ -4052,6 +4065,7 @@ function mzInit(){
   // la leyenda y el ticker deben quedar encima del mapa
   ['map-legend','map-ticker'].forEach(function(id){const e=document.getElementById(id);if(e)svg.appendChild(e);});
   _mz.g=g;
+  mzRadarGeo();
   // Capas que se redibujan solas (eventos cada 2 min, vuelos, terminador): se decoran al cambiar
   if(window.MutationObserver)new MutationObserver(function(){
     if(_mz.k===1&&!_mz.dec&&!_mz.off)return;
@@ -4231,7 +4245,7 @@ function mcSwapBase(feats){
   });
   // Casa (radar grande y pin del clima): a su posición real con ll2xy
   const h=ll2xyF(_homeCoords.lon,_homeCoords.lat),hd=[h[0]-428,h[1]-442];
-  ['radar-g','mx-weather-group'].forEach(function(id){const e=document.getElementById(id);if(e)e.__mzo=hd;});
+  ['mx-weather-group'].forEach(function(id){const e=document.getElementById(id);if(e)e.__mzo=hd;});   // el radar ya se ubica solo (mzRadarGeo)
   // La línea "EQ" estaba en y=500, que es ~8°N con esta proyección
   const eq=ll2xyF(0,0)[1],ml=document.getElementById('ml1'),lb=document.getElementById('lbl-eq');
   if(ml){ml.setAttribute('y1',eq.toFixed(1));ml.setAttribute('y2',eq.toFixed(1));}
