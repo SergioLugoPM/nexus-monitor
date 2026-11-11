@@ -10,3 +10,4 @@ nexus.config.json
 lan-vendor-cache.json
 .history/
 .wind-cache.json
+.geo-countries-*.json

@@ -1304,6 +1304,38 @@ app.get('/wind', async (req, res) => {
   res.json({ ..._windCache.data, ts: _windCache.ts });
 });
 
+// ── Contornos de países para el zoom del mapa (Natural Earth vía world-atlas) ──
+// TopoJSON sin proyectar: el dashboard lo proyecta con ll2xy, así costas y pines usan la misma fórmula.
+// 110m para la vista normal, 50m al acercar. Se baja una vez y queda en disco (archivo con punto:
+// express.static no sirve dotfiles); los datos no cambian, no hay TTL.
+const GEO_RES = { '110m': 'countries-110m', '50m': 'countries-50m' };
+const _geoMem = {};
+const _geoInFlight = {};
+async function loadGeo(res) {
+  if (_geoMem[res]) return _geoMem[res];
+  const file = path.join(__dirname, '.geo-' + GEO_RES[res] + '.json');
+  try { _geoMem[res] = fs.readFileSync(file, 'utf8'); JSON.parse(_geoMem[res]); return _geoMem[res]; } catch (_) { _geoMem[res] = null; }
+  if (!_geoInFlight[res]) _geoInFlight[res] = (async () => {
+    try {
+      const r = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/' + GEO_RES[res] + '.json', { signal: AbortSignal.timeout(30000) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const txt = await r.text();
+      if (JSON.parse(txt).type !== 'Topology') throw new Error('no es TopoJSON');
+      try { fs.writeFileSync(file, txt); } catch (_) {}
+      _geoMem[res] = txt;
+      return txt;
+    } finally { _geoInFlight[res] = null; }
+  })();
+  return _geoInFlight[res];
+}
+app.get('/geo/countries/:res', async (req, res) => {
+  if (!GEO_RES[req.params.res]) return res.status(404).json({ error: 'resolución desconocida' });
+  try {
+    const txt = await loadGeo(req.params.res);
+    res.set('Cache-Control', 'public, max-age=604800').type('application/json').send(txt);
+  } catch (e) { res.status(503).json({ error: 'sin contornos: ' + e.message }); }
+});
+
 // ── Oleaje bajo la huella de un ciclón (Open-Meteo Marine) ───────────────────
 // El modelo de olas es global y de baja resolución: en el núcleo de un ciclón
 // intenso subestima las alturas reales. Sirve para ver DÓNDE hay más mar, no
