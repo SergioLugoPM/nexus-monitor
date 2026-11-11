@@ -1089,11 +1089,11 @@ app.get('/wx', async (req, res) => {
   res.json({ ..._wxCache.data, ts: _wxCache.ts });
 });
 
-async function fetchWxSat(lat, lon, key) {
+async function fetchWxSat(lat, lon, key, halfKm) {
   const layer = satLayerFor(lon);
   const x0 = lon * Math.PI / 180 * WX_R;
   const y0 = Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * WX_R;
-  const E = WX_SAT_HALF_KM * 1000 / Math.cos(lat * Math.PI / 180);
+  const E = (halfKm || WX_SAT_HALF_KM) * 1000 / Math.cos(lat * Math.PI / 180);
   const bbox = [x0 - E, y0 - E, x0 + E, y0 + E].map(v => v.toFixed(1)).join(',');
   for (const t of gibsSlots(layer)) {
     const url = `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer},Reference_Features_15m,Coastlines_15m&STYLES=&CRS=EPSG:3857&BBOX=${bbox}&WIDTH=640&HEIGHT=640&FORMAT=image/jpeg&TIME=${t}`;
@@ -1104,7 +1104,7 @@ async function fetchWxSat(lat, lon, key) {
       if (buf.length < 8000) continue;
       const out = { buf, ts: Date.now(), time: t, layer, bbox };
       _wxSatCache.set(key, out);
-      if (_wxSatCache.size > 4) _wxSatCache.delete(_wxSatCache.keys().next().value);
+      if (_wxSatCache.size > 8) _wxSatCache.delete(_wxSatCache.keys().next().value);   // un recorte por nivel de zoom del panel
       return out;
     } catch (_) { /* siguiente franja */ }
   }
@@ -1114,9 +1114,11 @@ async function fetchWxSat(lat, lon, key) {
 app.get('/wx/sat', async (req, res) => {
   const lat = Number(req.query.lat), lon = Number(req.query.lon);
   if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
-  const key = lat.toFixed(1) + ',' + lon.toFixed(1);
+  // km = medio ancho del recorte; el panel lo pide según su zoom (de 150 a 1200 km de ancho)
+  const km = Math.round(Math.max(60, Math.min(1000, Number(req.query.km) || WX_SAT_HALF_KM)));
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + km;
   let c = _wxSatCache.get(key);
-  if (!c || Date.now() - c.ts > SAT_TTL) c = (await fetchWxSat(lat, lon, key)) || c;
+  if (!c || Date.now() - c.ts > SAT_TTL) c = (await fetchWxSat(lat, lon, key, km)) || c;
   if (!c) return res.status(503).json({ error: 'sin imagen satelital reciente' });
   res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Bbox': c.bbox, 'X-Sat-Time': c.time,
             'X-Sat-Layer': c.layer, 'Access-Control-Expose-Headers': 'X-Bbox, X-Sat-Time, X-Sat-Layer' });
