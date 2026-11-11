@@ -1089,14 +1089,14 @@ app.get('/wx', async (req, res) => {
   res.json({ ..._wxCache.data, ts: _wxCache.ts });
 });
 
-async function fetchWxSat(lat, lon, key, halfKm) {
+async function fetchWxSat(lat, lon, key, halfKm, bare) {
   const layer = satLayerFor(lon);
   const x0 = lon * Math.PI / 180 * WX_R;
   const y0 = Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * WX_R;
   const E = (halfKm || WX_SAT_HALF_KM) * 1000 / Math.cos(lat * Math.PI / 180);
   const bbox = [x0 - E, y0 - E, x0 + E, y0 + E].map(v => v.toFixed(1)).join(',');
   for (const t of gibsSlots(layer)) {
-    const url = `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${layer},Reference_Features_15m,Coastlines_15m&STYLES=&CRS=EPSG:3857&BBOX=${bbox}&WIDTH=640&HEIGHT=640&FORMAT=image/jpeg&TIME=${t}`;
+    const url = `https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS=${bare ? layer : layer + ',Reference_Features_15m,Coastlines_15m'}&STYLES=&CRS=EPSG:3857&BBOX=${bbox}&WIDTH=640&HEIGHT=640&FORMAT=image/jpeg&TIME=${t}`;
     try {
       const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
       if (!r.ok) continue;
@@ -1116,13 +1116,97 @@ app.get('/wx/sat', async (req, res) => {
   if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
   // km = medio ancho del recorte; el panel lo pide según su zoom (de 150 a 1200 km de ancho)
   const km = Math.round(Math.max(60, Math.min(1000, Number(req.query.km) || WX_SAT_HALF_KM)));
-  const key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + km;
+  // bare=1: solo las nubes, sin las líneas de costa/fronteras de GIBS (el panel dibuja su propio mapa debajo)
+  const bare = req.query.bare === '1';
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + km + (bare ? ',b' : '');
   let c = _wxSatCache.get(key);
-  if (!c || Date.now() - c.ts > SAT_TTL) c = (await fetchWxSat(lat, lon, key, km)) || c;
+  if (!c || Date.now() - c.ts > SAT_TTL) c = (await fetchWxSat(lat, lon, key, km, bare)) || c;
   if (!c) return res.status(503).json({ error: 'sin imagen satelital reciente' });
   res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=300', 'X-Bbox': c.bbox, 'X-Sat-Time': c.time,
             'X-Sat-Layer': c.layer, 'Access-Control-Expose-Headers': 'X-Bbox, X-Sat-Time, X-Sat-Layer' });
   res.send(c.buf);
+});
+
+// ── Mapa base del radar de lluvia (Natural Earth 1:10M) ─────────────────────
+// Tierra, fronteras, estados, carreteras, lagos y manchas urbanas recortados a ±8° alrededor de la casa.
+// Las fuentes pesan ~116 MB en total: se bajan UNA vez en segundo plano, se recortan y se guarda solo el
+// recorte (~1 MB) en .ne-basemap-<lat>,<lon>.json. Mientras no esté listo, /wx/basemap responde 202.
+const NE10 = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_';
+let _bmMem = null, _bmKey = '', _bmBuilding = null;
+function bmRound(v) { return Math.round(v * 1000) / 1000; }
+// Recorte de un anillo contra el rectángulo (Sutherland-Hodgman, lado por lado)
+function bmClipRing(ring, b) {
+  let pts = ring;
+  const edges = [[0, b[0], 1], [0, b[2], -1], [1, b[1], 1], [1, b[3], -1]];
+  for (const [ax, v, s] of edges) {
+    if (!pts.length) break;
+    const out = [], inside = p => s > 0 ? p[ax] >= v : p[ax] <= v;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i], q = pts[(i + 1) % pts.length], pi = inside(p), qi = inside(q);
+      if (pi) out.push(p);
+      if (pi !== qi) { const t = (v - p[ax]) / (q[ax] - p[ax]); out.push(ax === 0 ? [v, p[1] + t * (q[1] - p[1])] : [p[0] + t * (q[0] - p[0]), v]); }
+    }
+    pts = out;
+  }
+  return pts;
+}
+// Simplifica (puntos a menos de tol grados se descartan) y aplana a [lon,lat,lon,lat...]
+function bmFlat(pts, tol) {
+  const o = []; let px = 1e9, py = 1e9;
+  pts.forEach((p, i) => { if (i && i < pts.length - 1 && Math.abs(p[0] - px) < tol && Math.abs(p[1] - py) < tol) return; o.push(bmRound(p[0]), bmRound(p[1])); px = p[0]; py = p[1]; });
+  return o;
+}
+function bmPolys(gj, b, tol) {
+  const out = [];
+  (gj.features || []).forEach(f => {
+    const g = f.geometry; if (!g) return;
+    const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+    polys.forEach(poly => poly.forEach(r => { const c = bmClipRing(r, b); if (c.length >= 3) out.push(bmFlat(c, tol)); }));
+  });
+  return out;
+}
+// Líneas: se parten donde salen del rectángulo (con un punto de margen para que no queden cortas)
+function bmLines(gj, b, tol, keep) {
+  const out = [], inB = p => p[0] >= b[0] && p[0] <= b[2] && p[1] >= b[1] && p[1] <= b[3];
+  (gj.features || []).forEach(f => {
+    const g = f.geometry; if (!g || (keep && !keep(f.properties || {}))) return;
+    const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+    const tag = keep && keep.tag ? keep.tag(f.properties || {}) : null;
+    lines.forEach(l => {
+      let cur = [];
+      l.forEach((p, i) => {
+        if (inB(p) || (l[i + 1] && inB(l[i + 1])) || (l[i - 1] && inB(l[i - 1]))) cur.push(p);
+        else if (cur.length) { if (cur.length > 1) out.push(tag == null ? bmFlat(cur, tol) : [tag, bmFlat(cur, tol)]); cur = []; }
+      });
+      if (cur.length > 1) out.push(tag == null ? bmFlat(cur, tol) : [tag, bmFlat(cur, tol)]);
+    });
+  });
+  return out;
+}
+async function buildBasemap(lat, lon, file) {
+  const b = [lon - 8, lat - 8, lon + 8, lat + 8], out = { bbox: b };
+  const get = async n => { nxLog('Mapa base del radar: bajando ' + n + '…', 'info'); return wget(NE10 + n + '.geojson', 240000); };
+  out.land = bmPolys(await get('land'), b, 0.004);
+  out.lakes = bmPolys(await get('lakes'), b, 0.004);
+  out.urban = bmPolys(await get('urban_areas'), b, 0.002);
+  out.borders = bmLines(await get('admin_0_boundary_lines_land'), b, 0.004);
+  out.states = bmLines(await get('admin_1_states_provinces_lines'), b, 0.004);
+  const rk = p => /Major Highway|Primary|Secondary Highway|Beltway/i.test(p.type || '') && (p.scalerank || 9) <= 8;
+  rk.tag = p => /Major/i.test(p.type || '') ? 1 : 2;
+  out.roads = bmLines(await get('roads'), b, 0.004, rk);
+  try { fs.writeFileSync(file, JSON.stringify(out)); } catch (_) {}
+  nxLog('Mapa base del radar listo: ' + out.land.length + ' tierras, ' + out.states.length + ' líneas de estado, ' + out.roads.length + ' carreteras', 'ok');
+  return out;
+}
+app.get('/wx/basemap', async (req, res) => {
+  const lat = Number(req.query.lat), lon = Number(req.query.lon);
+  if (!(Math.abs(lat) <= 80) || !(Math.abs(lon) <= 180)) return res.status(400).json({ error: 'lat/lon inválidos' });
+  const key = lat.toFixed(1) + ',' + lon.toFixed(1), file = path.join(__dirname, '.ne-basemap-' + key + '.json');
+  if (_bmMem && _bmKey === key) return res.set('Cache-Control', 'public, max-age=86400').json(_bmMem);
+  try { _bmMem = JSON.parse(fs.readFileSync(file, 'utf8')); _bmKey = key; return res.set('Cache-Control', 'public, max-age=86400').json(_bmMem); } catch (_) {}
+  if (!_bmBuilding) _bmBuilding = buildBasemap(+key.split(',')[0], +key.split(',')[1], file)
+    .then(o => { _bmMem = o; _bmKey = key; }).catch(e => nxLog('Mapa base del radar: ' + e.message, 'warn')).finally(() => { _bmBuilding = null; });
+  res.status(202).json({ building: true });
 });
 
 // ── Condición del tiempo → "tipo" de icono ──────────────────────────────────

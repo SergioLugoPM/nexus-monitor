@@ -13,3 +13,4 @@ agent-backups/
 .wind-cache.json
 .geo-countries-*.json
 .ne-places.json
+.ne-basemap-*.json
