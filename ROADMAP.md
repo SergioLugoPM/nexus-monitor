@@ -1224,6 +1224,14 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   cuadro costaba ~2 ms.
 - Procesos: `/stats/procs` (server.js, caché 15 s). Al azar 1-3 (máx. 3) pasan a rojo 18-45 s ("comprometidos").
 - Costo medido: ~3.4 ms por cuadro a 24 fps en un lienzo de 558×576.
+- **Versión envolvente (11-nov, noche):** la masa azul es ahora una cáscara (620 puntos de superficie + 90 apenas
+  adentro) que envuelve al núcleo dorado, ambos con el mismo centro en el panel; la mitad trasera se dibuja detrás
+  del dorado y la delantera encima, y 7 zarcillos van de la cáscara al núcleo. Fondo con los colores del tema
+  (`_pal.deep`→`_pal.base`) y retícula sutil (cuadrícula de 16 px, anillos punteados y marcas de grado), cacheado.
+- **Trabas corregidas:** la deformación usaba `t × velocidad` y la velocidad depende de la GPU, así que cada lectura
+  (3 s) hacía saltar toda la forma ("se reiniciaba"); ahora la fase se integra (`_jx.uph += dt·velocidad`). CPU,
+  núcleos, RAM, GPU y red se suavizan (`jxSmooth`). Medido: 0.8 px de movimiento máximo por cuadro antes y después de
+  un cambio brusco de lectura. ~4.1 ms por cuadro.
 
 ## Temas visuales
 
