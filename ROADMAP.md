@@ -1237,6 +1237,17 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   "© año VANT code · Todos los derechos reservados"). Recuadro "PROCESOS CRÍTICOS" con fondo sólido, barra de título,
   esquinas; en alarma el borde y la etiqueta laten en rojo y las filas comprometidas llevan fondo rojo.
 
+### Reacomodo de paneles (11-nov-2026, noche)
+
+- La franja WATCH vive ahora dentro de GLOBAL STATUS (`#gs-watch-wrap`, mismo `#wstrip-body`, clic = pestaña WATCH);
+  el panel `p-watch` ya no existe y MATRIX / NEURAL CORE ocupa su lugar en la columna izquierda (alto y angosto).
+  Todas las alertas que iban a `p-watch` van a `p-gs`; el pulso en reposo ya no incluye WATCH.
+- Sin repetidos: se quitó el recuadro SOLAR X-RAY (está en clima espacial) y RECENT EVENTS ya no lista sismos (la
+  sección SISMOS · 24 H los trae, mundo + SSN).
+- "DEFCON" → GEO-SOLAR ACTIVITY (CALM / ACTIVE / ELEVATED / HIGH / EXTREME): es un índice propio que suma clase de
+  llamarada solar, Kp y energía sísmica de 24 h; no es un nivel oficial (tooltip lo explica).
+- SNAKE e INVADERS ocultos: sin pestañas ni atajos Alt+S/Alt+I; el código sigue en el archivo.
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
