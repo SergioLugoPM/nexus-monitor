@@ -1207,6 +1207,20 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   frente de la franja WATCH (`wsFocusApply`, porque `wsFit` borra lo que no cabe); en RECENT EVENTS la fila sube.
   Lluvia: `_wx.hl` dibuja un anillo que late sobre el eco y una línea desde la casa.
 
+### Neural Core J.A.R.V.I.S / ULTRON (11-nov-2026)
+
+- Pestaña dentro del panel MATRIX (`mtxTab`, se guarda en `nexus_mtxtab`); solo corre la animación visible. El
+  código de temas que convierte los títulos en barra de ventana ahora respeta títulos con `onclick` (las pestañas).
+- Lenguaje visual tomado de Animal Logic (Age of Ultron), colores fijos sin importar el tema (`JX_C`):
+  JARVIS dorado = anillos giroscópicos incompletos + rayos + núcleo hexagonal; plato de marcas que gira con la CPU,
+  anillo de un segmento por núcleo (grosor = carga, rojo si >85 %), cinta punteada que avanza con la red; con el
+  agente pensando gira al doble. ULTRON azul = 170 nodos en 5 lóbulos unidos a sus 4 vecinos, se reacomoda cada
+  2.5-5 s, pulsos de causa y efecto que saltan de nodo en nodo (más con GPU/RAM altas; ~12 % rojos), polvo/bokeh.
+  Hilos azul→dorado unen ambos.
+- Procesos: `/stats/procs` (server.js, `si.processes()`, ~2 s en Windows → caché 15 s) da los 14 con más CPU. Al
+  azar 1-3 (máx. 3) pasan a rojo 18-45 s ("tomados por Ultron"): fila roja parpadeando y cadena de pulsos rojos.
+- Costo medido: ~3.9 ms por cuadro a 24 fps (lienzo 640×416).
+
 ## Temas visuales
 
 Además de CYBER (default), WIN98 y el "MAC OS" original (System 7
