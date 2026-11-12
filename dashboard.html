@@ -3418,19 +3418,20 @@ function renderGSPulseAndEvents(events) {
       const isCrit=isCritType(e);
       const critCol=((e.mag||0)>=7)?'#E24B4A':c.warn;
       const stm = e.type==='storm' && e.stormId ? _stormById[e.stormId] : null;
-      let txt = e.type==='quake' ? `${e.label||''} — ${(e.place||'').substring(0,44)}`
-              : e.type==='news'  ? (e.title||e.info||'').substring(0,44)
+      // sin cortar a 44 caracteres: el panel ahora es ancho y la fila admite dos renglones (.ev-txt)
+      let txt = e.type==='quake' ? `${e.label||''} — ${e.place||''}`
+              : e.type==='news'  ? (e.title||e.info||'')
               : stm ? `${stm.name} ${stm.label} · ${stm.kmh} km/h`
-              : (e.info||e.label||'').substring(0,44);
+              : (e.info||e.label||'');
       txt = stEsc(txt);
       const clk = stm ? ` onclick="openStormModal(${stm.id})"` : '';
-      if(isCrit) return`<div class="crit-ev-row${stm?' ev-click':''}"${clk} style="display:flex;gap:5px;margin-bottom:2px;overflow:hidden;border-left-color:${critCol}">
+      if(isCrit) return`<div class="crit-ev-row${stm?' ev-click':''}"${clk} style="display:flex;gap:5px;margin-bottom:3px;overflow:hidden;align-items:flex-start;border-left-color:${critCol}">
         <span style="color:${critCol};flex-shrink:0;font-weight:bold">${ic}</span>
-        <span style="color:${critCol};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600" title="${txt}">${txt}</span>
+        <span class="ev-txt" style="color:${critCol};font-weight:600" title="${txt}">${txt}</span>
       </div>`;
-      return`<div${stm?' class="ev-click"':''}${clk} style="display:flex;gap:5px;margin-bottom:1px;overflow:hidden">
+      return`<div${stm?' class="ev-click"':''}${clk} style="display:flex;gap:5px;margin-bottom:3px;overflow:hidden;align-items:flex-start">
         <span style="color:${col};flex-shrink:0">${ic}</span>
-        <span style="color:${c.lbl};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${txt}">${txt}</span>
+        <span class="ev-txt" style="color:${c.lbl}" title="${txt}">${txt}</span>
       </div>`;
     }).join('');
   }
@@ -6446,6 +6447,8 @@ function initSnake(canvas){
 #wmap-wrap.mz-drag #wmap, #wmap-wrap.mz-drag #wmap * { cursor:grabbing !important; }
 .mz-btn { min-width:9px; text-align:center; font-weight:bold; }
 /* Pestañas del panel MATRIX: MATRIX / NEURAL CORE */
+/* RECENT EVENTS: encabezado completo en hasta dos renglones */
+.ev-txt { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word; line-height:1.35; min-width:0; }
 .mtx-tab { cursor:pointer; opacity:.42; margin-right:14px; padding-bottom:1px; user-select:none; }
 .mtx-tab:hover { opacity:.8; }
 .mtx-tab.on { opacity:1; border-bottom:1px solid currentColor; }
