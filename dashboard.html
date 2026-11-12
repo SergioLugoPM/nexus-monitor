@@ -378,9 +378,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 <div class="col-m">
   <div class="pnl" id="p-status" style="flex-shrink:0;">
     <div style="display:flex;align-items:stretch;justify-content:space-between;gap:12px;min-height:90px;">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div id="greeting" style="font-size:13px;letter-spacing:1px;margin-bottom:6px;white-space:nowrap;overflow:hidden;">STARTING...</div><div id="status-l" class="mut" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;">CONNECTING...</div></div>
-      <div style="flex:2;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4px 0;"><div id="bigclock" style="font-size:86px;letter-spacing:5px;line-height:1;font-weight:bold;white-space:nowrap;">--:--:--</div><div id="bigampm" style="font-size:20px;letter-spacing:6px;margin-top:4px;opacity:.85;">--</div></div>
-      <div style="flex:1;min-width:0;text-align:right;display:flex;flex-direction:column;justify-content:center;"><div id="bigdate" style="font-size:17px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;white-space:nowrap;"></div><div id="bigday" class="mut" style="font-size:11px;letter-spacing:2px;white-space:nowrap;"></div><div id="syshealth" style="font-size:10px;letter-spacing:1px;margin-top:4px;">● SYSTEMS OK</div></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div id="greeting" style="font-size:13px;letter-spacing:1px;margin-bottom:6px;white-space:nowrap;overflow:hidden;">STARTING...</div><div id="status-l" class="mut" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;">CONNECTING...</div><div id="clk-sun" title="Luz del día en tu zona: amanecer, mediodía solar y atardecer"><canvas id="clk-sun-cv" height="18"></canvas><div id="clk-sun-t" class="mut">--</div></div></div>
+      <div style="flex:2;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4px 0;"><div style="display:inline-flex;flex-direction:column;align-items:stretch;"><div id="bigclock" style="font-size:86px;letter-spacing:5px;line-height:1;font-weight:bold;white-space:nowrap;">--:--:--</div><div id="clk-sec" title="Segundero"><div id="clk-sec-f"></div></div></div><div style="display:flex;align-items:baseline;gap:14px;margin-top:4px;"><div id="bigampm" style="font-size:20px;letter-spacing:6px;opacity:.85;">--</div><div id="clk-sub" class="mut" title="Hora militar · hora UTC · tiempo Unix">--</div></div></div>
+      <div style="flex:1;min-width:0;text-align:right;display:flex;flex-direction:column;justify-content:center;"><div id="bigdate" style="font-size:17px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;white-space:nowrap;"></div><div id="bigday" class="mut" style="font-size:11px;letter-spacing:2px;white-space:nowrap;"></div><div id="clk-wk" class="mut" title="Semana ISO · día del año">--</div><div id="syshealth" style="font-size:10px;letter-spacing:1px;margin-top:4px;">● SYSTEMS OK</div></div>
     </div>
   </div>
 
@@ -2363,8 +2363,78 @@ function setPalette(name){_pal=P[name];document.querySelectorAll('.sw').forEach(
 // ── TIME ──────────────────────────────────────────────────────────────────
 const DAYS=['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
 const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-function _greet(){const u=(_settings&&_settings.username)||'SERGIO';return[['GOOD MORNING, '+u+'.','RISE AND GRIND, '+u+'.'],['PRODUCTIVE AFTERNOON, '+u+'.','GOOD AFTERNOON, '+u+'.'],['GOOD EVENING, '+u+'.','NIGHT SHIFT, '+u+'.']];}
-var greetSet=false;
+// Saludo vivo: cambia al pasar de madrugada → mañana → tarde → noche y estrena frase cada hora en punto (sin datos, solo saludo)
+function _greet(){const u=(_settings&&_settings.username)||'SERGIO';return[['STILL UP, '+u+'?','LATE NIGHT OPS, '+u+'.','BURNING THE MIDNIGHT OIL, '+u+'.'],['GOOD MORNING, '+u+'.','RISE AND GRIND, '+u+'.','FRESH START, '+u+'.'],['PRODUCTIVE AFTERNOON, '+u+'.','GOOD AFTERNOON, '+u+'.','KEEP IT ROLLING, '+u+'.'],['GOOD EVENING, '+u+'.','NIGHT SHIFT, '+u+'.','WINDING DOWN, '+u+'.']];}
+var greetSet=false,_greetPer=-1,_greetHr=-1;
+function greetUpdate(h,c){
+  const per=h<5?0:h<12?1:h<19?2:3;
+  if(greetSet&&per===_greetPer&&h===_greetHr)return;
+  const gr=document.getElementById('greeting');if(!gr)return;
+  const pool=_greet()[per],cur=gr.textContent;let pick=pool[Math.floor(Math.random()*pool.length)];
+  if(pool.length>1)while(pick===cur)pick=pool[Math.floor(Math.random()*pool.length)];
+  gr.textContent=pick;gr.style.color=c.hi;greetSet=true;_greetPer=per;_greetHr=h;
+}
+// ── Reloj: sol de la casa (amanecer/atardecer), semana ISO, segundero ──
+const _p2=n=>(n<10?'0':'')+n;
+function sunTimes(y,mo,d,lat,lon){   // ecuación de amanecer (NOAA simplificada); devuelve ms epoch o null en noche/día polar
+  const R=Math.PI/180,n=Date.UTC(y,mo,d,12)/864e5+2440587.5-2451545,Js=n-lon/360;
+  const M=(357.5291+0.98560028*Js)%360,C=1.9148*Math.sin(M*R)+0.02*Math.sin(2*M*R)+0.0003*Math.sin(3*M*R);
+  const L=(M+C+282.9372)%360,Jt=2451545+Js+0.0053*Math.sin(M*R)-0.0069*Math.sin(2*L*R);
+  const sd=Math.sin(L*R)*Math.sin(23.4397*R),cd=Math.cos(Math.asin(sd)),toMs=J=>(J-2440587.5)*864e5;
+  const at=alt=>{const cw=(Math.sin(alt*R)-Math.sin(lat*R)*sd)/(Math.cos(lat*R)*cd);if(cw>1)return 'night';if(cw<-1)return 'day';const w=Math.acos(cw)/R/360;return[toMs(Jt-w),toMs(Jt+w)];};
+  return{noon:toMs(Jt),sun:at(-0.833),civ:at(-6)};
+}
+var _sunC={k:'',v:null};
+function clkSun(now,c){
+  const hc=(typeof _homeCoords!=='undefined'&&_homeCoords)||{lat:19.595,lon:-98.976};
+  const y=now.getFullYear(),mo=now.getMonth(),d=now.getDate(),k=y+'-'+mo+'-'+d+'|'+hc.lat+','+hc.lon;
+  if(_sunC.k!==k)_sunC={k:k,v:sunTimes(y,mo,d,hc.lat,hc.lon)};
+  const st=_sunC.v,mid=new Date(y,mo,d).getTime(),hx=ms=>(ms-mid)/36e5,nowH=hx(now.getTime());
+  const cv=document.getElementById('clk-sun-cv'),tx=document.getElementById('clk-sun-t');
+  if(cv){
+    const dpr=window.devicePixelRatio||1,W=Math.max(10,cv.clientWidth),H=18;
+    if(cv.width!==Math.round(W*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+    const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+    const X=hh=>Math.max(0,Math.min(W,hh/24*W)),ty=7,th=5;
+    g.fillStyle=c.trk;g.fillRect(0,ty,W,th);                                   // noche
+    const seg=(a,b,col)=>{if(b>a){g.fillStyle=col;g.fillRect(X(a),ty,X(b)-X(a),th);}};
+    if(st.sun==='day')seg(0,24,c.mid);
+    else if(Array.isArray(st.sun)){
+      const r=hx(st.sun[0]),s=hx(st.sun[1]),cr=Array.isArray(st.civ)?hx(st.civ[0]):r,cs=Array.isArray(st.civ)?hx(st.civ[1]):s;
+      const gr=(a,b,c1,c2)=>{if(b<=a)return;const l=g.createLinearGradient(X(a),0,X(b),0);l.addColorStop(0,c1);l.addColorStop(1,c2);g.fillStyle=l;g.fillRect(X(a),ty,X(b)-X(a),th);};
+      gr(cr,r,c.lo,c.mid);seg(r,s,c.mid);gr(s,cs,c.mid,c.lo);
+    }
+    g.fillStyle=c.mut;g.globalAlpha=.55;[0,6,12,18,24].forEach(hh=>g.fillRect(Math.min(W-1,X(hh)),ty-3,1,2));g.globalAlpha=1;
+    const nh=hx(st.noon);g.fillStyle=c.hi;g.globalAlpha=.6;g.fillRect(X(nh)-.5,ty-3,1,th+3);g.globalAlpha=1;   // mediodía solar
+    const isDay=st.sun==='day'||(Array.isArray(st.sun)&&now>=st.sun[0]&&now<=st.sun[1]),nx=X(nowH);
+    g.shadowColor=c.hi;g.shadowBlur=6;g.fillStyle=c.hi;g.fillRect(nx-1,1,2,H-2);
+    g.beginPath();g.arc(nx,ty+th/2,3.6,0,7);if(isDay)g.fill();else{g.fillStyle=c.base||'#000';g.fill();g.lineWidth=1.4;g.strokeStyle=c.hi;g.stroke();}
+    g.shadowBlur=0;
+  }
+  if(tx){
+    const hm=ms=>{const t=new Date(ms);return _p2(t.getHours())+':'+_p2(t.getMinutes());},dur=ms=>{const m=Math.max(0,Math.round(ms/6e4));return Math.floor(m/60)+'h'+_p2(m%60)+'m';};
+    let s;
+    if(!Array.isArray(st.sun))s=st.sun==='day'?'☀ MIDNIGHT SUN':'☾ POLAR NIGHT';
+    else{const r=st.sun[0],e=st.sun[1],t=now.getTime();
+      s='↑ '+hm(r)+'   ☀ '+hm(st.noon)+'   ↓ '+hm(e)+'   ·   '+(t<r?'SUNRISE IN '+dur(r-t):t<=e?'SUNSET IN '+dur(e-t):'SUNRISE IN '+dur(r+864e5-t));}
+    if(tx.textContent!==s)tx.textContent=s;
+  }
+}
+function isoWeek(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())),dn=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-dn);return Math.ceil(((t-Date.UTC(t.getUTCFullYear(),0,1))/864e5+1)/7);}
+var _clkPalK='';
+function clkExtras(now,c){
+  const ps=document.getElementById('p-status');
+  if(ps&&_clkPalK!==c.hi+c.mid){_clkPalK=c.hi+c.mid;ps.style.setProperty('--clk-trk',c.trk);ps.style.setProperty('--clk-fill',c.mid);ps.style.setProperty('--clk-tick',c.base||'#000');}
+  const s=now.getSeconds(),f=document.getElementById('clk-sec-f');
+  if(f){if(s===0){f.style.transition='none';f.style.width='0';void f.offsetWidth;f.style.transition='';}f.style.width=((s+1)/60*100)+'%';}
+  const sb=document.getElementById('clk-sub');
+  if(sb)sb.textContent='24H '+_p2(now.getHours())+':'+_p2(now.getMinutes())+':'+_p2(s)+'  ·  UTC '+_p2(now.getUTCHours())+':'+_p2(now.getUTCMinutes())+'  ·  UNIX '+Math.floor(now.getTime()/1000);
+  const wk=document.getElementById('clk-wk');
+  if(wk){const y=now.getFullYear(),doy=Math.round((Date.UTC(y,now.getMonth(),now.getDate())-Date.UTC(y,0,1))/864e5)+1,tot=(y%4===0&&y%100!==0)||y%400===0?366:365;
+    wk.textContent='WK '+_p2(isoWeek(now))+'  ·  DAY '+doy+'/'+tot;}
+  const scv=document.getElementById('clk-sun-cv'),sw=scv?Math.round(scv.clientWidth*(window.devicePixelRatio||1)):0;
+  if(s%20===0||!_sunC.v||(scv&&sw>0&&scv.width!==sw))clkSun(now,c);   // cada 20 s, o si cambio el ancho
+}
 function fmt12(now,tz){const s=now.toLocaleTimeString('en-US',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:true});const m=s.match(/(d+:d+)s*(AM|PM)/i);return m?{t:m[1].replace(/^0/,''),ap:m[2]}:{t:s,ap:''};} 
 var _st={cpu:NaN,ramGB:NaN,ramTot:NaN,gpuT:null};   // última lectura de /stats (antes se leía de los paneles CPU/RAM/GPU)
 function updateTime(){
@@ -2373,7 +2443,8 @@ function updateTime(){
   const ba=document.getElementById('bigampm');if(ba){ba.textContent=h<12?'AM':'PM';ba.style.color=c.mid;}
   const bd=document.getElementById('bigdate');if(bd){bd.textContent=now.getDate()+' '+MONTHS[now.getMonth()]+' '+now.getFullYear();bd.style.color=c.hi;}
   const bdy=document.getElementById('bigday');if(bdy)bdy.textContent=DAYS[now.getDay()];
-  if(!greetSet){const hh=h;const G=_greet();const pool=hh<12?G[0]:hh<19?G[1]:G[2];const gr=document.getElementById('greeting');if(gr){gr.textContent=pool[Math.floor(Math.random()*pool.length)];gr.style.color=c.hi;greetSet=true;}}
+  greetUpdate(h,c);
+  try{clkExtras(now,c);}catch(e){}
   const sl=document.getElementById('status-l');if(sl){const cn=_st.cpu,tn=_st.gpuT;sl.textContent=isNaN(cn)?'CONNECTING...':(cn>80?'⚠ ':'')+'CPU '+cn+'%  ·  RAM '+_st.ramGB+'GB  ·  '+(tn>80?'⚠ ':'')+'GPU '+(tn!=null?tn+'°C':'--');sl.style.color=c.mut;}
   const sh=document.getElementById('syshealth');if(sh){const cn=_st.cpu,tn=_st.gpuT;if(cn>85||tn>85){sh.textContent='⚠ ATTENTION';sh.style.color='#E24B4A';}else{sh.textContent='● SYSTEMS OK';sh.style.color=c.mid;}}
   [['cdmx','America/Mexico_City'],['nyc','America/New_York'],['pr','America/Puerto_Rico'],['lon','Europe/London'],['dxb','Asia/Dubai'],['tok','Asia/Tokyo']].forEach(([id,tz])=>{const r=fmt12(now,tz);const te=document.getElementById('t-'+id);if(te)te.textContent=r.t;const ae=document.getElementById('ap-'+id);if(ae)ae.textContent=r.ap;});
@@ -6876,6 +6947,15 @@ function initSnake(canvas){
 .pnl-exp { position:absolute; top:4px; right:7px; z-index:4; font-size:12px; line-height:1; padding:1px 3px; cursor:pointer; opacity:.35; user-select:none; border-radius:2px; transition:opacity .2s; }
 .pnl-exp:hover { opacity:1; background:rgba(255,255,255,.08); }
 .pnl.spot .pnl-exp { display:none; }
+/* reloj grande: segundero, sub-línea, semana y franja de luz del día */
+#clk-sec { position:relative; height:3px; margin-top:7px; border-radius:2px; overflow:hidden; background:var(--clk-trk,#04342C); }
+#clk-sec::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12)); }
+#clk-sec-f { height:100%; width:0; background:var(--clk-fill,#1D9E75); box-shadow:0 0 6px var(--clk-fill,#1D9E75); transition:width 1s linear; }
+#clk-sub { font-size:11px; letter-spacing:1.5px; white-space:nowrap; }
+#clk-wk { font-size:10px; letter-spacing:1.5px; white-space:nowrap; margin-top:3px; }
+#clk-sun { margin-top:7px; min-width:0; }
+#clk-sun-cv { display:block; width:100%; height:18px; }
+#clk-sun-t { font-size:10px; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .mtx-tab { cursor:pointer; opacity:.42; margin-right:14px; padding-bottom:1px; user-select:none; }
 .mtx-tab:hover { opacity:.8; }
 .mtx-tab.on { opacity:1; border-bottom:1px solid currentColor; }
