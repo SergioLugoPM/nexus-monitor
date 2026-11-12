@@ -4871,13 +4871,21 @@ function mzSet(k,tx,ty){
   mzDecorate();mzButtons();
   const wrap=document.getElementById('wmap-wrap');if(wrap)wrap.classList.toggle('mz-on',m.k>1);
   const t=document.getElementById('map-tooltip');if(t)t.style.display='none';
+  if(!m.busy)mzLite(true);   // primer cuadro del movimiento: se aligera el mapa hasta que se asiente
   m.busy=true;mzAuroraPreview();
   clearTimeout(m.settleT);m.settleT=setTimeout(mzSettle,180);
   clearTimeout(m.idleT);
   if(m.k>1)m.idleT=setTimeout(function(){mzAnimate(1,0,0,1400);},m.hold||m.IDLE_MS);
   else{m.hold=0;if(typeof _zn!=='undefined'&&_zn)_zn.focus=null;}
 }
-function mzSettle(){_mz.busy=false;if(typeof auroraDraw==='function')auroraDraw();mcPick();if(typeof znUpdate==='function')znUpdate();}
+// Mientras el zoom se mueve, cada cuadro repinta todo el SVG: las costas de alta resolución (~1.1 MB de trazos)
+// y el detalle de zona (~1,600 elementos, que de todos modos se rehace al asentarse) lo volvían lento.
+// En movimiento se usa la costa ligera y se oculta el detalle; mzSettle lo regresa.
+function mzLite(on){
+  const zd=document.getElementById('zoom-detail');if(zd)zd.style.display=on?'none':'';
+  if(on&&typeof _mc!=='undefined'&&_mc.active==='50m'&&_mc.g['110m']){_mc.g['50m'].style.display='none';_mc.g['110m'].style.display='';_mc.active='110m';}
+}
+function mzSettle(){_mz.busy=false;mzLite(false);if(typeof auroraDraw==='function')auroraDraw();mcPick();if(typeof znUpdate==='function')znUpdate();}
 // La aurora no se redibuja a cada paso del zoom: se estira con CSS el dibujo hecho en el estado a.z
 function mzAuroraPreview(){
   const a=_aur;if(!a||!a.cv||!a.z||!a.W)return;
