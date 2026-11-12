@@ -1704,7 +1704,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div style="display:flex;gap:14px;min-height:0;padding:8px 10px;">
       <!-- LEFT 50%: Singularity Countdown -->
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;">
-        <div><div class="lbl" id="l-sing" style="margin-bottom:2px;font-size:13px;">SINGULARITY</div><div id="sing-ref" style="font-size:10px;opacity:.55;letter-spacing:1px;">KURZWEIL 2045 · METACULUS 2032</div></div>
+        <div><div class="lbl" id="l-sing" style="margin-bottom:2px;font-size:13px;">SINGULARITY</div><div id="sing-ref" style="font-size:10px;opacity:.55;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Ω singularidad: Kurzweil 2045 (la cuenta grande). AGI, IA a nivel humano: Kurzweil 2029, Metaculus (mediana comunitaria) 2032">Ω KURZWEIL 2045 · AGI KURZWEIL 2029<span id="sing-agi"></span> · METACULUS 2032</div></div>
         <div style="display:flex;gap:10px;align-items:flex-end;">
           <div style="text-align:center;"><div id="sc-d" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:9px;letter-spacing:2px;opacity:.6;margin-top:2px;">DAYS</div></div>
           <div style="font-size:28px;font-weight:bold;opacity:.35;margin-bottom:12px;">:</div>
@@ -1716,10 +1716,10 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:9px;opacity:.5;margin-bottom:2px;"><span>1950</span><span id="sing-pct" style="opacity:1;">0%</span><span>2045</span></div>
-          <div id="sing-bar-bg" style="height:5px;border-radius:2px;overflow:hidden;"><div id="sing-bar-fill" style="height:100%;border-radius:2px;width:0%;transition:width 1s;"></div></div>
+          <div id="sing-bar-bg" style="position:relative;height:5px;border-radius:2px;overflow:hidden;"><div id="sing-bar-fill" style="height:100%;border-radius:2px;width:0%;transition:width 1s;"></div><div class="sing-mk" data-y="2029" title="AGI · Kurzweil 2029"></div><div class="sing-mk" data-y="2032" title="AGI · Metaculus 2032" style="opacity:.55"></div></div>
         </div>
         <div id="sing-timeline" style="display:flex;justify-content:space-between;align-items:center;font-size:8px;letter-spacing:0.5px;opacity:.65;">
-          <span>69·MOON</span><span>91·WWW</span><span>07·iPHONE</span><span>12·DL</span><span>23·GPT4</span><span id="tl-now" style="font-weight:bold;opacity:1;">▶ NOW</span><span style="font-weight:bold;">45·Ω</span>
+          <span>69·MOON</span><span>91·WWW</span><span>07·iPHONE</span><span>12·DL</span><span>23·GPT4</span><span id="tl-now" style="font-weight:bold;opacity:1;">▶ NOW</span><span id="tl-agi" title="AGI según Kurzweil">29·AGI</span><span style="font-weight:bold;">45·Ω</span>
         </div>
       </div>
       <!-- RIGHT 50%: Doomsday Clock (digital) -->
@@ -2059,6 +2059,7 @@ function updateTime(){
 // ── SINGULARITY ────────────────────────────────────────────────────────────
 const SING_TARGET=new Date('2045-01-01T00:00:00Z').getTime();
 const SING_START=new Date('1950-01-01T00:00:00Z').getTime();
+const AGI_K=new Date('2029-01-01T00:00:00Z').getTime();   // Kurzweil: AGI (Turing test válido) para 2029
 const DOOM_SET='JAN 2026';   // fecha del ajuste oficial vigente
 const DOOM_SECS=85; // Bulletin of the Atomic Scientists: 85 s to midnight (27-ene-2026; 2025 eran 89). Se revisa cada enero
 function updateSingularity(){
@@ -2074,6 +2075,9 @@ function updateSingularity(){
   const pctEl=document.getElementById('sing-pct');if(pctEl){pctEl.textContent=pct.toFixed(1)+'%';pctEl.style.color=c.hi;}
   const barBg=document.getElementById('sing-bar-bg');if(barBg)barBg.style.background=c.trk;
   const barFill=document.getElementById('sing-bar-fill');if(barFill){barFill.style.width=pct+'%';barFill.style.background=c.bar;}
+  document.querySelectorAll('#sing-bar-bg .sing-mk').forEach(mk=>{const t=Date.UTC(+mk.dataset.y,0,1);mk.style.left=((t-SING_START)/total*100).toFixed(2)+'%';mk.style.background=c.hi;});
+  const ag=document.getElementById('sing-agi');if(ag){const dd=Math.ceil((AGI_K-now)/864e5);ag.textContent=dd>0?' ('+dd+'D)':' ✓';}
+  const ta=document.getElementById('tl-agi');if(ta)ta.style.color=c.hi;
   // Timeline colors
   const tlNow=document.getElementById('tl-now');if(tlNow)tlNow.style.color=c.hi;
   const tl=document.getElementById('sing-timeline');if(tl){tl.style.color=c.mut;}
@@ -6556,6 +6560,7 @@ function initSnake(canvas){
 .pnl-exp { position:absolute; top:4px; right:7px; z-index:4; font-size:12px; line-height:1; padding:1px 3px; cursor:pointer; opacity:.35; user-select:none; border-radius:2px; transition:opacity .2s; }
 .pnl-exp:hover { opacity:1; background:rgba(255,255,255,.08); }
 .pnl.spot .pnl-exp { display:none; }
+.sing-mk { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; }
 /* reloj grande: segundero, sub-línea, semana y franja de luz del día */
 #clk-sec { position:relative; height:3px; margin-top:7px; border-radius:2px; overflow:hidden; background:var(--clk-trk,#04342C); }
 #clk-sec::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12)); }
