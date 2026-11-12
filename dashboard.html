@@ -1767,10 +1767,10 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;text-align:right;">live</span></div>
   </div>
 
-  <!-- NEURAL CORE — flex:1 grows to fill -->
+  <!-- SYSTEM PULSE (antes Neural Core; el nombre pasó al holograma de la pestaña de MATRIX) — flex:1 grows to fill -->
   <div class="pnl grow" id="p-sphere" style="min-height:200px;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;margin-bottom:4px;">
-      <div class="lbl" id="l-sphere" style="margin-bottom:0;">NEURAL CORE</div>
+      <div class="lbl" id="l-sphere" style="margin-bottom:0;">SYSTEM PULSE</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <span id="sphere-status" style="font-size:9px;letter-spacing:1px;"></span>
       </div>
@@ -3001,7 +3001,8 @@ function jxResize(){
   const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);if(!W||!H)return;
   if(W===_jx.W&&H===_jx.H)return;
   cv.width=W;cv.height=H;_jx.W=W;_jx.H=H;_jx.bgKey='';
-  const listH=Math.min(H*.28,8*11+24),avail=H-listH-30,R=Math.min(W*.36,avail*.44),cy=30+avail/2;
+  _jx.rows=Math.max(4,Math.min(8,Math.floor((H*.3-30)/13)));
+  const listH=_jx.rows*13+40,avail=H-listH-30,R=Math.min(W*.36,avail*.46),cy=30+avail/2;   // el recuadro de procesos ocupa ~30 % del alto
   _jx.C={x:W/2,y:cy};
   _jx.U={x:W/2,y:cy,r:R};          // cáscara azul
   _jx.J={x:W/2,y:cy,r:R*.6};       // núcleo dorado dentro (sus cintas llegan a ~0.76·R)
@@ -3213,7 +3214,27 @@ function jxStrands(ctx,t){
     if(Math.random()<.003)s.n=Math.floor(Math.random()*620);
   });
 }
-// ── datos: línea de estado arriba, procesos abajo a la izquierda, créditos abajo a la derecha
+// ── datos: línea de estado arriba, procesos abajo a la izquierda, firma VANT abajo a la derecha
+// Firma corporativa: isotipo (V dentro de un hexágono) + VANT | CODE y la línea de derechos debajo
+function jxBrand(ctx,W,H){
+  const x1=W-10,yb=H-20,silver='rgba(226,234,238,',t=_jx.t;
+  ctx.save();ctx.textBaseline='alphabetic';ctx.textAlign='right';
+  try{ctx.letterSpacing='3px';}catch(e){}
+  ctx.font='600 8px monospace';ctx.fillStyle=silver+'.55)';ctx.fillText('CODE',x1,yb);
+  const wCode=ctx.measureText('CODE').width;
+  ctx.fillStyle=silver+'.28)';ctx.fillRect(x1-wCode-9,yb-9,1,11);   // divisor
+  try{ctx.letterSpacing='4px';}catch(e){}
+  ctx.font='bold 12px monospace';ctx.fillStyle=silver+'.9)';ctx.fillText('VANT',x1-wCode-15,yb);
+  const wV=ctx.measureText('VANT').width,cx=x1-wCode-15-wV-14,cy=yb-4,r=8;
+  ctx.strokeStyle=silver+'.75)';ctx.lineWidth=1;ctx.beginPath();
+  for(let i=0;i<=6;i++){const a=i*Math.PI/3+Math.PI/6,px=cx+Math.cos(a)*r,py=cy+Math.sin(a)*r;if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py);}
+  ctx.stroke();
+  ctx.strokeStyle='rgba(95,212,255,.9)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx-4,cy-3.5);ctx.lineTo(cx,cy+4);ctx.lineTo(cx+4,cy-3.5);ctx.stroke();
+  ctx.fillStyle='rgba(255,181,71,'+(.55+.35*Math.sin(t*1.5)).toFixed(2)+')';ctx.fillRect(cx-.8,cy-5.5,1.6,1.6);   // punto ámbar que respira
+  try{ctx.letterSpacing='1px';}catch(e){}
+  ctx.font='7.5px monospace';ctx.fillStyle=silver+'.38)';ctx.fillText('© '+new Date().getFullYear()+' VANT code · Todos los derechos reservados',x1,H-7);
+  ctx.restore();
+}
 function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   const C=JX_C,t=_jx.t,now=Date.now();
   try{ctx.letterSpacing='1.2px';}catch(e){}
@@ -3221,25 +3242,41 @@ function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   const ncores=_jx.s.cores.length;
   ctx.fillStyle=jxRgba(C.g1,.75);ctx.fillText('CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s'+(busy?' · PROCESANDO':''),8,13);
   ctx.fillStyle=jxRgba(C.b1,.75);ctx.fillText('RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':''),8,25);
-  ctx.textAlign='right';ctx.fillStyle='rgba(205,215,220,.42)';ctx.fillText('© '+new Date().getFullYear()+' VANT code',W-8,H-7);
-  ctx.textAlign='left';
+  try{ctx.letterSpacing='0px';}catch(e){}
+  jxBrand(ctx,W,H);
   const L=(_jx.plist&&_jx.plist.top)||[];
-  if(!L.length){try{ctx.letterSpacing='0px';}catch(e){}return;}
-  const rows=Math.max(3,Math.min(8,Math.floor((H-(_jx.C.y+_jx.U.r*1.1)-24)/11))),bw=Math.min(W*.5,240),x0=8,y0=H-12-rows*11;
-  ctx.fillStyle=jxRgba(_pal&&_pal.base?_pal.base:'#050e09',.72);ctx.fillRect(x0-4,y0-11,bw+8,rows*11+17);
-  ctx.strokeStyle='rgba(255,181,71,.18)';ctx.lineWidth=1;ctx.strokeRect(x0-3.5,y0-10.5,bw+7,rows*11+16);
-  const nred=L.filter(function(p){return _jx.red[p.pid]>now;}).length,head='PROCESOS '+(_jx.plist.all||_jx.procs||'');
-  ctx.font='bold 9px monospace';ctx.fillStyle=jxRgba(C.g1,.9);ctx.fillText(head,x0,y0);
-  if(nred){ctx.fillStyle=jxRgba(C.r1,.6+.4*Math.abs(Math.sin(t*4)));ctx.fillText('  ⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':''),x0+ctx.measureText(head).width,y0);}
-  else{ctx.save();ctx.font='8px monospace';ctx.textAlign='right';ctx.fillStyle=jxRgba(C.g1,.5);ctx.fillText('CPU',x0+bw*.82,y0);ctx.fillStyle=jxRgba(C.b1,.5);ctx.fillText('MEM',x0+bw,y0);ctx.restore();}
-  ctx.font='9px monospace';
+  if(!L.length)return;
+  // recuadro de procesos: fondo sólido, barra de título, esquinas marcadas; los comprometidos con fondo rojo
+  const RH=13,rows=_jx.rows||6,bw=Math.min(W*.56,270),x0=10,boxH=rows*RH+30,y0=H-10-boxH;
+  const nred=L.slice(0,rows).filter(function(p){return _jx.red[p.pid]>now;}).length,alarm=nred>0,pulse=.5+.5*Math.sin(t*4);
+  const edge=alarm?C.r1:C.g1;
+  ctx.fillStyle=jxRgba((_pal&&_pal.base)||'#050e09',.9);ctx.fillRect(x0,y0,bw,boxH);
+  ctx.fillStyle=jxRgba(edge,alarm?.16+.1*pulse:.12);ctx.fillRect(x0,y0,bw,17);                 // barra de título
+  ctx.strokeStyle=jxRgba(edge,alarm?.45+.35*pulse:.5);ctx.lineWidth=1;ctx.strokeRect(x0+.5,y0+.5,bw-1,boxH-1);
+  ctx.strokeStyle=jxRgba(edge,.95);ctx.lineWidth=2;ctx.beginPath();                               // esquinas
+  [[x0,y0,1,1],[x0+bw,y0,-1,1],[x0,y0+boxH,1,-1],[x0+bw,y0+boxH,-1,-1]].forEach(function(k){ctx.moveTo(k[0]+k[2]*9,k[1]);ctx.lineTo(k[0],k[1]);ctx.lineTo(k[0],k[1]+k[3]*9);});
+  ctx.stroke();
+  try{ctx.letterSpacing='1.5px';}catch(e){}
+  ctx.font='bold 10px monospace';ctx.fillStyle=jxRgba(C.g0,.95);ctx.fillText('PROCESOS CRÍTICOS',x0+8,y0+12);
+  ctx.textAlign='right';
+  if(alarm){
+    const tag='⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':''),tw=ctx.measureText(tag).width+10;
+    ctx.fillStyle=jxRgba(C.r1,.25+.25*pulse);ctx.fillRect(x0+bw-6-tw,y0+3,tw,11);
+    ctx.fillStyle=jxRgba(C.r0,1);ctx.fillText(tag,x0+bw-11,y0+12);
+  }else{ctx.font='9px monospace';ctx.fillStyle=jxRgba(C.g1,.7);ctx.fillText((_jx.plist.all||_jx.procs||'')+' activos',x0+bw-8,y0+12);}
+  try{ctx.letterSpacing='.5px';}catch(e){}
+  ctx.font='8px monospace';ctx.fillStyle=jxRgba(C.g1,.55);ctx.fillText('CPU',x0+bw*.8,y0+28);ctx.fillStyle=jxRgba(C.b1,.55);ctx.fillText('MEM',x0+bw-8,y0+28);
+  ctx.textAlign='left';ctx.fillStyle=jxRgba(C.g0,.45);ctx.fillText('PROCESO',x0+8,y0+28);
+  ctx.font='10px monospace';
   L.slice(0,rows).forEach(function(p,i){
-    const y=y0+12+i*11,red=_jx.red[p.pid]>now,col=red?C.r1:C.g0,bl=red?.55+.45*Math.abs(Math.sin(t*5+i)):1,name=(red?'⚠ ':'')+p.name;
-    ctx.textAlign='left';ctx.fillStyle=jxRgba(col,(red?1:.72)*bl);ctx.fillText(name.length>18?name.slice(0,17)+'…':name,x0,y);
-    const bx=x0+bw*.48,bww=bw*.2,v=Math.min(1,p.cpu/25);
-    ctx.fillStyle=jxRgba(red?C.r2:C.g2,.3);ctx.fillRect(bx,y-6,bww,3);ctx.fillStyle=jxRgba(red?C.r1:C.g1,.9);ctx.fillRect(bx,y-6,bww*v,3);
-    ctx.textAlign='right';ctx.fillStyle=jxRgba(col,.82*bl);ctx.fillText(p.cpu.toFixed(1)+'%',x0+bw*.82,y);
-    ctx.fillStyle=jxRgba(red?C.r1:C.b1,.72*bl);ctx.fillText(p.mem.toFixed(1)+'%',x0+bw,y);
+    const y=y0+30+i*RH,red=_jx.red[p.pid]>now,bl=red?.6+.4*Math.abs(Math.sin(t*5+i)):1;
+    if(red){ctx.fillStyle=jxRgba(C.r1,.13+.1*bl);ctx.fillRect(x0+1,y+1,bw-2,RH-1);ctx.fillStyle=jxRgba(C.r1,.95);ctx.fillRect(x0+1,y+1,3,RH-1);}
+    const by=y+RH-3,name=(red?'⚠ ':'')+p.name;
+    ctx.textAlign='left';ctx.fillStyle=red?jxRgba(C.r0,bl):jxRgba(C.g0,.82);ctx.fillText(name.length>20?name.slice(0,19)+'…':name,x0+8,by);
+    const bx=x0+bw*.47,bww=bw*.2,v=Math.min(1,p.cpu/25);
+    ctx.fillStyle=jxRgba(red?C.r2:C.g2,.35);ctx.fillRect(bx,by-6,bww,4);ctx.fillStyle=jxRgba(red?C.r1:C.g1,.95);ctx.fillRect(bx,by-6,Math.max(1,bww*v),4);
+    ctx.textAlign='right';ctx.fillStyle=red?jxRgba(C.r0,bl):jxRgba(C.g1,.9);ctx.fillText(p.cpu.toFixed(1)+'%',x0+bw*.8,by);
+    ctx.fillStyle=red?jxRgba(C.r0,.85*bl):jxRgba(C.b1,.85);ctx.fillText(p.mem.toFixed(1)+'%',x0+bw-8,by);
   });
   ctx.textAlign='left';try{ctx.letterSpacing='0px';}catch(e){}
 }
@@ -3701,8 +3738,8 @@ function spDraw(cv){
   // Estado: carga = promedio de los tres canales; solo se toca el DOM cuando el texto cambia
   var pct=Math.round((_wv.cpu+_wv.ram+_wv.gpu)/3*100);
   var ss2=document.getElementById('sphere-status');
-  var sTxt='NEURAL LOAD: '+pct+'%|'+(pct>85?1:0)+'|'+c.mid;
-  if(ss2&&_wv.statusTxt!==sTxt){_wv.statusTxt=sTxt;ss2.textContent='NEURAL LOAD: '+pct+'%';ss2.style.color=pct>85?'#E24B4A':c.mid;}
+  var sTxt='SYSTEM LOAD: '+pct+'%|'+(pct>85?1:0)+'|'+c.mid;
+  if(ss2&&_wv.statusTxt!==sTxt){_wv.statusTxt=sTxt;ss2.textContent='SYSTEM LOAD: '+pct+'%';ss2.style.color=pct>85?'#E24B4A':c.mid;}
   var st=document.getElementById('sphere-stats');
   if(st){
     var nc=_wv.cores.length,hot=0,top1=0;
@@ -5383,7 +5420,7 @@ function spotAmbientReason(id){
     if(_watch.cloud&&_watch.cloud.issues)return 'NUBE · '+_watch.cloud.issues+' CON INCIDENCIAS';
     return 'CLIMA ESPACIAL'+(_watch.space&&_watch.space.kp?' · Kp '+(+_watch.space.kp.value).toFixed(1):'');
   }
-  if(id==='p-sphere')return 'NEURAL CORE'+(isNaN(_st.cpu)?'':' · CPU '+_st.cpu+'%');
+  if(id==='p-sphere')return 'SYSTEM PULSE'+(isNaN(_st.cpu)?'':' · CPU '+_st.cpu+'%');
   if(id==='p-wth')return 'CLIMA'+(_weatherData&&_weatherData.temp!=null?' · '+_weatherData.temp+'°':'')+(_air?' · AQI '+Math.round(_air.aqi):'');
   if(id==='p-nxlog')return _rain&&_rain.near&&_rain.cells>=3?'RADAR · LLUVIA A '+Math.round(_rain.near.km)+' km':'RADAR · SIN LLUVIA EN 300 km';
   return 'EVENTOS · '+(_evts||[]).filter(function(e){return ['storm','volcano','flood','tsunami'].indexOf(e.type)>=0;}).length+' ACTIVOS';
@@ -5412,7 +5449,7 @@ setInterval(spotAmbient,60000);
 setTimeout(spotPing,4000);setInterval(spotPing,60000);
 // Prueba desde ⚙: recorre tres paneles sin mirar las ventanas
 function spotTest(){
-  const seq=[['p-watch','PRUEBA · WATCH'],['p-sphere','PRUEBA · NEURAL CORE'],['p-gs','PRUEBA · EVENTOS']];
+  const seq=[['p-watch','PRUEBA · WATCH'],['p-sphere','PRUEBA · SYSTEM PULSE'],['p-gs','PRUEBA · EVENTOS']];
   seq.forEach(function(p,i){setTimeout(function(){spotStart({panel:p[0],reason:p[1],ms:5200,force:true,key:'test'});},i*6000);});
 }
 // ── Disparadores ────────────────────────────────────────────────────────────
@@ -6626,7 +6663,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
         <option value="off">Nunca</option>
       </select>
       <div class="cfg-toggle-row" style="margin-top:6px"><span>✨ Pulso en reposo (un panel al frente cada ~8 min si no pasa nada)</span><input type="checkbox" id="cfg-pulse"></div>
-      <div style="font-size:10px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (Neural Core), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
+      <div style="font-size:10px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (System Pulse), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
     </div>
     <div class="cfg-actions">
       <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
