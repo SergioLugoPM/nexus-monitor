@@ -372,8 +372,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     </div>
   </div>
   <div class="pnl" id="p-mtx" style="flex:1;min-height:180px;position:relative;overflow:hidden;">
-    <div class="lbl" id="l-mtx">MATRIX</div>
+    <div class="lbl" id="l-mtx"><span class="mtx-tab" data-t="matrix" onclick="mtxTab('matrix')">MATRIX</span><span class="mtx-tab" data-t="core" onclick="mtxTab('core')">NEURAL CORE</span></div>
     <canvas id="mtx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);"></canvas>
+    <canvas id="jx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);display:none;background:#020507"></canvas>
   </div>
 </div>
 
@@ -2527,6 +2528,7 @@ async function fetchStats(){
     _ncCpuLoad=Math.min(1,d.cpu.load/100);_ncRamLoad=Math.min(1,d.mem.percent/100);
     _ncCores=d.cpu.cores.map(v=>Math.min(1,v/100));
     _ncGpuLoad=Math.min(1,((d.gpu&&d.gpu.load)||0)/100);_ncGpuTemp=d.gpu&&d.gpu.temp!=null?d.gpu.temp:null;_ncGotStats=true;_ncStatsErr=false;
+    if(typeof _jx!=='undefined'){_jx.net=(d.net&&((d.net.upload||0)+(d.net.download||0)))||0;_jx.procs=+d.processes||0;_jx.memGB=d.mem.used;_jx.memTot=d.mem.total;_jx.gpuT=d.gpu&&d.gpu.temp;}
     try{spotScanStats(d);}catch(e){}
   }catch(e){_st.cpu=NaN;_ncStatsErr=true;}
 }
@@ -3301,6 +3303,7 @@ let _animId=null;
 function initMatrix(){
   const cv=document.getElementById('mtx-cv');if(!cv)return;
   if(_animId){cancelAnimationFrame(_animId);_animId=null;}
+  if(typeof _mtxTab!=='undefined'&&_mtxTab==='core'){if(typeof jxResize==='function')jxResize();return;}   // la pestaña NEURAL CORE está al frente: la lluvia de MATRIX no corre
   const c=_pal,W=cv.offsetWidth||300,H=cv.offsetHeight||180;if(W<4||H<4)return;
   cv.width=W;cv.height=H;const ctx=cv.getContext('2d'),cols=Math.floor(W/10),drops=Array.from({length:cols},()=>Math.floor(Math.random()*H/14));
   const chars='アイウエオABCDEF0123456789<>/|{}!@#';
@@ -3312,6 +3315,285 @@ function initMatrix(){
     ctx.fillStyle='rgba(0,0,0,0.075)';ctx.fillRect(0,0,W,H);ctx.font='10px monospace';for(let i=0;i<drops.length;i++){const x=i*10,y=drops[i]*14;ctx.fillStyle=c.hi;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y);ctx.fillStyle=c.mid;ctx.fillText(chars[Math.floor(Math.random()*chars.length)],x,y-14);if(y>H&&Math.random()>.975)drops[i]=0;drops[i]++;}_animId=requestAnimationFrame(draw);}
   draw(0);
 }
+
+// ── NEURAL CORE · J.A.R.V.I.S / ULTRON (pestaña dentro del panel MATRIX) ────
+// Basado en los hologramas de Animal Logic para Age of Ultron: JARVIS es una construcción "hecha por el hombre"
+// (globo dorado de anillos giroscópicos con núcleo, anillos exteriores que reaccionan como platos de disco duro y
+// cinta), Ultron una red azul orgánica que se reacomoda sola y por la que la información viaja en pulsos de causa y
+// efecto. Colores fijos (no siguen el tema). Datos reales: anillos = CPU y sus núcleos, cinta = red, malla = RAM/GPU,
+// lista = procesos con más CPU (/stats/procs). Al azar, algunos procesos "caen" en rojo: Ultron los toma, la fila se
+// marca y un pulso rojo recorre la red.
+var JX_C={g0:'#FFF3C4',g1:'#FFB547',g2:'#E07B1A',b0:'#E6FBFF',b1:'#5FD4FF',b2:'#1A6FD0',r0:'#FFD0C8',r1:'#FF3B2F',r2:'#A3120B'};
+var _jx={cv:null,ctx:null,W:0,H:0,raf:0,last:0,on:false,t:0,rings:[],nodes:[],edges:[],adj:[],pulses:[],dust:[],strands:[],
+  net:0,procs:0,memGB:NaN,memTot:NaN,gpuT:null,plist:null,pTimer:0,red:{},chainT:0,reT:0,ready:false};
+var _mtxTab='matrix';try{if(localStorage.getItem('nexus_mtxtab')==='core')_mtxTab='core';}catch(e){}
+function jxRgba(hex,a){const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a.toFixed(3)+')';}
+function mtxTab(t){
+  _mtxTab=t==='core'?'core':'matrix';try{localStorage.setItem('nexus_mtxtab',_mtxTab);}catch(e){}
+  const m=document.getElementById('mtx-cv'),j=document.getElementById('jx-cv');
+  if(m)m.style.display=_mtxTab==='core'?'none':'';if(j)j.style.display=_mtxTab==='core'?'':'none';
+  document.querySelectorAll('.mtx-tab').forEach(function(s){s.classList.toggle('on',s.dataset.t===_mtxTab);});
+  if(_mtxTab==='core'){if(_animId){cancelAnimationFrame(_animId);_animId=null;}jxStart();}
+  else{jxStop();initMatrix();}
+}
+function jxRand(a,b){return a+Math.random()*(b-a);}
+// JARVIS: anillos en planos inclinados distintos, cada uno con 2-4 arcos (anillos incompletos, como en la película)
+function jxBuild(){
+  const R=_jx.rings=[];
+  for(let i=0;i<8;i++){
+    const arcs=[],n=2+Math.floor(Math.random()*3);let a0=Math.random()*Math.PI*2;
+    for(let k=0;k<n;k++){const len=jxRand(.5,1.9);arcs.push([a0,len]);a0+=len+jxRand(.25,.9);}
+    R.push({r:.42+i*.075,tx:jxRand(-1.25,1.25),ty:jxRand(-1.25,1.25),rot:Math.random()*6.28,spin:jxRand(.25,.75)*(i%2?1:-1),arcs:arcs,w:jxRand(.7,1.7),a:jxRand(.45,.9)});
+  }
+  // ULTRON: nodos en 4 lóbulos (silueta irregular, tipo cerebro), cada uno con su vaivén propio
+  const lobes=[];for(let i=0;i<5;i++){const d=jxDir();lobes.push([d[0]*.3,d[1]*.25,d[2]*.28]);}
+  _jx.lobes=lobes;_jx.nodes=[];
+  for(let i=0;i<170;i++)_jx.nodes.push(jxNode());
+  jxLink();
+  _jx.dust=[];for(let i=0;i<80;i++)_jx.dust.push({x:jxRand(-1.5,1.5),y:jxRand(-1.2,1.2),vx:jxRand(-.02,.02),vy:jxRand(-.03,-.005),s:Math.random()<.12?jxRand(2.5,5):jxRand(.5,1.6),a:jxRand(.08,.45)});
+  _jx.strands=[];for(let i=0;i<4;i++)_jx.strands.push({n:Math.floor(Math.random()*170),ang:Math.random()*6.28,ph:Math.random()*6.28,pk:Math.random()});
+  _jx.ready=true;
+}
+function jxDir(){const u=Math.random()*2-1,t=Math.random()*6.28,s=Math.sqrt(1-u*u);return[s*Math.cos(t),u,s*Math.sin(t)];}
+function jxNode(){
+  const L=_jx.lobes[Math.floor(Math.random()*_jx.lobes.length)],d=jxDir(),r=Math.pow(Math.random(),.5)*.46;
+  return{b:[L[0]+d[0]*r,L[1]+d[1]*r*.9,L[2]+d[2]*r],to:null,ph:[Math.random()*6.28,Math.random()*6.28,Math.random()*6.28],am:jxRand(.025,.07),fr:jxRand(.3,.9),hot:Math.random()<.1,red:0,p:[0,0,0,1]};
+}
+// cada nodo se une a sus 3 vecinos más cercanos
+function jxLink(){
+  const N=_jx.nodes,E=[],adj=N.map(function(){return[];}),seen={};
+  for(let i=0;i<N.length;i++){
+    const d=[];for(let j=0;j<N.length;j++)if(j!==i){const a=N[i].b,b=N[j].b;d.push([(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2,j]);}
+    d.sort(function(x,y){return x[0]-y[0];});
+    for(let k=0;k<4;k++){const j=d[k][1],key=i<j?i+'-'+j:j+'-'+i;if(seen[key])continue;seen[key]=1;E.push([i,j]);adj[i].push(j);adj[j].push(i);}
+  }
+  _jx.edges=E;_jx.adj=adj;
+}
+function jxResize(){
+  const cv=_jx.cv;if(!cv)return;
+  const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);if(!W||!H)return;
+  if(W===_jx.W&&H===_jx.H)return;
+  cv.width=W;cv.height=H;_jx.W=W;_jx.H=H;
+  const wide=_jx.wide=W/H>1.25;   // ancho: lado a lado; alto: JARVIS arriba, Ultron abajo
+  // r es el radio base: lo más externo de JARVIS (la cinta) llega a 1.33·r y la red de Ultron a ~1·r
+  _jx.J=wide?{x:W*.28,y:H*.4,r:Math.min(W*.17,H*.27)}:{x:W*.32,y:H*.27,r:Math.min(W*.22,H*.17)};
+  _jx.U=wide?{x:W*.67,y:H*.44,r:Math.min(W*.22,H*.34)}:{x:W*.66,y:H*.56,r:Math.min(W*.28,H*.21)};
+}
+function jxStart(){
+  const cv=document.getElementById('jx-cv');if(!cv)return;
+  _jx.cv=cv;_jx.ctx=cv.getContext('2d');_jx.on=true;_jx.W=0;
+  if(!_jx.ready)jxBuild();
+  jxResize();jxProcs();
+  cancelAnimationFrame(_jx.raf);_jx.raf=requestAnimationFrame(jxLoop);
+}
+function jxStop(){_jx.on=false;cancelAnimationFrame(_jx.raf);clearTimeout(_jx.pTimer);}
+async function jxProcs(){
+  clearTimeout(_jx.pTimer);if(!_jx.on)return;
+  try{const r=await fetch('http://localhost:19234/stats/procs');if(r.ok){const d=await r.json();_jx.plist=d;jxReroll(false);}}catch(e){}
+  _jx.pTimer=setTimeout(jxProcs,15000);
+}
+// Al azar, 1-3 procesos pasan a rojo un rato (Ultron los "toma"): fila en rojo y un pulso rojo por la red
+function jxReroll(force){
+  const now=Date.now(),L=(_jx.plist&&_jx.plist.top)||[];
+  Object.keys(_jx.red).forEach(function(k){if(_jx.red[k]<now)delete _jx.red[k];});
+  if(!L.length)return;
+  const cur=Object.keys(_jx.red).length;if(cur>=3)return;   // nunca más de 3 en rojo a la vez
+  if(!force&&cur&&Math.random()<.5)return;
+  const n=Math.min(3-cur,1+Math.floor(Math.random()*2));
+  for(let i=0;i<n;i++){const p=L[Math.floor(Math.random()*L.length)];if(!_jx.red[p.pid]){_jx.red[p.pid]=now+jxRand(18000,45000);jxChain(true,3);}}
+}
+// Cadena de pulsos desde un nodo al azar; se propaga a los vecinos (causa y efecto)
+function jxChain(red,gens){
+  const N=_jx.nodes;if(!N.length)return;
+  const a=Math.floor(Math.random()*N.length),nb=_jx.adj[a];if(!nb||!nb.length)return;
+  _jx.pulses.push({a:a,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:jxRand(1.2,2.4),red:red,g:gens||0});
+  if(red)N[a].red=1;
+}
+function jxLoop(ts){
+  _jx.raf=requestAnimationFrame(jxLoop);
+  if(!_jx.on||ts-_jx.last<BG_ANIM_FRAME_MS)return;
+  const dt=Math.min(.12,(ts-(_jx.last||ts))/1000);_jx.last=ts;_jx.t+=dt;
+  const cv=_jx.cv;if(!cv||!cv.clientWidth)return;
+  if(cv.clientWidth!==_jx.W||cv.clientHeight!==_jx.H)jxResize();
+  jxFrame(dt);
+}
+function jxFrame(dt){
+  const ctx=_jx.ctx,W=_jx.W,H=_jx.H,t=_jx.t,C=JX_C;
+  const cpu=typeof _ncCpuLoad==='number'?_ncCpuLoad:.3,ram=typeof _ncRamLoad==='number'?_ncRamLoad:.5,gpu=_ncGpuLoad||0,busy=!!_ncAgentBusy;
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+  ctx.fillStyle='#020507';ctx.fillRect(0,0,W,H);
+  // retícula muy tenue de fondo
+  ctx.strokeStyle='rgba(95,212,255,.035)';ctx.lineWidth=1;ctx.beginPath();
+  for(let x=(t*4)%24;x<W;x+=24){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=0;y<H;y+=24){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
+  ctx.globalCompositeOperation='lighter';
+  jxUltron(ctx,dt,t,ram,gpu);
+  jxStrands(ctx,t);
+  jxJarvis(ctx,dt,t,cpu,busy);
+  ctx.globalCompositeOperation='source-over';
+  jxHud(ctx,W,H,cpu,ram,gpu,busy);
+}
+function jxJarvis(ctx,dt,t,cpu,busy){
+  const J=_jx.J,C=JX_C,sp=(.5+cpu*1.8)*(busy?2:1),gy=t*.18;
+  const cg=Math.cos(gy),sg=Math.sin(gy);
+  // anillos giroscópicos
+  _jx.rings.forEach(function(R,i){
+    R.rot+=R.spin*sp*dt;
+    const cx=Math.cos(R.tx),sx=Math.sin(R.tx),cy=Math.cos(R.ty),sy=Math.sin(R.ty);
+    R.arcs.forEach(function(A){
+      ctx.beginPath();let zs=0,n=0;
+      for(let s=0;s<=14;s++){
+        const a=R.rot+A[0]+A[1]*s/14;let x=Math.cos(a),y=Math.sin(a),z=0;
+        let y2=y*cx-z*sx,z2=y*sx+z*cx;y=y2;z=z2;
+        let x2=x*cy+z*sy;z2=-x*sy+z*cy;x=x2;z=z2;
+        x2=x*cg+z*sg;z2=-x*sg+z*cg;x=x2;z=z2;
+        const px=J.x+x*J.r*R.r,py=J.y+y*J.r*R.r;if(s)ctx.lineTo(px,py);else ctx.moveTo(px,py);zs+=z;n++;
+      }
+      const depth=.45+.55*((zs/n)+1)/2;
+      ctx.strokeStyle=jxRgba(C.g2,R.a*depth*.35);ctx.lineWidth=R.w*3.2;ctx.stroke();   // halo
+      ctx.strokeStyle=jxRgba(C.g1,R.a*depth);ctx.lineWidth=R.w;ctx.stroke();
+    });
+  });
+  // rayos hacia el núcleo, parpadean
+  ctx.lineWidth=.6;
+  for(let i=0;i<12;i++){
+    const a=i*.5236+t*.15+Math.sin(t*.7+i)*.2,l=J.r*(.3+.6*((Math.sin(t*1.3+i*2.1)+1)/2));
+    ctx.strokeStyle=jxRgba(C.g1,.18+.25*((Math.sin(t*3+i)+1)/2));
+    ctx.beginPath();ctx.moveTo(J.x,J.y);ctx.lineTo(J.x+Math.cos(a)*l,J.y+Math.sin(a)*l*.92);ctx.stroke();
+  }
+  // plato de marcas (gira con la CPU)
+  _jx.plat=(_jx.plat||0)+dt*(.4+cpu*3);
+  ctx.strokeStyle=jxRgba(C.g1,.55);ctx.lineWidth=1;ctx.beginPath();
+  for(let i=0;i<72;i++){const a=_jx.plat+i*Math.PI/36,r1=J.r*1.07,r2=r1+(i%6?3:7);ctx.moveTo(J.x+Math.cos(a)*r1,J.y+Math.sin(a)*r1);ctx.lineTo(J.x+Math.cos(a)*r2,J.y+Math.sin(a)*r2);}
+  ctx.stroke();
+  // anillo de núcleos: un segmento por núcleo, su grosor es la carga
+  const cores=(typeof _ncCores!=='undefined'&&_ncCores.length)?_ncCores:[cpu,cpu,cpu,cpu,cpu,cpu,cpu,cpu],n=cores.length,seg=Math.PI*2/n;
+  _jx.coreRot=(_jx.coreRot||0)+dt*.12;
+  for(let i=0;i<n;i++){
+    const l=cores[i],a0=_jx.coreRot+i*seg+.04,a1=a0+seg-.08;
+    ctx.strokeStyle=jxRgba(l>.85?C.r1:C.g1,.35+l*.6);ctx.lineWidth=1.5+l*7;
+    ctx.beginPath();ctx.arc(J.x,J.y,J.r*1.2+l*3,a0,a1);ctx.stroke();
+  }
+  // cinta exterior: el guion avanza con el tráfico de red
+  _jx.tape=(_jx.tape||0)+dt*(6+Math.min(60,_jx.net*25));
+  ctx.setLineDash([2,6]);ctx.lineDashOffset=-_jx.tape;ctx.strokeStyle=jxRgba(C.g1,busy?.85:.45);ctx.lineWidth=busy?2.2:1.2;
+  ctx.beginPath();ctx.arc(J.x,J.y,J.r*1.33,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  // núcleo
+  const cr=J.r*(.09+.05*cpu+(busy?.03*Math.sin(t*9):0)),g=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,cr*3);
+  g.addColorStop(0,jxRgba(C.g0,.95));g.addColorStop(.3,jxRgba(C.g1,.55));g.addColorStop(1,jxRgba(C.g2,0));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(J.x,J.y,cr*3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=jxRgba(C.g0,.9);ctx.lineWidth=1;ctx.beginPath();
+  for(let i=0;i<=6;i++){const a=i*Math.PI/3+t*.5;const px=J.x+Math.cos(a)*cr,py=J.y+Math.sin(a)*cr;if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py);}ctx.stroke();
+}
+function jxUltron(ctx,dt,t,ram,gpu){
+  const U=_jx.U,C=JX_C,N=_jx.nodes,ry=t*.12,rx=Math.sin(t*.07)*.35,cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
+  // reacomodo: cada pocos segundos unos nodos se van a otro sitio y la red se vuelve a tejer
+  _jx.reT-=dt;
+  if(_jx.reT<=0){_jx.reT=jxRand(2.5,5);for(let i=0;i<6;i++){const k=Math.floor(Math.random()*N.length),nn=jxNode();N[k].to=nn.b;N[k].tt=0;}}
+  let relink=false;
+  N.forEach(function(nd){
+    if(nd.to){nd.tt+=dt;const e=Math.min(1,nd.tt/1.2);for(let k=0;k<3;k++)nd.b[k]+=(nd.to[k]-nd.b[k])*e*.15;if(e>=1){nd.to=null;relink=true;}}
+    const s=t*nd.fr,x0=nd.b[0]+Math.sin(s+nd.ph[0])*nd.am,y0=nd.b[1]+Math.sin(s*1.1+nd.ph[1])*nd.am,z0=nd.b[2]+Math.sin(s*.9+nd.ph[2])*nd.am;
+    const x1=x0*cy+z0*sy,z1=-x0*sy+z0*cy,y1=y0*cx-z1*sx,z2=y0*sx+z1*cx;
+    nd.p[0]=U.x+x1*U.r*1.12;nd.p[1]=U.y+y1*U.r*1.12;nd.p[2]=z2;
+    if(nd.red>0)nd.red=Math.max(0,nd.red-dt*.25);
+  });
+  if(relink)jxLink();
+  // polvo / bokeh alrededor
+  _jx.dust.forEach(function(p){
+    p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y<-1.3){p.y=1.2;p.x=jxRand(-1.5,1.5);}
+    ctx.fillStyle=jxRgba(C.b1,p.a*(p.s>2?.35:1));ctx.beginPath();ctx.arc(U.x+p.x*U.r,U.y+p.y*U.r,p.s,0,Math.PI*2);ctx.fill();
+  });
+  // aristas
+  ctx.lineWidth=.6;ctx.strokeStyle=jxRgba(C.b1,.22+ram*.2);ctx.beginPath();
+  _jx.edges.forEach(function(e){const a=N[e[0]].p,b=N[e[1]].p;ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);});
+  ctx.stroke();
+  ctx.strokeStyle=jxRgba(C.r1,.5);ctx.beginPath();
+  _jx.edges.forEach(function(e){if(N[e[0]].red>.3&&N[e[1]].red>.3){const a=N[e[0]].p,b=N[e[1]].p;ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}});
+  ctx.stroke();
+  // nodos (los "calientes" con halo)
+  N.forEach(function(nd){
+    const d=.4+.6*(nd.p[2]+1)/2,col=nd.red>.15?C.r1:(nd.hot?C.b0:C.b1),r=(nd.hot?1.9:1.1)*d;
+    if(nd.hot||nd.red>.3){const g=ctx.createRadialGradient(nd.p[0],nd.p[1],0,nd.p[0],nd.p[1],r*6);g.addColorStop(0,jxRgba(col,.55*d));g.addColorStop(1,jxRgba(col,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(nd.p[0],nd.p[1],r*6,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle=jxRgba(col,.6+.4*d);ctx.beginPath();ctx.arc(nd.p[0],nd.p[1],r,0,Math.PI*2);ctx.fill();
+  });
+  // pulsos: nacen más seguido con GPU/RAM altas; ~12 % salen rojos
+  _jx.chainT-=dt;
+  if(_jx.chainT<=0){_jx.chainT=1/(.7+gpu*3+ram*1.2);jxChain(Math.random()<.12,0);}
+  const next=[];
+  _jx.pulses.forEach(function(p){
+    p.t+=p.v*dt;
+    const a=N[p.a].p,b=N[p.b].p,k=Math.min(1,p.t),x=a[0]+(b[0]-a[0])*k,y=a[1]+(b[1]-a[1])*k,k0=Math.max(0,k-.35);
+    ctx.strokeStyle=jxRgba(p.red?C.r1:C.b0,.85);ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(a[0]+(b[0]-a[0])*k0,a[1]+(b[1]-a[1])*k0);ctx.lineTo(x,y);ctx.stroke();
+    ctx.fillStyle=jxRgba(p.red?C.r0:C.b0,1);ctx.beginPath();ctx.arc(x,y,1.8,0,Math.PI*2);ctx.fill();
+    if(p.t<1){next.push(p);return;}
+    if(p.red)N[p.b].red=1;
+    // causa y efecto: el pulso sigue a 1-2 vecinos, cada vez con menos probabilidad
+    if(p.g<6&&next.length<60){const nb=_jx.adj[p.b].filter(function(j){return j!==p.a;});
+      const m=Math.random()<.35?2:1;for(let i=0;i<m&&nb.length;i++)if(Math.random()<.8-p.g*.1)next.push({a:p.b,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:p.v,red:p.red,g:p.g+1});}
+  });
+  _jx.pulses=next;
+}
+// hilos que unen la red de Ultron con los anillos de JARVIS (como cuando se tocan en la película)
+function jxStrands(ctx,t){
+  const J=_jx.J,U=_jx.U,C=JX_C,N=_jx.nodes;
+  _jx.strands.forEach(function(s,i){
+    const nd=N[s.n%N.length].p,a=s.ang+t*.2,ex=J.x+Math.cos(a)*J.r*1.2,ey=J.y+Math.sin(a)*J.r*1.2;
+    const mx=(nd[0]+ex)/2+Math.sin(t*.6+s.ph)*U.r*.3,my=(nd[1]+ey)/2+Math.cos(t*.5+s.ph)*U.r*.3;
+    const al=.25+.25*Math.sin(t*1.7+s.ph),g=ctx.createLinearGradient(nd[0],nd[1],ex,ey);
+    g.addColorStop(0,jxRgba(C.b1,al));g.addColorStop(1,jxRgba(C.g1,al));
+    ctx.strokeStyle=g;ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(nd[0],nd[1]);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke();
+    s.pk=(s.pk+.006+i*.001)%1;const q=s.pk,u=1-q,px=u*u*nd[0]+2*u*q*mx+q*q*ex,py=u*u*nd[1]+2*u*q*my+q*q*ey;
+    ctx.fillStyle=jxRgba(q<.5?C.b0:C.g0,.9);ctx.beginPath();ctx.arc(px,py,1.5,0,Math.PI*2);ctx.fill();
+    if(Math.random()<.002)s.n=Math.floor(Math.random()*N.length);
+  });
+}
+function jxHud(ctx,W,H,cpu,ram,gpu,busy){
+  const C=JX_C,J=_jx.J,U=_jx.U,t=_jx.t;
+  ctx.font='9px monospace';ctx.textBaseline='alphabetic';
+  try{ctx.letterSpacing='1.5px';}catch(e){}
+  // rótulos con línea guía, como las llamadas de la película
+  const tag=function(x0,y0,x1,y1,title,sub,col,right){
+    ctx.strokeStyle=jxRgba(col,.6);ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.lineTo(x1+(right?-28:28),y1);ctx.stroke();
+    ctx.fillStyle=jxRgba(col,.95);ctx.textAlign=right?'right':'left';ctx.font='bold 10px monospace';ctx.fillText(title,x1+(right?-32:32),y1+3);
+    ctx.font='9px monospace';ctx.fillStyle=jxRgba(col,.7);String(sub).split('|').forEach(function(l,i){ctx.fillText(l,x1+(right?-32:32),y1+15+i*11);});
+  };
+  const ncores=(typeof _ncCores!=='undefined'&&_ncCores.length)||0;
+  const jt=busy?'J.A.R.V.I.S · PROCESANDO':'J.A.R.V.I.S',js='CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s';
+  const ut='ULTRON',us='RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':'');
+  if(_jx.wide){   // lado a lado: JARVIS arriba a la izquierda, ULTRON arriba a la derecha
+    tag(J.x-J.r*.7,J.y-J.r*.7,Math.max(10,J.x-J.r*1.15),Math.max(14,J.y-J.r*1.2),jt,js,C.g1,false);
+    tag(U.x+U.r*.5,U.y-U.r*.55,Math.min(W-10,U.x+U.r*1.1),Math.max(14,U.y-U.r*1.15),ut,us,C.b1,true);
+  }else{          // apilado: JARVIS a la derecha de su esfera, ULTRON abajo a la derecha (libre de la lista)
+    tag(J.x+J.r*.75,J.y-J.r*.55,Math.min(W-150,J.x+J.r*1.45),Math.max(14,J.y-J.r*.95),jt,js.replace(' · RED','|RED'),C.g1,false);
+    tag(U.x+U.r*.6,U.y+U.r*.6,W-10,Math.min(H-34,U.y+U.r*1.2),ut,us.replace(' · GPU','|GPU'),C.b1,true);
+  }
+  // lista de procesos (abajo a la izquierda): los tomados por Ultron en rojo y parpadeando
+  const L=(_jx.plist&&_jx.plist.top)||[],now=Date.now();
+  if(!L.length)return;
+  const rows=Math.max(3,Math.min(8,Math.floor(H*.22/11))),bw=Math.min(W*.42,230),x0=8,y0=H-10-rows*11-14;
+  ctx.fillStyle='rgba(2,5,7,.72)';ctx.fillRect(x0-4,y0-11,bw+8,rows*11+20);
+  ctx.strokeStyle='rgba(255,181,71,.22)';ctx.lineWidth=1;ctx.strokeRect(x0-3.5,y0-10.5,bw+7,rows*11+19);
+  ctx.textAlign='left';ctx.font='bold 9px monospace';ctx.fillStyle=jxRgba(C.g1,.9);
+  const nred=L.filter(function(p){return _jx.red[p.pid]>now;}).length;
+  ctx.fillText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+(nred?'  ·  ':''),x0,y0);
+  if(ctx.measureText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+(nred?'  ·  ⚠ 3 ULTRON':'')).width<bw*.48){ctx.save();ctx.font='8px monospace';ctx.textAlign='right';ctx.fillStyle=jxRgba(C.g1,.55);ctx.fillText('CPU',x0+bw*.86,y0);ctx.fillStyle=jxRgba(C.b1,.55);ctx.fillText('MEM',x0+bw,y0);ctx.restore();}
+  if(nred){ctx.fillStyle=jxRgba(C.r1,.6+.4*Math.abs(Math.sin(t*4)));ctx.fillText('⚠ '+nred+' ULTRON',x0+ctx.measureText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+'  ·  ').width,y0);}
+  ctx.font='9px monospace';
+  L.slice(0,rows).forEach(function(p,i){
+    const y=y0+13+i*11,red=_jx.red[p.pid]>now,col=red?C.r1:C.g0,bl=red?.55+.45*Math.abs(Math.sin(t*5+i)):1;
+    const name=(red?'⚠ ':'')+p.name;
+    ctx.fillStyle=jxRgba(col,(red?1:.75)*bl);ctx.fillText(name.length>18?name.slice(0,17)+'…':name,x0,y);
+    const bx=x0+bw*.5,bww=bw*.2,v=Math.min(1,p.cpu/25);
+    ctx.fillStyle=jxRgba(red?C.r2:C.g2,.35);ctx.fillRect(bx,y-6,bww,4);
+    ctx.fillStyle=jxRgba(red?C.r1:C.g1,.9);ctx.fillRect(bx,y-6,bww*v,4);
+    ctx.textAlign='right';ctx.fillStyle=jxRgba(col,.85*bl);ctx.fillText(p.cpu.toFixed(1)+'%',x0+bw*.86,y);ctx.fillStyle=jxRgba(red?C.r1:C.b1,.75*bl);ctx.fillText(p.mem.toFixed(1)+'%',x0+bw,y);ctx.textAlign='left';
+  });
+  try{ctx.letterSpacing='0px';}catch(e){}
+}
+// arranque: aplica la pestaña guardada cuando el panel ya existe
+setTimeout(function(){mtxTab(_mtxTab);},400);
+// cada 20-40 s se vuelven a sortear los procesos en rojo aunque no haya lista nueva
+setInterval(function(){if(_jx.on&&Math.random()<.6)jxReroll(true);},25000);
 
 // ── NEWS TICKER ────────────────────────────────────────────────────────────
 let _tickerAnim = null;
@@ -3858,7 +4140,9 @@ document.querySelectorAll('.pnl').forEach(function(p){
   var tb = p.firstElementChild;
   if(tb && (tb.classList.contains('lbl') || tb.querySelector('.lbl') !== null)) {
     tb.classList.add('title-bar');
-    if(tb.classList.contains('lbl')) {
+    if(tb.classList.contains('lbl') && tb.querySelector('[onclick]')) {
+       tb.innerHTML = '<span class="tb-text">' + tb.innerHTML + '</span>';   // títulos con pestañas (MATRIX / NEURAL CORE): se conservan los botones
+    } else if(tb.classList.contains('lbl')) {
        var txt = tb.textContent.trim().toLowerCase();
        txt = txt.charAt(0).toUpperCase() + txt.slice(1);
        tb.innerHTML = '<span class="tb-text">' + txt + '</span>';
@@ -6478,6 +6762,10 @@ function initSnake(canvas){
 #wmap-wrap.mz-on #wmap { cursor:grab; }
 #wmap-wrap.mz-drag #wmap, #wmap-wrap.mz-drag #wmap * { cursor:grabbing !important; }
 .mz-btn { min-width:9px; text-align:center; font-weight:bold; }
+/* Pestañas del panel MATRIX: MATRIX / NEURAL CORE */
+.mtx-tab { cursor:pointer; opacity:.42; margin-right:14px; padding-bottom:1px; user-select:none; }
+.mtx-tab:hover { opacity:.8; }
+.mtx-tab.on { opacity:1; border-bottom:1px solid currentColor; }
 /* Ficha de la zona (arriba a la derecha del mapa, solo con zoom) */
 #zone-card { display:none; position:absolute; top:8px; right:8px; z-index:20; width:230px; padding:8px 10px; border:1px solid; border-radius:4px;
   font-family:monospace; font-size:11px; line-height:1.45; pointer-events:none; backdrop-filter:blur(2px); }
