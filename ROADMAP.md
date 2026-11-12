@@ -1237,15 +1237,18 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   "© año VANT code · Todos los derechos reservados"). Recuadro "PROCESOS CRÍTICOS" con fondo sólido, barra de título,
   esquinas; en alarma el borde y la etiqueta laten en rojo y las filas comprometidas llevan fondo rojo.
 
-### Reacomodo de paneles (11-nov-2026, noche)
+### Reacomodo de paneles (11-nov-2026, noche; versión final)
 
-- La franja WATCH vive ahora dentro de GLOBAL STATUS (`#gs-watch-wrap`, mismo `#wstrip-body`, clic = pestaña WATCH);
-  el panel `p-watch` ya no existe y MATRIX / NEURAL CORE ocupa su lugar en la columna izquierda (alto y angosto).
-  Todas las alertas que iban a `p-watch` van a `p-gs`; el pulso en reposo ya no incluye WATCH.
-- Sin repetidos: se quitó el recuadro SOLAR X-RAY (está en clima espacial) y RECENT EVENTS ya no lista sismos (la
-  sección SISMOS · 24 H los trae, mundo + SSN).
-- "DEFCON" → GEO-SOLAR ACTIVITY (CALM / ACTIVE / ELEVATED / HIGH / EXTREME): es un índice propio que suma clase de
-  llamarada solar, Kp y energía sísmica de 24 h; no es un nivel oficial (tooltip lo explica).
+- Columna izquierda: STORAGE → NETWORK → WATCH (franja, `p-watch`). Columna B: GLOBAL STATUS. Abajo, a lo ancho de
+  las dos: MATRIX / NEURAL CORE. La fila de arriba mide lo que pide su contenido (`flex:0 1 auto`, tope 60 %) y
+  MATRIX se queda con el resto (≈1168×717 en 3440×1440).
+- GLOBAL STATUS: GEO-SOLAR ACTIVITY (antes "DEFCON": índice propio = clase de llamarada solar + Kp + energía
+  sísmica; CALM / ACTIVE / ELEVATED / HIGH / EXTREME), CO₂ · luna · basura espacial, energía sísmica · aviones,
+  24H PULSE, histograma SEISMIC 24H y ESTADO DE LA NUBE (`#gs-cloud`, lo llena `wStripRender`; se movió aquí para
+  que las dos columnas queden del mismo alto). Sin SOLAR X-RAY (está en clima espacial) y RECENT EVENTS oculto
+  (`#gs-ev-wrap` display:none; el código lo sigue llenando sin errores).
+- WATCH: clima espacial, avisos y SISMOS · 24 H (hasta 16; `wsFit` recorta si no caben).
+- Alertas: sismos, tsunamis, clima espacial e internet amplían WATCH; fallas de la nube amplían GLOBAL STATUS.
 - SNAKE e INVADERS ocultos: sin pestañas ni atajos Alt+S/Alt+I; el código sigue en el archivo.
 
 ## Temas visuales
