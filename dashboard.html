@@ -3730,7 +3730,9 @@ function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   ctx.font='bold 11px monospace';ctx.fillStyle=jxRgba(C.g0,.95);ctx.fillText('PROCESOS CRÍTICOS',x0+8,y0+12);
   ctx.textAlign='right';
   if(alarm){
-    const tag='⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':''),tw=ctx.measureText(tag).width+10;
+    let tag='⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':'');
+    if(ctx.measureText('PROCESOS CRÍTICOS').width+ctx.measureText(tag).width+30>bw)tag='⚠ '+nred;   // no encimar con el título
+    const tw=ctx.measureText(tag).width+10;
     ctx.fillStyle=jxRgba(C.r1,.25+.25*pulse);ctx.fillRect(x0+bw-6-tw,y0+3,tw,11);
     ctx.fillStyle=jxRgba(C.r0,1);ctx.fillText(tag,x0+bw-11,y0+12);
   }else{ctx.font='11px monospace';ctx.fillStyle=jxRgba(C.g1,.7);ctx.fillText((_jx.plist.all||_jx.procs||'')+' activos',x0+bw-8,y0+12);}
