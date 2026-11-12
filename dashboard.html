@@ -2126,9 +2126,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
           <span style="font-size:32px;font-weight:bold;opacity:.5;color:#E24B4A;">:</span>
           <span id="doom-m" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">58</span>
           <span style="font-size:32px;font-weight:bold;opacity:.5;color:#E24B4A;">:</span>
-          <span id="doom-s" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">31</span>
+          <span id="doom-s" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">35</span>
         </div>
-        <div id="doom-label" style="font-size:11px;letter-spacing:2px;font-weight:bold;color:#E24B4A;margin-top:2px;">89 SEC TO MIDNIGHT</div>
+        <div id="doom-label" style="font-size:11px;letter-spacing:2px;font-weight:bold;color:#E24B4A;margin-top:2px;">85 SEC TO MIDNIGHT</div>
         <div style="width:100%;height:3px;border-radius:2px;background:rgba(226,75,74,0.15);margin-top:2px;overflow:hidden;"><div id="doom-bar" style="height:100%;border-radius:2px;background:#E24B4A;width:0%;transition:width 0.3s;"></div></div>
       </div>
     </div>
@@ -2453,7 +2453,7 @@ function updateTime(){
 // ── SINGULARITY ────────────────────────────────────────────────────────────
 const SING_TARGET=new Date('2045-01-01T00:00:00Z').getTime();
 const SING_START=new Date('1950-01-01T00:00:00Z').getTime();
-const DOOM_SECS=89; // Bulletin: 89 seconds to midnight (2024)
+const DOOM_SECS=85; // Bulletin of the Atomic Scientists: 85 s to midnight (27-ene-2026; 2025 eran 89). Se revisa cada enero
 function updateSingularity(){
   const c=_pal,now=Date.now(),diff=SING_TARGET-now;if(diff<=0)return;
   const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000),s=Math.floor((diff%60000)/1000);
@@ -2474,15 +2474,16 @@ function updateSingularity(){
   updateDoomClock(s);
 }
 function updateDoomClock(sec){
-  // 89 seconds to midnight = 11:58:31
-  var doomSec=60-DOOM_SECS%60; // 31
+  // 85 s to midnight = 11:58:35
+  var doomSec=60-DOOM_SECS%60; // 35
   var doomMin=59-Math.floor(DOOM_SECS/60); // 58
   // Tick the seconds display with real seconds for life
   var displaySec=(doomSec+sec)%60;
   var dh=document.getElementById('doom-h');if(dh)dh.textContent='11';
   var dm=document.getElementById('doom-m');if(dm)dm.textContent=String(doomMin).padStart(2,'0');
   var ds=document.getElementById('doom-s');if(ds)ds.textContent=String(displaySec).padStart(2,'0');
-  // Danger bar: how close to midnight (89 sec out of 720 sec = last 12 min)
+  var dl=document.getElementById('doom-label');if(dl)dl.textContent=DOOM_SECS+' SEC TO MIDNIGHT';
+  // Danger bar: how close to midnight (DOOM_SECS out of 720 sec = last 12 min)
   var db=document.getElementById('doom-bar');if(db)db.style.width=((720-DOOM_SECS)/720*100).toFixed(1)+'%';
   // Border separator color
   var dw=document.getElementById('doom-wrap');if(dw)dw.style.borderLeftColor=_pal.lo;
