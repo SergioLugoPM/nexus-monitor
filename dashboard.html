@@ -309,20 +309,21 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         </div>
         <canvas id="net-cv" height="30"></canvas>
       </div>
-      <div class="pnl grow" id="p-watch" onclick="showView('watch')" title="Clic: abrir WATCH (detalle)">
-        <div class="lbl" id="l-watch">WATCH</div>
-        <div id="wstrip-body"></div>
+      <div class="pnl grow" id="p-mtx" style="min-height:180px;position:relative;overflow:hidden;">
+        <div class="lbl" id="l-mtx"><span class="mtx-tab" data-t="matrix" onclick="mtxTab('matrix')">MATRIX</span><span class="mtx-tab" data-t="core" onclick="mtxTab('core')">NEURAL CORE</span></div>
+        <canvas id="mtx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);"></canvas>
+        <canvas id="jx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);display:none"></canvas>
       </div>
     </div>
     <div class="col" style="flex:1;min-width:0;">
       <div class="pnl grow" id="p-gs">
   <div class="lbl" id="l-gs">GLOBAL STATUS</div>
-  <div id="gs-defcon" style="margin-bottom:6px">
-    <div class="sub-lbl">DEFCON</div>
+  <div id="gs-defcon" style="margin-bottom:6px" title="Índice propio de Nexus (no es un nivel oficial): suma la clase de las llamaradas solares (rayos X), la tormenta geomagnética (índice Kp) y la energía sísmica liberada en 24 h. 5 = calma · 1 = extremo">
+    <div class="sub-lbl">GEO-SOLAR ACTIVITY</div>
     <div id="gs-defcon-val" style="font-size:22px;letter-spacing:.05em">◼◼◼◼◻</div>
     <div id="gs-defcon-lvl" style="font-size:10px"></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
     <div>
       <div class="sub-lbl">CO₂ PPM</div>
       <div id="gs-co2" style="font-size:18px;font-weight:500">—</div>
@@ -333,24 +334,16 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <div id="gs-moon" style="font-size:18px">—</div>
       <div id="gs-moon-name" style="font-size:9px"></div>
     </div>
+    <div>
+      <div class="sub-lbl">DEBRIS</div>
+      <div id="gs-debris" style="font-size:16px;font-weight:500">—</div>
+    </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
-    <div>
-      <div class="sub-lbl">SOLAR X-RAY</div>
-      <div id="gs-solar" style="font-size:18px;font-weight:500">—</div>
-      <div id="gs-solar-sub" style="font-size:9px">flux</div>
-    </div>
     <div>
       <div class="sub-lbl">SEISMIC E</div>
       <div id="gs-seismic-e" style="font-size:14px;font-weight:500">—</div>
       <div id="gs-seismic-sub" style="font-size:9px">joules / 24h</div>
-    </div>
-  </div>
-  <div id="gs-seismic-alert" style="display:none;font-size:11px;line-height:1.5;margin-bottom:6px;padding:5px 7px;border-radius:2px" title="Nivel base: 2.87 sismos M6+/semana, promedio global USGS 2000-2024"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <div>
-      <div class="sub-lbl">DEBRIS</div>
-      <div id="gs-debris" style="font-size:16px;font-weight:500">—</div>
     </div>
     <div>
       <div class="sub-lbl">AVIATION</div>
@@ -358,9 +351,14 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <div id="gs-aviation-note" style="font-size:9px">flights live</div>
     </div>
   </div>
+  <div id="gs-seismic-alert" style="display:none;font-size:11px;line-height:1.5;margin-bottom:6px;padding:5px 7px;border-radius:2px" title="Nivel base: 2.87 sismos M6+/semana, promedio global USGS 2000-2024"></div>
   <div id="gs-pulse-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px">
     <div class="sub-lbl">24H PULSE</div>
     <div id="gs-pulse" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px"></div>
+  </div>
+  <div id="gs-watch-wrap" onclick="showView('watch')" title="Clic: abrir WATCH (detalle)" style="border-top:.5px solid;padding-top:6px;margin-top:8px;flex:1.4;display:flex;flex-direction:column;min-height:0;overflow:hidden;cursor:pointer">
+    <div class="sub-lbl">WATCH · CLIMA ESPACIAL · AVISOS · NUBE · SISMOS</div>
+    <div id="wstrip-body" style="margin-top:4px"></div>
   </div>
   <div id="gs-ev-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden">
     <div class="sub-lbl">RECENT EVENTS</div>
@@ -370,11 +368,6 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   </div>
 </div>
     </div>
-  </div>
-  <div class="pnl" id="p-mtx" style="flex:1;min-height:180px;position:relative;overflow:hidden;">
-    <div class="lbl" id="l-mtx"><span class="mtx-tab" data-t="matrix" onclick="mtxTab('matrix')">MATRIX</span><span class="mtx-tab" data-t="core" onclick="mtxTab('core')">NEURAL CORE</span></div>
-    <canvas id="mtx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);"></canvas>
-    <canvas id="jx-cv" style="position:absolute;top:22px;left:0;width:100%;height:calc(100% - 22px);display:none"></canvas>
   </div>
 </div>
 
@@ -396,8 +389,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div id="view-tabs">
       <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
       <button class="vtab" data-view="terminal" onclick="showView('terminal')" title="Alt+T">⌥T&nbsp;TERM</button>
-      <button class="vtab" data-view="snake" onclick="showView('snake')" title="Alt+S">⌥S&nbsp;SNAKE</button>
-      <button class="vtab" data-view="invaders" onclick="showView('invaders')" title="Alt+I">⌥I&nbsp;INVADERS</button>
+      <!-- SNAKE e INVADERS ocultos a pedido (11-nov-2026); el código sigue abajo por si se quieren de vuelta -->
       <button class="vtab" data-view="lan" onclick="showView('lan')" title="Alt+R">⌥R&nbsp;RED</button>
       <button class="vtab" data-view="watch" onclick="showView('watch')" title="Alt+W">⌥W&nbsp;WATCH</button>
       <button class="vtab" data-view="explorer" id="vtab-explorer" data-electron-only="1" onclick="showView('explorer')" title="Alt+F" style="display:none">⌥F&nbsp;EXPLORER</button>
@@ -2239,7 +2231,7 @@ function showView(name){
 document.addEventListener('keydown',function(e){
   if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
   if(!e.altKey||e.ctrlKey||e.metaKey)return;
-  const vm={KeyG:'map',KeyT:'terminal',KeyS:'snake',KeyI:'invaders',KeyR:'lan',KeyF:'explorer',KeyP:'proc',KeyA:'agent',KeyW:'watch'};
+  const vm={KeyG:'map',KeyT:'terminal',KeyR:'lan',KeyF:'explorer',KeyP:'proc',KeyA:'agent',KeyW:'watch'};
   if(vm[e.code]){showView(vm[e.code]);e.preventDefault();}
 });
 
@@ -3397,7 +3389,8 @@ function jxResize(){
   if(W===_jx.W&&H===_jx.H)return;
   cv.width=W;cv.height=H;_jx.W=W;_jx.H=H;_jx.bgKey='';
   _jx.rows=Math.max(4,Math.min(8,Math.floor((H*.3-30)/13)));
-  const listH=_jx.rows*13+40,avail=H-listH-30,R=Math.min(W*.36,avail*.46),cy=30+avail/2;   // el recuadro de procesos ocupa ~30 % del alto
+  const narrow=_jx.narrow=W<420;   // panel angosto (columna izquierda): recuadro a todo lo ancho y la firma debajo
+  const listH=_jx.rows*13+40+(narrow?28:0),avail=H-listH-30,R=Math.min(W*(narrow?.4:.36),avail*.46),cy=30+avail/2;   // el recuadro de procesos ocupa ~30 % del alto
   _jx.C={x:W/2,y:cy};
   _jx.U={x:W/2,y:cy,r:R};          // cáscara azul
   _jx.J={x:W/2,y:cy,r:R*.6};       // núcleo dorado dentro (sus cintas llegan a ~0.76·R)
@@ -3642,7 +3635,7 @@ function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   const L=(_jx.plist&&_jx.plist.top)||[];
   if(!L.length)return;
   // recuadro de procesos: fondo sólido, barra de título, esquinas marcadas; los comprometidos con fondo rojo
-  const RH=13,rows=_jx.rows||6,bw=Math.min(W*.56,270),x0=10,boxH=rows*RH+30,y0=H-10-boxH;
+  const RH=13,rows=_jx.rows||6,bw=_jx.narrow?W-20:Math.min(W*.56,270),x0=10,boxH=rows*RH+30,y0=H-10-boxH-(_jx.narrow?28:0);
   const nred=L.slice(0,rows).filter(function(p){return _jx.red[p.pid]>now;}).length,alarm=nred>0,pulse=.5+.5*Math.sin(t*4);
   const edge=alarm?C.r1:C.g1;
   ctx.fillStyle=jxRgba((_pal&&_pal.base)||'#050e09',.9);ctx.fillRect(x0,y0,bw,boxH);
@@ -3807,7 +3800,7 @@ function renderGSPulseAndEvents(events) {
     const isCritType = e => e.type==='quake' ? (e.mag||0)>=6.0 : !!EVENT_CRIT[e.type];
     const significant = events
       .filter(e => {
-        if(e.type==='quake') return (e.mag||0)>=4.5;
+        if(e.type==='quake') return false;   // los sismos ya van en la sección WATCH de este mismo panel (mundo + SSN)
         if(e.type==='fire') return false;
         return ['volcano','storm','flood','news','tsunami'].includes(e.type);
       })
@@ -3878,14 +3871,14 @@ function computeDefcon(d) {
   else if (d.seismicEnergyJ > 1e15) score += 15;
   else if (d.seismicEnergyJ > 1e12) score += 5;
   const level = score < 10 ? 5 : score < 25 ? 4 : score < 50 ? 3 : score < 75 ? 2 : 1;
-  const names = {5:'PEACETIME',4:'ELEVATED',3:'GUARDED',2:'HIGH',1:'CRITICAL'};
+  const names = {5:'CALM',4:'ACTIVE',3:'ELEVATED',2:'HIGH',1:'EXTREME'};   // antes "DEFCON": es un índice geo-solar propio, no militar
   const filled = 6 - level;
   const c = currentPalette();
   const defColors = {5:c.mid, 4:c.hi, 3:c.warn, 2:c.neg, 1:'#ff0000'};
   const dv = document.getElementById('gs-defcon-val');
   const dl = document.getElementById('gs-defcon-lvl');
   if (dv) { dv.textContent = '◼'.repeat(filled) + '◻'.repeat(5-filled); dv.style.color = defColors[level]; }
-  if (dl) { dl.textContent = 'DEFCON '+level+' — '+names[level]; dl.style.color = defColors[level]; }
+  if (dl) { dl.textContent = 'NIVEL '+level+'/5 — '+names[level]+' · sol · geomagnetismo · sismos'; dl.style.color = defColors[level]; }
 }
 
 // ── DAY/NIGHT TERMINATOR ───────────────────────────────────────────────────
@@ -5806,7 +5799,7 @@ function spotLog(k,r){_spot.log.push({t:new Date().toTimeString().slice(0,8),k:k
 // Con el escritorio libre la PC suele estar quieta (CPU/GPU/red no se mueven) y los eventos del mundo son raros,
 // así que sin esto el spotlight casi nunca se vería. Si pasan ~8 min sin ningún destaque, el panel que lleva más
 // tiempo sin mostrarse pasa al frente 14 s con un dato vivo. Desactivable en ⚙ ("Pulso en reposo").
-var AMB_PANELS=['p-watch','p-sphere','p-wth','p-nxlog','p-gs'];
+var AMB_PANELS=['p-gs','p-sphere','p-wth','p-nxlog'];
 function spotAmbientReason(id){
   const now=Date.now();
   if(id==='p-watch'){
@@ -5844,7 +5837,7 @@ setInterval(spotAmbient,60000);
 setTimeout(spotPing,4000);setInterval(spotPing,60000);
 // Prueba desde ⚙: recorre tres paneles sin mirar las ventanas
 function spotTest(){
-  const seq=[['p-watch','PRUEBA · WATCH'],['p-sphere','PRUEBA · SYSTEM PULSE'],['p-gs','PRUEBA · EVENTOS']];
+  const seq=[['p-gs','PRUEBA · GLOBAL STATUS'],['p-sphere','PRUEBA · SYSTEM PULSE'],['p-nxlog','PRUEBA · RADAR']];
   seq.forEach(function(p,i){setTimeout(function(){spotStart({panel:p[0],reason:p[1],ms:5200,force:true,key:'test'});},i*6000);});
 }
 // ── Disparadores ────────────────────────────────────────────────────────────
@@ -5871,10 +5864,10 @@ function spotScanEvents(evts){
     const hlQuake=function(el){return spotRows(el,'.ws-row',function(r){return (r.title||'').indexOf(e.place||'\u0000')===0;});};
     const hlEv=function(el){const s=(e.label||'').slice(0,18);return spotRows(el,'#gs-events > div',function(r){return spotTxt(r,s);});};
     const hlTsu=function(el){return spotRows(el,'.ws-row',function(r){return spotTxt(r,'🌊')&&!spotTxt(r,'sin avisos');});};
-    if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4',hl:hlTsu,ws:{k:''}});
+    if(e.type==='tsunami')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4',hl:hlTsu,ws:{k:''}});
     else if(e.type==='quake'){
-      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR,hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
-      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A',hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
+      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR,hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
+      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A',hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
     }
     else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6',hl:hlEv});
     else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000,hl:hlEv});
@@ -5885,24 +5878,24 @@ function spotScanWatch(key){
   const W=_watch,first=!_spot.wb[key];_spot.wb[key]=true;
   if(key==='space'&&W.space){
     const kp=W.space.kp?W.space.kp.value:0,G=W.space.scales?W.space.scales.now.G:0;
-    if(!first&&((kp>=SPOT_T.kp&&_spot.lastKp<SPOT_T.kp)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-watch',key:'space-storm',reason:(G>=1?'TORMENTA GEOMAGNÉTICA':'ACTIVIDAD GEOMAGNÉTICA')+' · Kp '+(+kp).toFixed(1),pri:G>=1?60:40,ms:26000,cool:1800000,color:'#F0883E',
+    if(!first&&((kp>=SPOT_T.kp&&_spot.lastKp<SPOT_T.kp)||(G>=1&&_spot.lastG<1)))spotTrigger({panel:'p-gs',key:'space-storm',reason:(G>=1?'TORMENTA GEOMAGNÉTICA':'ACTIVIDAD GEOMAGNÉTICA')+' · Kp '+(+kp).toFixed(1),pri:G>=1?60:40,ms:26000,cool:1800000,color:'#F0883E',
       hl:function(el){return el.querySelectorAll('.ws-sec[data-k="CLIMA ESPACIAL"] .ws-row');}});
     _spot.lastKp=kp;_spot.lastG=G;
   }else if(key==='cloud'&&W.cloud){
     W.cloud.services.forEach(function(sv){
       const sev=(sv.level==='major'||sv.level==='critical'),was=_spot.lastCloud[sv.id];
-      if(!first&&sev&&!was)spotTrigger({panel:'p-watch',key:'cloud-'+sv.id,reason:sv.name.toUpperCase()+' · FALLA',pri:55,ms:26000,cool:1800000,color:'#E24B4A',ws:{k:'ESTADO DE LA NUBE'},
+      if(!first&&sev&&!was)spotTrigger({panel:'p-gs',key:'cloud-'+sv.id,reason:sv.name.toUpperCase()+' · FALLA',pri:55,ms:26000,cool:1800000,color:'#E24B4A',ws:{k:'ESTADO DE LA NUBE'},
         hl:function(el){const r=spotRows(el,'.ws-sec[data-k="ESTADO DE LA NUBE"] *',function(x){return !x.children.length&&spotTxt(x,sv.name);});return r.length?r:el.querySelectorAll('.ws-sec[data-k="ESTADO DE LA NUBE"]');}});
       _spot.lastCloud[sv.id]=sev;
     });
   }else if(key==='internet'&&W.internet){
     const bad=W.internet.mine.some(function(m){return m.score>0;});
-    if(!first&&bad&&!_spot.lastNet)spotTrigger({panel:'p-watch',key:'net-region',reason:'INTERNET · ANOMALÍA EN TU REGIÓN',pri:45,ms:24000,cool:1800000,color:'#F0883E',ws:{k:''},
+    if(!first&&bad&&!_spot.lastNet)spotTrigger({panel:'p-gs',key:'net-region',reason:'INTERNET · ANOMALÍA EN TU REGIÓN',pri:45,ms:24000,cool:1800000,color:'#F0883E',ws:{k:''},
       hl:function(el){return spotRows(el,'.ws-row > span',function(r){return spotTxt(r,'NET');});}});
     _spot.lastNet=bad;
   }else if(key==='tsunami'&&W.tsunami){
     const act=(W.tsunami.active||[]).length>0;
-    if(act&&!_spot.lastTsu)spotTrigger({panel:'p-watch',key:'tsu-active',reason:'TSUNAMI · '+String(W.tsunami.active[0].category).toUpperCase(),pri:100,ms:30000,cool:1800000,color:'#06B6D4',ws:{k:''},
+    if(act&&!_spot.lastTsu)spotTrigger({panel:'p-gs',key:'tsu-active',reason:'TSUNAMI · '+String(W.tsunami.active[0].category).toUpperCase(),pri:100,ms:30000,cool:1800000,color:'#06B6D4',ws:{k:''},
       hl:function(el){return spotRows(el,'.ws-row',function(r){return spotTxt(r,'🌊')&&!spotTxt(r,'sin avisos');});}});
     _spot.lastTsu=act;
   }
