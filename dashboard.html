@@ -5854,7 +5854,12 @@ function spotApplyHl(el,o){
 function spotHead(el,o,ms){
   el.querySelectorAll('.spot-head,.spot-time').forEach(function(t){t.remove();});
   const col=o.color||_pal.hi,h=document.createElement('div');h.className='spot-head';h.style.color=col;h.style.borderColor=col;
-  const t=document.createElement('span');t.className='spot-reason';t.textContent=(/^manual-/.test(o.key||'')?'⤢ ':/^amb-/.test(o.key||'')?'◉ ':'⚠ ')+o.reason;h.appendChild(t);   // ⚠ solo para alertas
+  // tipo en palabras (antes un símbolo suelto): ALERTA = algo pasó; VISTA DE PASO = rotación en reposo, no hay alerta; A MANO = lo abriste tú
+  const man=/^manual-/.test(o.key||''),amb=/^amb-/.test(o.key||''),kd=document.createElement('span');kd.className='spot-kind';
+  kd.innerHTML='<b>'+(man?'⤢ ABIERTO A MANO':amb?'◉ VISTA DE PASO':'⚠ ALERTA')+'</b>';
+  kd.title=man?'Lo abriste con ⤢':amb?'Sin eventos en '+Math.round(SPOT_T.ambientMs/60000)+' min, los paneles pasan al frente por turnos. Se apaga en ⚙ «Pulso en reposo».':'Se abrió por un evento: el motivo está a la derecha y lo que lo causó queda resaltado';
+  h.appendChild(kd);if(!man&&!amb)h.classList.add('is-alert');
+  const t=document.createElement('span');t.className='spot-reason';t.textContent=o.reason;t.title=o.reason;h.appendChild(t);
   const x=document.createElement('span');x.className='spot-x';x.textContent='✕';x.title='Cerrar (se cierra solo al terminar la barra)';
   x.addEventListener('click',function(e){e.stopPropagation();spotLog(o.key,'cerrado a mano');spotEnd();});
   h.appendChild(x);el.appendChild(h);
@@ -5943,7 +5948,7 @@ function spotAmbientReason(id){
   const now=Date.now();
   if(id==='p-watch'){
     const q=(_evts||[]).filter(function(e){return e.type==='quake'&&e.ts&&now-e.ts<3*3600e3;}).sort(function(a,b){return b.ts-a.ts;})[0];
-    if(q)return 'ÚLTIMO SISMO · M'+(q.mag||0).toFixed(1)+' · '+wAgo(q.ts);
+    if(q)return 'ÚLTIMO SISMO M'+(q.mag||0).toFixed(1)+(q.place?' · '+q.place:'')+' · '+wAgo(q.ts);
     if(_watch.cloud&&_watch.cloud.issues)return 'NUBE · '+_watch.cloud.issues+' CON INCIDENCIAS';
     return 'CLIMA ESPACIAL'+(_watch.space&&_watch.space.kp?' · Kp '+(+_watch.space.kp.value).toFixed(1):'');
   }
@@ -5958,6 +5963,8 @@ function spotAmbient(){
   const id=AMB_PANELS.slice().sort(function(a,b){return (_spot.shown[a]||0)-(_spot.shown[b]||0);})[0];
   const o={panel:id,key:'amb-'+id,reason:spotAmbientReason(id),pri:5,ms:14000,cool:1000};
   if(id==='p-nxlog')o.onStart=spotRadarStart,o.onEnd=spotRadarEnd;
+  if(id==='p-watch'){const now=Date.now(),q=(_evts||[]).filter(function(e){return e.type==='quake'&&e.ts&&now-e.ts<3*3600e3;}).sort(function(a,b){return b.ts-a.ts;})[0];
+    if(q&&q.place)o.hl=function(el){return spotRows(el,'.ws-row',function(r){return (r.title||'').indexOf(q.place)===0;});};}
   spotTrigger(o);
 }
 // al destacar el radar se pasa a CLIMA mientras dure y se vuelve al modo anterior (sin guardarlo como preferencia)
@@ -6005,8 +6012,8 @@ function spotScanEvents(evts){
     const hlTsu=function(el){return spotRows(el,'.ws-row',function(r){return spotTxt(r,'🌊')&&!spotTxt(r,'sin avisos');});};
     if(e.type==='tsunami')spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'TSUNAMI '+(e.label||''),pri:100,ms:30000,color:'#06B6D4',hl:hlTsu,ws:{k:''}});
     else if(e.type==='quake'){
-      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO MX M'+mag.toFixed(1)+' · '+Math.round(km)+' km',pri:80,ms:26000,color:MX_QUAKE_COLOR,hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
-      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1),pri:70,ms:26000,color:'#E24B4A',hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
+      if(recent&&e.src==='SSN'&&mag>=SPOT_T.mxMag&&km<SPOT_T.mxKm)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO M'+mag.toFixed(1)+' · '+(e.place||'MÉXICO')+' · A '+Math.round(km)+' KM DE TU CASA',pri:80,ms:26000,color:MX_QUAKE_COLOR,hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
+      else if(recent&&mag>=SPOT_T.wMag)spotTrigger({panel:'p-watch',key:'ev-'+key,reason:'SISMO FUERTE M'+mag.toFixed(1)+(e.place?' · '+e.place:''),pri:70,ms:26000,color:'#E24B4A',hl:hlQuake,ws:{k:'SISMOS · 24 H',place:e.place}});
     }
     else if(e.type==='storm')spotTrigger({panel:'p-gs',key:'ev-'+key,reason:'TORMENTA '+(e.label||''),pri:50,ms:24000,color:'#8B5CF6',hl:hlEv});
     else spotTrigger({panel:'p-gs',key:'ev-'+key,reason:String(e.type).toUpperCase()+' '+(e.label||''),pri:35,ms:20000,hl:hlEv});
@@ -7025,9 +7032,12 @@ body.spot-on .pnl:not(.spot) { opacity:.55; }
 .pnl.spot.spot-c { z-index:80; transform:translate(var(--spot-tx,0),var(--spot-ty,0)) scale(var(--spot-s,2)); box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 30px 6px var(--spot-glow,rgba(93,202,165,.5)), 0 30px 90px rgba(0,0,0,.85); }
 body.spot-center .pnl:not(.spot) { opacity:.22; }
 /* dentro del panel, arriba a la derecha: los paneles recortan lo que se sale (overflow) */
-.spot-head { position:absolute; right:0; top:0; max-width:78%; height:14px; display:flex; align-items:center; gap:6px; padding:0 2px 0 7px; border:1px solid; border-top:none; border-right:none; border-radius:0 0 0 4px;
+.spot-head { position:absolute; left:0; right:0; top:0; min-height:18px; display:flex; align-items:center; gap:8px; padding:1px 3px 1px 8px; border-bottom:1px solid;
   background:var(--spot-bg,#050e09); font-size:11px; font-weight:700; letter-spacing:1.2px; z-index:3; }
-.spot-reason { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:spot-pulse 1.4s ease-in-out infinite; }
+.spot-reason { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.spot-head.is-alert .spot-reason { animation:spot-pulse 1.4s ease-in-out infinite; }
+.spot-kind { flex-shrink:0; padding:0 5px; border-radius:2px; color:var(--spot-bg,#050e09); background:currentColor; }
+.spot-kind b { color:var(--spot-bg,#050e09); font-weight:700; }
 .spot-x { flex-shrink:0; cursor:pointer; padding:0 4px; font-size:11px; line-height:12px; border-radius:2px; pointer-events:auto; }
 .spot-x:hover { background:currentColor; color:var(--spot-bg,#050e09); }
 .spot-time { position:absolute; left:0; bottom:0; height:2px; width:100%; transform-origin:left; z-index:3; pointer-events:none; animation:spot-timer linear forwards; opacity:.85; }
