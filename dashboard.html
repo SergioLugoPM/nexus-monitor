@@ -31,9 +31,9 @@ body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;
 .cores{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-top:5px;}.core{height:14px;border-radius:1px;}
 .rsp{display:flex;justify-content:space-between;align-items:baseline;}.rmd{display:flex;justify-content:space-between;align-items:center;}.mut{font-size:12px;}
 .clks{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;text-align:center;}
-.cc{border-radius:4px;padding:8px 3px;}.ccl{font-size:10px;letter-spacing:1px;}.cct{font-size:16px;margin-top:3px;font-weight:bold;}.ccamp{font-size:10px;opacity:.8;margin-top:2px;}
+.cc{border-radius:4px;padding:8px 3px;}.ccl{font-size:11px;letter-spacing:1px;}.cct{font-size:16px;margin-top:3px;font-weight:bold;}.ccamp{font-size:11px;opacity:.8;margin-top:2px;}
 .cc.hl{border-width:1px;border-style:solid;}
-.wm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;}.wc{border-radius:4px;padding:5px;text-align:center;}.wcl{font-size:10px;letter-spacing:1px;}
+.wm{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px;}.wc{border-radius:4px;padding:5px;text-align:center;}.wcl{font-size:11px;letter-spacing:1px;}
 .cr{display:grid;grid-template-columns:95px 1fr 75px;align-items:center;margin-bottom:6px;}
 .log-scroll{flex:1;overflow-y:auto;min-height:0;scrollbar-width:thin;}
 .log-scroll::-webkit-scrollbar{width:2px;}.log-scroll::-webkit-scrollbar-track{background:transparent;}
@@ -100,10 +100,10 @@ body.theme-win98 .title-bar .lbl, body.theme-win98 .title-bar .tb-text { backgro
 body.theme-win98 .title-bar { position: relative; padding-right: 50px !important; }
 .win-btns { display: none; }
 body.theme-win98 .win-btns { display: flex; position: absolute; right: 2px; top: 1px; gap: 1px; }
-body.theme-win98 .win-btns div { background: #c0c0c0; color: black; font-weight: bold; font-family: 'Tahoma', sans-serif; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid black; border-bottom: 1px solid black; width: 13px; height: 13px; display: flex; align-items: center; justify-content: center; font-size: 9px; user-select: none; box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf; cursor: default; }
+body.theme-win98 .win-btns div { background: #c0c0c0; color: black; font-weight: bold; font-family: 'Tahoma', sans-serif; border-top: 1px solid white; border-left: 1px solid white; border-right: 1px solid black; border-bottom: 1px solid black; width: 13px; height: 13px; display: flex; align-items: center; justify-content: center; font-size: 11px; user-select: none; box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf; cursor: default; }
 body.theme-win98 .win-btns .wb-min { font-size: 11px; align-items: flex-end; padding-bottom: 2px; padding-left: 1px; box-sizing: border-box; }
 body.theme-win98 .win-btns .wb-max { font-size: 11px; }
-body.theme-win98 .win-btns .wb-cls { margin-left: 2px; font-size: 8px; letter-spacing: 0; }
+body.theme-win98 .win-btns .wb-cls { margin-left: 2px; font-size: 11px; letter-spacing: 0; }
 body.theme-win98 .vxl, body.theme-win98 .vlg, body.theme-win98 .vmd, body.theme-win98 .vsm, body.theme-win98 .vxs, body.theme-win98 .mut, body.theme-win98 .disk-val, body.theme-win98 #net-u, body.theme-win98 #net-d, body.theme-win98 #crl1, body.theme-win98 #crl2, body.theme-win98 #crl3, body.theme-win98 #fxl, body.theme-win98 #btc-c, body.theme-win98 #eth-c, body.theme-win98 #sol-c { color: black !important; text-shadow: none !important; }
 body.theme-win98 .bt { border: 1px solid #808080; border-right: 1px solid white; border-bottom: 1px solid white; background: #fff !important; }
 body.theme-win98 .bf { background: #000080 !important; }
@@ -133,8 +133,8 @@ body.theme-macos #root { border: none !important; border-radius:0 !important; ba
 body.theme-macos #inner { border-radius:0 !important; background: transparent !important; }
 body.theme-macos .pnl { background: white !important; border: 1px solid black !important; border-radius: 0 !important; color: black !important; box-shadow: 2px 2px 0px black !important; box-sizing: border-box !important; padding: 2px 4px !important; }
 body.theme-macos .title-bar { background: repeating-linear-gradient(180deg, #fff 0px, #fff 1px, #000 1px, #000 2px) !important; color: black !important; margin: -3px -5px 6px -5px !important; border-bottom: 1px solid black !important; display: block !important; text-align: center; position: relative; height: 16px; padding: 0 !important; }
-body.theme-macos .title-bar .lbl, body.theme-macos .title-bar .tb-text { display: inline-block !important; background: white !important; margin: 0 auto !important; padding: 0 8px !important; border: 1px solid black; font-weight: bold; letter-spacing: 1px !important; font-size: 10px; line-height: 14px; position: relative; z-index: 2; height: 14px; box-sizing: border-box; }
-body.theme-macos .title-bar::before { content: "\25A3"; position: absolute; left: 4px; top: 1px; background: white; padding: 0 4px; border: 1px solid black; font-size: 8px; color: black; z-index: 2; line-height: 12px; height: 12px; box-sizing: border-box; }
+body.theme-macos .title-bar .lbl, body.theme-macos .title-bar .tb-text { display: inline-block !important; background: white !important; margin: 0 auto !important; padding: 0 8px !important; border: 1px solid black; font-weight: bold; letter-spacing: 1px !important; font-size: 11px; line-height: 14px; position: relative; z-index: 2; height: 14px; box-sizing: border-box; }
+body.theme-macos .title-bar::before { content: "\25A3"; position: absolute; left: 4px; top: 1px; background: white; padding: 0 4px; border: 1px solid black; font-size: 11px; color: black; z-index: 2; line-height: 12px; height: 12px; box-sizing: border-box; }
 body.theme-macos .vxl, body.theme-macos .vlg, body.theme-macos .vmd, body.theme-macos .vsm, body.theme-macos .vxs, body.theme-macos .mut, body.theme-macos .disk-val, body.theme-macos #net-u, body.theme-macos #net-d, body.theme-macos #crl1, body.theme-macos #crl2, body.theme-macos #crl3, body.theme-macos #fxl, body.theme-macos #btc-c, body.theme-macos #eth-c, body.theme-macos #sol-c { color: black !important; text-shadow: none !important; }
 body.theme-macos #ttl, body.theme-macos #hostname, body.theme-macos #ftr, body.theme-macos #ftr span:not(.ldot):not(#kp-badge):not(#kp-val) { color: black !important; text-shadow: none !important; }
 body.theme-macos #p-wth #w-tmp, body.theme-macos #p-wth #w-dsc, body.theme-macos #p-wth #w-hl { color: black !important; text-shadow: none !important; }
@@ -191,11 +191,11 @@ body.theme-macmodern .exp-row:hover, body.theme-macmodern .exp-drive:hover { bac
 body.theme-macmodern .crit-alert-card { border-radius: 10px !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
 /* BUTTONS */
-.btn-mini { padding:2px 5px; font-size:9px; border:1px solid rgba(255,255,255,0.2); border-radius:3px; cursor:pointer; background:rgba(0,0,0,0.3); transition:all 0.2s; }
+.btn-mini { padding:2px 5px; font-size:11px; border:1px solid rgba(255,255,255,0.2); border-radius:3px; cursor:pointer; background:rgba(0,0,0,0.3); transition:all 0.2s; }
 .btn-mini:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.5); }
-.thm-btn { font-size:10px; cursor:pointer; padding:2px 6px; border:1px solid transparent; opacity:0.6; }
+.thm-btn { font-size:11px; cursor:pointer; padding:2px 6px; border:1px solid transparent; opacity:0.6; }
 .thm-btn.active { opacity:1; border-color:rgba(255,255,255,0.4); border-radius:3px; }
-.sub-lbl { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 2px; }
+.sub-lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 2px; }
 @keyframes seismic-pulse {
   0%   { r: 4; opacity: .9; }
   60%  { r: 14; opacity: .4; }
@@ -242,7 +242,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 .aurora-active {
   animation: aurora-glow 3s ease-in-out infinite;
 }
-.vtab{background:transparent;border:.5px solid;border-radius:3px;padding:2px 9px;font-family:monospace;font-size:9px;letter-spacing:.08em;cursor:pointer;transition:background .12s,color .12s;outline:none;}
+.vtab{background:transparent;border:.5px solid;border-radius:3px;padding:2px 9px;font-family:monospace;font-size:11px;letter-spacing:.08em;cursor:pointer;transition:background .12s,color .12s;outline:none;}
 .vtab.vp-active{font-weight:bold;}
 #view-tabs{display:flex;gap:4px;padding:2px 8px 4px;flex-shrink:0;align-items:center;}
 .exp-row:hover,.exp-drive:hover{background:rgba(128,128,128,.15);}
@@ -306,7 +306,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <div class="pnl" id="p-net">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
           <div class="lbl" id="l-net" style="margin-bottom:0">NETWORK</div>
-          <div class="rmd" style="gap:14px;align-items:baseline"><div><div id="ul-l" class="mut" style="font-size:10px;">▲ UP</div><div id="net-u" style="font-size:13px;">-- MB/s</div></div><div style="text-align:right"><div id="dl-l" class="mut" style="font-size:10px;">▼ DOWN</div><div id="net-d" style="font-size:13px;">-- MB/s</div></div></div>
+          <div class="rmd" style="gap:14px;align-items:baseline"><div><div id="ul-l" class="mut" style="font-size:11px;">▲ UP</div><div id="net-u" style="font-size:13px;">-- MB/s</div></div><div style="text-align:right"><div id="dl-l" class="mut" style="font-size:11px;">▼ DOWN</div><div id="net-d" style="font-size:13px;">-- MB/s</div></div></div>
         </div>
         <canvas id="net-cv" height="30"></canvas>
       </div>
@@ -321,18 +321,18 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
   <div id="gs-defcon" style="margin-bottom:6px" title="Índice propio de Nexus (no es un nivel oficial): suma la clase de las llamaradas solares (rayos X), la tormenta geomagnética (índice Kp) y la energía sísmica liberada en 24 h. 5 = calma · 1 = extremo">
     <div class="sub-lbl">GEO-SOLAR ACTIVITY</div>
     <div id="gs-defcon-val" style="font-size:22px;letter-spacing:.05em">◼◼◼◼◻</div>
-    <div id="gs-defcon-lvl" style="font-size:10px"></div>
+    <div id="gs-defcon-lvl" style="font-size:11px"></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
     <div>
       <div class="sub-lbl">CO₂ PPM</div>
       <div id="gs-co2" style="font-size:18px;font-weight:500">—</div>
-      <div id="gs-co2-delta" style="font-size:9px"></div>
+      <div id="gs-co2-delta" style="font-size:11px"></div>
     </div>
     <div>
       <div class="sub-lbl">MOON</div>
       <div id="gs-moon" style="font-size:18px">—</div>
-      <div id="gs-moon-name" style="font-size:9px"></div>
+      <div id="gs-moon-name" style="font-size:11px"></div>
     </div>
     <div>
       <div class="sub-lbl">DEBRIS</div>
@@ -343,21 +343,21 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div>
       <div class="sub-lbl">SEISMIC E</div>
       <div id="gs-seismic-e" style="font-size:14px;font-weight:500">—</div>
-      <div id="gs-seismic-sub" style="font-size:9px">joules / 24h</div>
+      <div id="gs-seismic-sub" style="font-size:11px">joules / 24h</div>
     </div>
     <div>
       <div class="sub-lbl">AVIATION</div>
       <div id="gs-aviation" style="font-size:16px;font-weight:500">—</div>
-      <div id="gs-aviation-note" style="font-size:9px">flights live</div>
+      <div id="gs-aviation-note" style="font-size:11px">flights live</div>
     </div>
   </div>
   <div id="gs-seismic-alert" style="display:none;font-size:11px;line-height:1.5;margin-bottom:6px;padding:5px 7px;border-radius:2px" title="Nivel base: 2.87 sismos M6+/semana, promedio global USGS 2000-2024"></div>
   <div id="gs-pulse-wrap" style="border-top:.5px solid;padding-top:6px;margin-top:8px">
     <div class="sub-lbl">24H PULSE</div>
-    <div id="gs-pulse" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px"></div>
+    <div id="gs-pulse" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:11px"></div>
   </div>
   <div id="gs-mag-hist" style="margin-top:8px;border-top:.5px solid #1e3a2a;padding-top:6px;flex-shrink:0"></div>
-  <div id="gs-cloud" onclick="showView('watch')" title="Clic: abrir WATCH (detalle)" style="margin-top:8px;border-top:.5px solid #1e3a2a;padding-top:6px;font-size:10.5px;line-height:1.5;font-family:monospace;cursor:pointer;min-height:0;overflow:hidden"></div>
+  <div id="gs-cloud" onclick="showView('watch')" title="Clic: abrir WATCH (detalle)" style="margin-top:8px;border-top:.5px solid #1e3a2a;padding-top:6px;font-size:11.5px;line-height:1.5;font-family:monospace;cursor:pointer;min-height:0;overflow:hidden"></div>
   <!-- RECENT EVENTS oculto a pedido (11-nov-2026): no se leía; los eventos siguen en el mapa y en 24H PULSE -->
   <div id="gs-ev-wrap" style="display:none">
     <div class="sub-lbl">RECENT EVENTS</div>
@@ -378,16 +378,16 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 <div class="col-m">
   <div class="pnl" id="p-status" style="flex-shrink:0;">
     <div style="display:flex;align-items:stretch;justify-content:space-between;gap:12px;min-height:90px;">
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div id="greeting" style="font-size:13px;letter-spacing:1px;margin-bottom:6px;white-space:nowrap;overflow:hidden;">STARTING...</div><div id="status-l" class="mut" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;">CONNECTING...</div><div id="clk-sun" title="Luz del día en tu zona: amanecer, mediodía solar y atardecer"><canvas id="clk-sun-cv" height="18"></canvas><div id="clk-sun-t" class="mut">--</div></div></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;"><div id="greeting" style="font-size:13px;letter-spacing:1px;margin-bottom:6px;white-space:nowrap;overflow:hidden;">STARTING...</div><div id="status-l" class="mut" style="font-size:11px;letter-spacing:1px;white-space:nowrap;overflow:hidden;">CONNECTING...</div><div id="clk-sun" title="Luz del día en tu zona: amanecer, mediodía solar y atardecer"><canvas id="clk-sun-cv" height="18"></canvas><div id="clk-sun-t" class="mut">--</div></div></div>
       <div style="flex:2;text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:4px 0;"><div style="display:inline-flex;flex-direction:column;align-items:stretch;"><div id="bigclock" style="font-size:86px;letter-spacing:5px;line-height:1;font-weight:bold;white-space:nowrap;">--:--:--</div><div id="clk-sec" title="Segundero"><div id="clk-sec-f"></div></div></div><div style="display:flex;align-items:baseline;gap:14px;margin-top:4px;"><div id="bigampm" style="font-size:20px;letter-spacing:6px;opacity:.85;">--</div><div id="clk-sub" class="mut" title="Hora militar · hora UTC · tiempo Unix">--</div></div></div>
-      <div style="flex:1;min-width:0;text-align:right;display:flex;flex-direction:column;justify-content:center;"><div id="bigdate" style="font-size:17px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;white-space:nowrap;"></div><div id="bigday" class="mut" style="font-size:11px;letter-spacing:2px;white-space:nowrap;"></div><div id="clk-wk" class="mut" title="Semana ISO · día del año">--</div><div id="syshealth" style="font-size:10px;letter-spacing:1px;margin-top:4px;">● SYSTEMS OK</div></div>
+      <div style="flex:1;min-width:0;text-align:right;display:flex;flex-direction:column;justify-content:center;"><div id="bigdate" style="font-size:17px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;white-space:nowrap;"></div><div id="bigday" class="mut" style="font-size:11px;letter-spacing:2px;white-space:nowrap;"></div><div id="clk-wk" class="mut" title="Semana ISO · día del año">--</div><div id="syshealth" style="font-size:11px;letter-spacing:1px;margin-top:4px;">● SYSTEMS OK</div></div>
     </div>
   </div>
 
   <div class="pnl grow" id="p-map">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-shrink:0;">
       <div class="lbl" id="l-map" style="margin-bottom:0;">GLOBAL VIEW</div>
-      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span><span class="btn-mini" id="lyr-zf" onclick="zfToggle()" style="user-select:none">ENFOQUE</span><span class="btn-mini mz-btn" id="lyr-zout" onclick="mzStep(1/2)" title="Alejar (también rueda del mouse)" style="user-select:none">−</span><span class="btn-mini mz-btn" id="lyr-zin" onclick="mzStep(2)" title="Acercar (también rueda del mouse o doble clic; arrastra para moverte)" style="user-select:none">+</span><span class="btn-mini" id="lyr-zrst" onclick="mzReset()" title="Volver a ver el mundo completo (regresa solo tras 90 s sin tocarlo)" style="user-select:none;display:none">MUNDO</span></span><span id="eq-count" style="font-size:10px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0"><span id="map-layers" style="display:flex;gap:4px;flex-shrink:0"><span class="btn-mini" id="lyr-wind" onclick="cycleWind()" style="user-select:none">VIENTO</span><span class="btn-mini" id="lyr-aur" onclick="toggleAurora()" style="user-select:none">AURORA</span><span class="btn-mini" id="lyr-zf" onclick="zfToggle()" style="user-select:none">ENFOQUE</span><span class="btn-mini mz-btn" id="lyr-zout" onclick="mzStep(1/2)" title="Alejar (también rueda del mouse)" style="user-select:none">−</span><span class="btn-mini mz-btn" id="lyr-zin" onclick="mzStep(2)" title="Acercar (también rueda del mouse o doble clic; arrastra para moverte)" style="user-select:none">+</span><span class="btn-mini" id="lyr-zrst" onclick="mzReset()" title="Volver a ver el mundo completo (regresa solo tras 90 s sin tocarlo)" style="user-select:none;display:none">MUNDO</span></span><span id="eq-count" style="font-size:11px;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span></div>
     </div>
     <div id="view-tabs">
       <button class="vtab vp-active" data-view="map" onclick="showView('map')" title="Alt+G">⌥G&nbsp;MAP</button>
@@ -652,23 +652,23 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         <g id="wx-pill" opacity="0">
           <rect id="wx-bg" x="454" y="447" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
           <text id="wx-temp" x="460" y="463" font-size="16" font-family="monospace" font-weight="bold"></text>
-          <text id="wx-desc" x="460" y="478" font-size="10" font-family="monospace"></text>
+          <text id="wx-desc" x="460" y="478" font-size="13" font-family="monospace"></text>
         </g>
       </g>
       <text id="lbl-eq" x="8" y="505" font-size="14" font-family="monospace" opacity=".2">EQ</text>
       <!-- MAP LEGEND bottom-left -->
       <g id="map-legend" opacity=".85">
         <rect x="12" y="808" width="220" height="188" rx="3" fill="rgba(0,0,0,0.55)" stroke-width="0"/>
-        <circle cx="26" cy="826" r="3" fill="#F0F0F0"/><text x="36" y="830" fill="#E0E0E0" font-size="12" font-family="monospace">FLIGHTS (LIVE)</text>
-        <circle cx="26" cy="844" r="3" fill="#FF6D00"/><text x="36" y="848" fill="#FFB74D" font-size="12" font-family="monospace">WILDFIRE (FIRMS)</text>
-        <circle cx="26" cy="862" r="4" fill="#1D9E75"/><text x="36" y="866" fill="#9FE1CB" font-size="12" font-family="monospace">SEISMIC &lt; 6.0</text>
-        <circle cx="26" cy="880" r="4" fill="#EF4444"/><text x="36" y="884" fill="#FCA5A5" font-size="12" font-family="monospace">SEISMIC ≥ 6.0</text>
-        <circle cx="26" cy="898" r="4" fill="#F59E0B"/><text x="36" y="902" fill="#FCD34D" font-size="12" font-family="monospace">ISS TRACKER</text>
-        <circle cx="26" cy="916" r="4" fill="#38BDF8"/><text x="36" y="920" fill="#BAE6FD" font-size="12" font-family="monospace">SATELLITE + ORBIT</text>
-        <circle cx="26" cy="934" r="4" fill="#EC4899"/><text x="36" y="938" fill="#F9A8D4" font-size="12" font-family="monospace">VOLCANO</text>
-        <circle cx="26" cy="952" r="4" fill="#8B5CF6"/><text x="36" y="956" fill="#C4B5FD" font-size="12" font-family="monospace">STORM / CYCLONE</text>
-        <circle cx="26" cy="970" r="4" fill="#2563EB"/><text x="36" y="974" fill="#93C5FD" font-size="12" font-family="monospace">FLOOD</text>
-        <circle cx="26" cy="988" r="4" fill="#84CC16"/><text x="36" y="992" fill="#D9F99D" font-size="12" font-family="monospace">NEWS GEOLOCATED</text>
+        <circle cx="26" cy="826" r="3" fill="#F0F0F0"/><text x="36" y="830" fill="#E0E0E0" font-size="14.5" font-family="monospace">FLIGHTS (LIVE)</text>
+        <circle cx="26" cy="844" r="3" fill="#FF6D00"/><text x="36" y="848" fill="#FFB74D" font-size="14.5" font-family="monospace">WILDFIRE (FIRMS)</text>
+        <circle cx="26" cy="862" r="4" fill="#1D9E75"/><text x="36" y="866" fill="#9FE1CB" font-size="14.5" font-family="monospace">SEISMIC &lt; 6.0</text>
+        <circle cx="26" cy="880" r="4" fill="#EF4444"/><text x="36" y="884" fill="#FCA5A5" font-size="14.5" font-family="monospace">SEISMIC ≥ 6.0</text>
+        <circle cx="26" cy="898" r="4" fill="#F59E0B"/><text x="36" y="902" fill="#FCD34D" font-size="14.5" font-family="monospace">ISS TRACKER</text>
+        <circle cx="26" cy="916" r="4" fill="#38BDF8"/><text x="36" y="920" fill="#BAE6FD" font-size="14.5" font-family="monospace">SATELLITE + ORBIT</text>
+        <circle cx="26" cy="934" r="4" fill="#EC4899"/><text x="36" y="938" fill="#F9A8D4" font-size="14.5" font-family="monospace">VOLCANO</text>
+        <circle cx="26" cy="952" r="4" fill="#8B5CF6"/><text x="36" y="956" fill="#C4B5FD" font-size="14.5" font-family="monospace">STORM / CYCLONE</text>
+        <circle cx="26" cy="970" r="4" fill="#2563EB"/><text x="36" y="974" fill="#93C5FD" font-size="14.5" font-family="monospace">FLOOD</text>
+        <circle cx="26" cy="988" r="4" fill="#84CC16"/><text x="36" y="992" fill="#D9F99D" font-size="14.5" font-family="monospace">NEWS GEOLOCATED</text>
       </g>
       <!-- MAP STATUS TICKER bottom-right -->
       <g id="map-ticker" opacity="0">
@@ -676,7 +676,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       </g>
     </svg>
     <div id="news-ticker" style="overflow:hidden;height:20px;position:relative;border-top:1px solid">
-      <div id="news-ticker-inner" style="white-space:nowrap;position:absolute;top:0;left:0;line-height:20px;font-size:10px;letter-spacing:.06em;padding:0 8px"></div>
+      <div id="news-ticker-inner" style="white-space:nowrap;position:absolute;top:0;left:0;line-height:20px;font-size:11px;letter-spacing:.06em;padding:0 8px"></div>
     </div>
     </div>
     </div>
@@ -807,13 +807,13 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="view-pane" id="view-snake" style="flex:1;min-height:0;">
       <div id="snake-wrap">
         <canvas id="snake-canvas"></canvas>
-        <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">SWIPE = STEER &nbsp;·&nbsp; TAP = PAUSE / RETRY</div>
+        <div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:11px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">SWIPE = STEER &nbsp;·&nbsp; TAP = PAUSE / RETRY</div>
       </div>
     </div>
     <div class="view-pane" id="view-invaders" style="flex:1;min-height:0;position:relative;">
       <canvas id="inv-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block"></canvas>
 <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none"></div>
-<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:10px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">◄ HOLD &nbsp;·&nbsp; TAP CENTER = FIRE &nbsp;·&nbsp; HOLD ►</div>
+<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:11px;opacity:.28;color:#5DCAA5;pointer-events:none;white-space:nowrap;font-family:monospace;letter-spacing:.05em">◄ HOLD &nbsp;·&nbsp; TAP CENTER = FIRE &nbsp;·&nbsp; HOLD ►</div>
 <script>
 (function(){
   const _prev=window.onShowView;
@@ -1144,9 +1144,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     </div>
     <div class="view-pane" id="view-explorer" style="flex:1;min-height:0;flex-direction:column;font-family:monospace;">
       <div id="exp-toolbar" style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:.5px solid;flex-shrink:0;font-size:11px">
-        <button id="exp-up" onclick="explorerUp()" style="background:transparent;border:.5px solid;border-radius:3px;padding:2px 8px;cursor:pointer;font-family:monospace;font-size:10px">▲ UP</button>
+        <button id="exp-up" onclick="explorerUp()" style="background:transparent;border:.5px solid;border-radius:3px;padding:2px 8px;cursor:pointer;font-family:monospace;font-size:11px">▲ UP</button>
         <span id="exp-path" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.85"></span>
-        <span id="exp-count" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+        <span id="exp-count" style="font-size:11px;opacity:.5;flex-shrink:0"></span>
       </div>
       <div style="display:flex;flex:1;min-height:0">
         <div id="exp-drives" style="width:100px;flex-shrink:0;overflow-y:auto;border-right:.5px solid;padding:6px;font-size:11px"></div>
@@ -1212,7 +1212,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:3px;cursor:pointer" ondblclick="explorerOpen('${nameEsc}',${it.isDir})">
         <span style="flex-shrink:0">${icon}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.name}</span>
-        <span style="opacity:.45;font-size:10px;flex-shrink:0">${size}</span>
+        <span style="opacity:.45;font-size:11px;flex-shrink:0">${size}</span>
       </div>`;
     }).join('');
   };
@@ -1256,21 +1256,21 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">OPEN WINDOWS</span>
-            <span id="proc-win-count" style="font-size:10px;opacity:.5"></span>
+            <span id="proc-win-count" style="font-size:11px;opacity:.5"></span>
           </div>
           <div id="proc-windows" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
         <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">PROCESSES — TOP CPU</span>
-            <span id="proc-cpu-count" style="font-size:10px;opacity:.5"></span>
+            <span id="proc-cpu-count" style="font-size:11px;opacity:.5"></span>
           </div>
           <div id="proc-list" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
         <div style="flex:1.3;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">NETWORK — WHO'S TALKING</span>
-            <span id="proc-conn-count" style="font-size:10px;opacity:.5"></span>
+            <span id="proc-conn-count" style="font-size:11px;opacity:.5"></span>
           </div>
           <div id="proc-connections" style="flex:1;overflow-y:auto;font-size:11px"></div>
         </div>
@@ -1303,7 +1303,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:3px;cursor:pointer;${fg?'font-weight:600':''}" ondblclick="procFocusWindow(${w.pid})" title="${title}">
         <span style="flex-shrink:0;opacity:${fg?'1':'.4'}">${fg?'●':'○'}</span>
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${w.title}</span>
-        <span style="opacity:.4;font-size:10px;flex-shrink:0">${w.processName}</span>
+        <span style="opacity:.4;font-size:11px;flex-shrink:0">${w.processName}</span>
       </div>`;
     }).join('');
   }
@@ -1320,9 +1320,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       const cpuCol=p.cpu>50?'#E24B4A':p.cpu>20?'#EF9F27':'inherit';
       return `<div class="exp-row" style="display:flex;align-items:center;gap:8px;padding:3px 6px;border-radius:3px">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
-        <span style="opacity:.4;font-size:10px;flex-shrink:0">${p.pid}</span>
+        <span style="opacity:.4;font-size:11px;flex-shrink:0">${p.pid}</span>
         <span style="width:44px;text-align:right;flex-shrink:0;color:${cpuCol}">${p.cpu.toFixed(1)}%</span>
-        <span style="width:56px;text-align:right;flex-shrink:0;opacity:.55;font-size:10px">${p.memMb} MB</span>
+        <span style="width:56px;text-align:right;flex-shrink:0;opacity:.55;font-size:11px">${p.memMb} MB</span>
         <span style="flex-shrink:0;cursor:pointer;opacity:.5;padding:0 4px" onclick="procKill(${p.pid},'${(p.name||'').replace(/'/g,"\\'")}')" title="End process">✕</span>
       </div>`;
     }).join('');
@@ -1340,7 +1340,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       const remote=c.remoteAddr+':'+c.remotePort;
       return `<div class="exp-row" style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px" title="PID ${c.pid} · puerto local ${c.localPort}">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.processName}</span>
-        <span style="opacity:.6;font-size:10px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:130px;white-space:nowrap">${remote}</span>
+        <span style="opacity:.6;font-size:11px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:130px;white-space:nowrap">${remote}</span>
       </div>`;
     }).join('');
   }
@@ -1378,10 +1378,10 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         <div style="flex:1.4;min-width:0;display:flex;flex-direction:column;min-height:0;border-right:.5px solid;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
             <span class="sub-lbl">DISPOSITIVOS EN LA RED</span>
-            <span id="lan-count" style="font-size:10px;opacity:.5"></span>
+            <span id="lan-count" style="font-size:11px;opacity:.5"></span>
           </div>
           <div id="lan-devices" style="flex:1;overflow-y:auto;font-size:11px"></div>
-          <div style="font-size:9px;opacity:.35;padding:4px 2px">doble clic en un dispositivo para ponerle nombre</div>
+          <div style="font-size:11px;opacity:.35;padding:4px 2px">doble clic en un dispositivo para ponerle nombre</div>
         </div>
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;padding:0 6px">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 2px 4px;flex-shrink:0">
@@ -1441,12 +1441,12 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       const scan=_lanPortScans[dev.ip];
       let scanRow='';
       if(scan){
-        if(scan.status==='scanning') scanRow=`<div style="font-size:9px;opacity:.6;padding:2px 0 0 26px">Escaneando puertos comunes…</div>`;
-        else if(scan.status==='error') scanRow=`<div style="font-size:9px;color:${_pal.warn};padding:2px 0 0 26px">Error al escanear: ${scan.error}</div>`;
+        if(scan.status==='scanning') scanRow=`<div style="font-size:11px;opacity:.6;padding:2px 0 0 26px">Escaneando puertos comunes…</div>`;
+        else if(scan.status==='error') scanRow=`<div style="font-size:11px;color:${_pal.warn};padding:2px 0 0 26px">Error al escanear: ${scan.error}</div>`;
         else if(scan.status==='done'){
           scanRow=scan.ports.length
-            ? `<div style="font-size:9px;padding:2px 0 0 26px" title="Escaneo pasivo de tu propia red — TCP connect a puertos comunes">${scan.ports.map(p=>`<span style="color:${_pal.warn}">${p.port} ${p.label}</span>`).join(' · ')}</div>`
-            : `<div style="font-size:9px;opacity:.45;padding:2px 0 0 26px">Sin puertos comunes abiertos</div>`;
+            ? `<div style="font-size:11px;padding:2px 0 0 26px" title="Escaneo pasivo de tu propia red — TCP connect a puertos comunes">${scan.ports.map(p=>`<span style="color:${_pal.warn}">${p.port} ${p.label}</span>`).join(' · ')}</div>`
+            : `<div style="font-size:11px;opacity:.45;padding:2px 0 0 26px">Sin puertos comunes abiertos</div>`;
         }
       }
       return `<div style="padding:1px 0">
@@ -1454,7 +1454,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
           <span style="flex-shrink:0">${dev.isSelf?'🖥️':lanIcon(dev.vendor)}</span>
           <span style="flex:1;min-width:0;overflow:hidden">
             <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${dev.isSelf?'font-weight:600':''}">${label}${dev.isSelf?' (esta PC)':''}</div>
-            <div style="font-size:9px;opacity:.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</div>
+            <div style="font-size:11px;opacity:.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sub}</div>
           </span>
           <span onclick="event.stopPropagation();lanScanPorts('${dev.ip}')" style="flex-shrink:0;cursor:pointer;opacity:.5;font-size:12px" title="Buscar puertos abiertos (escaneo pasivo, solo tu red)">🔍</span>
         </div>
@@ -1495,7 +1495,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     const persons=(d.persons||[]).length;
     el.innerHTML=`<div style="padding:10px">
       <div style="opacity:.7;margin-bottom:6px">🟢 Hardware conectado — ${persons} persona(s) detectada(s)</div>
-      ${d.vital_signs?`<div style="font-size:10px;opacity:.6">Respiración: ${(d.vital_signs.breathing_rate_bpm||0).toFixed(1)} rpm · Pulso: ${(d.vital_signs.heart_rate_bpm||0).toFixed(0)} bpm</div>`:''}
+      ${d.vital_signs?`<div style="font-size:11px;opacity:.6">Respiración: ${(d.vital_signs.breathing_rate_bpm||0).toFixed(1)} rpm · Pulso: ${(d.vital_signs.heart_rate_bpm||0).toFixed(0)} bpm</div>`:''}
     </div>`;
   }
 
@@ -1523,7 +1523,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
         </button>
         <input id="agent-input" type="text" placeholder="Pregunta algo sobre el estado actual…" autocomplete="off" spellcheck="false"
           style="flex:1;border:none;outline:none;background:transparent;color:#5DCAA5;caret-color:#5DCAA5;font-family:monospace;font-size:12px;padding:4px 0">
-        <span id="agent-status" style="font-size:10px;opacity:.5;flex-shrink:0"></span>
+        <span id="agent-status" style="font-size:11px;opacity:.5;flex-shrink:0"></span>
         <button id="agent-voiceout" onclick="agentToggleVoiceOut()" title="Leer respuestas en voz alta (activado/desactivado)" style="background:transparent;border:none;cursor:pointer;flex-shrink:0;padding:2px 5px;opacity:.6;display:flex;align-items:center;color:inherit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="3 9 3 15 9 15 15 21 15 3 9 9 3 9"/>
@@ -1704,28 +1704,28 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div style="display:flex;gap:14px;min-height:0;padding:8px 10px;">
       <!-- LEFT 50%: Singularity Countdown -->
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;">
-        <div><div class="lbl" id="l-sing" style="margin-bottom:2px;font-size:13px;">SINGULARITY</div><div id="sing-ref" style="font-size:10px;opacity:.55;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Ω singularidad: Kurzweil 2045 (la cuenta grande). AGI, IA a nivel humano: Kurzweil 2029, Metaculus (mediana comunitaria) 2032">Ω KURZWEIL 2045 · AGI KURZWEIL 2029<span id="sing-agi"></span> · METACULUS 2032</div></div>
+        <div><div class="lbl" id="l-sing" style="margin-bottom:2px;font-size:13px;">SINGULARITY</div><div id="sing-ref" style="font-size:11px;opacity:.55;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Ω singularidad: Kurzweil 2045 (la cuenta grande). AGI, IA a nivel humano: Kurzweil 2029, Metaculus (mediana comunitaria) 2032">Ω KURZWEIL 2045 · AGI KURZWEIL 2029<span id="sing-agi"></span> · METACULUS 2032</div></div>
         <div style="display:flex;gap:10px;align-items:flex-end;">
-          <div style="text-align:center;"><div id="sc-d" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:9px;letter-spacing:2px;opacity:.6;margin-top:2px;">DAYS</div></div>
+          <div style="text-align:center;"><div id="sc-d" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:11px;letter-spacing:2px;opacity:.6;margin-top:2px;">DAYS</div></div>
           <div style="font-size:28px;font-weight:bold;opacity:.35;margin-bottom:12px;">:</div>
-          <div style="text-align:center;"><div id="sc-h" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:9px;letter-spacing:2px;opacity:.6;margin-top:2px;">HRS</div></div>
+          <div style="text-align:center;"><div id="sc-h" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:11px;letter-spacing:2px;opacity:.6;margin-top:2px;">HRS</div></div>
           <div style="font-size:28px;font-weight:bold;opacity:.35;margin-bottom:12px;">:</div>
-          <div style="text-align:center;"><div id="sc-m" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:9px;letter-spacing:2px;opacity:.6;margin-top:2px;">MIN</div></div>
+          <div style="text-align:center;"><div id="sc-m" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:11px;letter-spacing:2px;opacity:.6;margin-top:2px;">MIN</div></div>
           <div style="font-size:28px;font-weight:bold;opacity:.35;margin-bottom:12px;">:</div>
-          <div style="text-align:center;"><div id="sc-s" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:9px;letter-spacing:2px;opacity:.6;margin-top:2px;">SEC</div></div>
+          <div style="text-align:center;"><div id="sc-s" style="font-size:32px;font-weight:bold;line-height:1;letter-spacing:2px;"></div><div style="font-size:11px;letter-spacing:2px;opacity:.6;margin-top:2px;">SEC</div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;opacity:.5;margin-bottom:2px;"><span>1950</span><span id="sing-pct" style="opacity:1;">0%</span><span>2045</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;opacity:.5;margin-bottom:2px;"><span>1950</span><span id="sing-pct" style="opacity:1;">0%</span><span>2045</span></div>
           <div id="sing-bar-bg" style="position:relative;height:5px;border-radius:2px;overflow:hidden;"><div id="sing-bar-fill" style="height:100%;border-radius:2px;width:0%;transition:width 1s;"></div><div class="sing-mk" data-y="2029" title="AGI · Kurzweil 2029"></div><div class="sing-mk" data-y="2032" title="AGI · Metaculus 2032" style="opacity:.55"></div></div>
         </div>
-        <div id="sing-timeline" style="display:flex;justify-content:space-between;align-items:center;font-size:8px;letter-spacing:0.5px;opacity:.65;">
+        <div id="sing-timeline" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:0.5px;opacity:.65;">
           <span>69·MOON</span><span>91·WWW</span><span>07·iPHONE</span><span>12·DL</span><span>23·GPT4</span><span id="tl-now" style="font-weight:bold;opacity:1;">▶ NOW</span><span id="tl-agi" title="AGI según Kurzweil">29·AGI</span><span style="font-weight:bold;">45·Ω</span>
         </div>
       </div>
       <!-- RIGHT 50%: Doomsday Clock (digital) -->
       <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-left:1px solid rgba(255,255,255,0.1);padding-left:14px;" id="doom-wrap">
-        <div style="font-size:10px;letter-spacing:2px;opacity:.6;">DOOMSDAY CLOCK</div>
-        <div style="font-size:9px;letter-spacing:1px;opacity:.4;">BULLETIN OF ATOMIC SCIENTISTS</div>
+        <div style="font-size:11px;letter-spacing:2px;opacity:.6;">DOOMSDAY CLOCK</div>
+        <div style="font-size:11px;letter-spacing:1px;opacity:.4;">BULLETIN OF ATOMIC SCIENTISTS</div>
         <div style="display:flex;align-items:baseline;gap:4px;margin-top:2px;">
           <span id="doom-h" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">11</span>
           <span style="font-size:32px;font-weight:bold;opacity:.5;color:#E24B4A;">:</span>
@@ -1734,7 +1734,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
           <span id="doom-s" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">35</span>
         </div>
         <div id="doom-label" style="font-size:11px;letter-spacing:2px;font-weight:bold;color:#E24B4A;margin-top:2px;">85 SEC TO MIDNIGHT</div>
-        <div id="doom-real" title="Valor oficial fijo; los segundos de arriba solo avanzan para dar vida" style="font-size:9px;letter-spacing:1.5px;opacity:.55;color:#E24B4A;white-space:nowrap;">OFFICIAL 11:58:35 · JAN 2026</div>
+        <div id="doom-real" title="Valor oficial fijo; los segundos de arriba solo avanzan para dar vida" style="font-size:11px;letter-spacing:1.5px;opacity:.55;color:#E24B4A;white-space:nowrap;">OFFICIAL 11:58:35 · JAN 2026</div>
         <div style="width:100%;height:3px;border-radius:2px;background:rgba(226,75,74,0.15);margin-top:2px;overflow:hidden;"><div id="doom-bar" style="height:100%;border-radius:2px;background:#E24B4A;width:0%;transition:width 0.3s;"></div></div>
       </div>
     </div>
@@ -1760,7 +1760,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div class="cr"><span id="crl1" style="font-size:13px;font-weight:bold;">BTC</span><span id="btc-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="btc-c" style="font-size:12px;text-align:right;">--%</span></div>
     <div class="cr"><span id="crl2" style="font-size:13px;font-weight:bold;">ETH</span><span id="eth-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="eth-c" style="font-size:12px;text-align:right;">--%</span></div>
     <div class="cr"><span id="crl3" style="font-size:13px;font-weight:bold;">SOL</span><span id="sol-p" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="sol-c" style="font-size:12px;text-align:right;">--%</span></div>
-    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="usdmxn-t" class="mut" style="font-size:10px;text-align:right;">live</span></div>
+    <div class="cr" style="margin-bottom:0;border-top-width:1px;border-top-style:solid;padding-top:5px;margin-top:3px;" id="fx-row"><span id="fxl" style="font-size:13px;font-weight:bold;">USD/MXN</span><span id="usdmxn" class="vxs" style="text-align:right;padding-right:15px;">$--</span><span id="usdmxn-t" class="mut" style="font-size:11px;text-align:right;">live</span></div>
   </div>
 
   <!-- SYSTEM PULSE (antes Neural Core; el nombre pasó al holograma de la pestaña de MATRIX) — flex:1 grows to fill -->
@@ -1768,29 +1768,29 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
     <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;margin-bottom:4px;">
       <div class="lbl" id="l-sphere" style="margin-bottom:0;">SYSTEM PULSE</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <span id="sphere-status" style="font-size:9px;letter-spacing:1px;"></span>
+        <span id="sphere-status" style="font-size:11px;letter-spacing:1px;"></span>
       </div>
     </div>
     <canvas id="sphere-cv"></canvas>
-    <div id="sphere-stats" style="font-size:10px;letter-spacing:1px;line-height:1.9;flex-shrink:0;margin-top:3px;"></div>
+    <div id="sphere-stats" style="font-size:11px;letter-spacing:1px;line-height:1.9;flex-shrink:0;margin-top:3px;"></div>
   </div>
 
   <!-- NEXUS RADAR — permanent mini radar panel -->
   <div class="pnl grow" id="p-nxlog" style="min-height:220px;display:flex;flex-direction:column;position:relative;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;margin-bottom:3px;">
       <div class="lbl" id="l-nxlog" style="margin-bottom:0">NEXUS RADAR</div>
-      <span id="nxr-status" style="font-size:10px;letter-spacing:1px;opacity:.65;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"></span>
-      <span id="wx-zctl" style="display:none;align-items:center;gap:3px;margin-left:auto;font-size:9px;letter-spacing:1px;user-select:none"><span class="btn-mini mz-btn" id="wx-zout" onclick="wxZoom(-1)" title="Alejar el radar de lluvia">−</span><span id="wx-zlbl" style="opacity:.7;min-width:44px;text-align:center"></span><span class="btn-mini mz-btn" id="wx-zin" onclick="wxZoom(1)" title="Acercar el radar de lluvia">+</span></span>
+      <span id="nxr-status" style="font-size:11px;letter-spacing:1px;opacity:.65;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"></span>
+      <span id="wx-zctl" style="display:none;align-items:center;gap:3px;margin-left:auto;font-size:11px;letter-spacing:1px;user-select:none"><span class="btn-mini mz-btn" id="wx-zout" onclick="wxZoom(-1)" title="Alejar el radar de lluvia">−</span><span id="wx-zlbl" style="opacity:.7;min-width:44px;text-align:center"></span><span class="btn-mini mz-btn" id="wx-zin" onclick="wxZoom(1)" title="Acercar el radar de lluvia">+</span></span>
       <span class="btn-mini" id="nxp-toggle" onclick="toggleNxPanel()" style="margin-left:6px;white-space:nowrap;flex-shrink:0">[ LOG ]</span>
     </div>
     <div id="nxp-radar" style="flex:1;display:flex;flex-direction:column;min-height:0;">
       <canvas id="nxr-canvas" style="flex:1;min-height:0;width:100%;display:block;min-height:120px"></canvas>
-      <div id="nxr-contacts" style="font-size:10px;line-height:1.5;margin-top:3px;flex-shrink:0;max-height:55px;overflow-y:auto;letter-spacing:.03em"></div>
+      <div id="nxr-contacts" style="font-size:11px;line-height:1.5;margin-top:3px;flex-shrink:0;max-height:55px;overflow-y:auto;letter-spacing:.03em"></div>
     </div>
     <div id="nxp-wx" style="flex:1;display:none;flex-direction:column;min-height:0;">
       <canvas id="wx-canvas" onclick="wxCycleLayer()" title="Clic: radar + IR / solo IR" style="flex:1;min-height:0;width:100%;display:block;min-height:120px;cursor:pointer"></canvas>
       <div id="wx-icons"></div>
-      <div id="wx-info" style="font-size:10px;line-height:15px;height:30px;margin-top:3px;flex-shrink:0;letter-spacing:.03em;overflow:hidden"></div>
+      <div id="wx-info" style="font-size:11px;line-height:15px;height:30px;margin-top:3px;flex-shrink:0;letter-spacing:.03em;overflow:hidden"></div>
     </div>
     <div id="nxp-log" style="flex:1;display:none;flex-direction:column;min-height:0;overflow:hidden;">
       <div class="log-scroll" id="nx-scroll" style="flex:1;overflow-y:auto;max-height:100%;"><div id="nx-content"></div></div>
@@ -2222,7 +2222,7 @@ async function fetchNexusLog(){
     const cols={ok:c.mid,error:'#E24B4A',warn:c.warn,info:c.lbl};
     el.innerHTML=d.logs.slice(-40).map(e=>{
       const col=cols[e.type]||c.lbl;
-      return`<div style="color:${col};font-size:9px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="opacity:.5">${e.ts}</span> <span>${e.msg}</span></div>`;
+      return`<div style="color:${col};font-size:11px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="opacity:.5">${e.ts}</span> <span>${e.msg}</span></div>`;
     }).join('');
     const sc=document.getElementById('nx-scroll');
     if(sc)sc.scrollTop=sc.scrollHeight;
@@ -2257,7 +2257,7 @@ function drawNetGraph(){
   const ctx=cv.getContext('2d');ctx.clearRect(0,0,W,H);ctx.strokeStyle=c.lo;ctx.lineWidth=0.5;ctx.setLineDash([2,6]);
   [.33,.66].forEach(f=>{ctx.beginPath();ctx.moveTo(0,H-f*H);ctx.lineTo(W,H-f*H);ctx.stroke();});ctx.setLineDash([]);
   [[NH.dn,c.hi,.8],[NH.up,c.mid,.5]].forEach(([data,col,a])=>{ctx.strokeStyle=col;ctx.globalAlpha=a;ctx.lineWidth=1.5;ctx.beginPath();const step=W/(data.length-1);data.forEach((v,i)=>{const x=i*step,y=H-(v/NH.max*H*.9);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();ctx.globalAlpha=1;});
-  ctx.fillStyle=_pal.mid;ctx.font='9px monospace';ctx.globalAlpha=.5;ctx.fillText(NH.max.toFixed(1)+'M',2,12);ctx.globalAlpha=1;
+  ctx.fillStyle=_pal.mid;ctx.font='11px monospace';ctx.globalAlpha=.5;ctx.fillText(NH.max.toFixed(1)+'M',2,12);ctx.globalAlpha=1;
 }
 
 // ── MAP EVENTS ─────────────────────────────────────────────
@@ -2487,7 +2487,7 @@ function stormTooltipHtml(s,c){
   if(ex.peak34)h+=ln(c.warn,'Pronóstico: hasta '+fmtPop(ex.peak34.pop)+' bajo viento de tormenta ('+stEsc(stCountry(ex.peak34.country))+', '+fmtStDay(ex.peak34.t)+')');
   if(ex.peak64)h+=ln(c.warn,'Pronóstico: hasta '+fmtPop(ex.peak64.pop)+' bajo viento de huracán ('+stEsc(stCountry(ex.peak64.country))+', '+fmtStDay(ex.peak64.t)+')');
   if(age>STORM_STALE_H)h+=ln(c.warn,'⚠ Último boletín '+fmtStAge(age));
-  h+='<div style="margin-top:4px;font-size:9px;color:'+c.warn+';font-weight:bold">Click: detalle e imagen satelital</div>';
+  h+='<div style="margin-top:4px;font-size:11px;color:'+c.warn+';font-weight:bold">Click: detalle e imagen satelital</div>';
   return h;
 }
 
@@ -2526,15 +2526,15 @@ function stormChartSvg(s){
   const X=function(t){return L+(t-t0)/(t1-t0||1)*(W-L-R);},Y=function(k){return T+(1-k/kmax)*(H-T-B);};
   let o='';
   [[63,'TS'],[119,'C1'],[178,'C3'],[252,'C5']].forEach(function(z){
-    if(z[0]<kmax)o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(z[0]).toFixed(1)+'" y2="'+Y(z[0]).toFixed(1)+'" stroke="#8b949e" stroke-opacity=".35" stroke-dasharray="3,3"/><text x="'+(L-3)+'" y="'+(Y(z[0])+3).toFixed(1)+'" text-anchor="end" font-size="8" fill="#8b949e">'+z[1]+'</text>';
+    if(z[0]<kmax)o+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(z[0]).toFixed(1)+'" y2="'+Y(z[0]).toFixed(1)+'" stroke="#8b949e" stroke-opacity=".35" stroke-dasharray="3,3"/><text x="'+(L-3)+'" y="'+(Y(z[0])+3).toFixed(1)+'" text-anchor="end" font-size="10" fill="#8b949e">'+z[1]+'</text>';
   });
   const past=pts.filter(function(p){return !p.f;}),fut=[past[past.length-1]].concat(pts.filter(function(p){return p.f;}));
   const poly=function(a){return a.map(function(p){return X(p.t).toFixed(1)+','+Y(p.k).toFixed(1);}).join(' ');};
   o+='<polyline points="'+poly(past)+'" fill="none" stroke="#58a6ff" stroke-width="2"/>';
   if(fut.length>1)o+='<polyline points="'+poly(fut)+'" fill="none" stroke="#f0883e" stroke-width="2" stroke-dasharray="5,3"/>';
   const nx=X(s.updated).toFixed(1);
-  o+='<line x1="'+nx+'" x2="'+nx+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#fff" stroke-opacity=".5"/><text x="'+nx+'" y="'+(H-6)+'" text-anchor="middle" font-size="8" fill="#e6edf3">boletín</text>';
-  o+='<text x="'+L+'" y="'+(H-6)+'" font-size="8" fill="#8b949e">'+fmtStDay(t0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" font-size="8" fill="#8b949e">'+fmtStDay(t1)+'</text>';
+  o+='<line x1="'+nx+'" x2="'+nx+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#fff" stroke-opacity=".5"/><text x="'+nx+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="#e6edf3">boletín</text>';
+  o+='<text x="'+L+'" y="'+(H-6)+'" font-size="10" fill="#8b949e">'+fmtStDay(t0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="#8b949e">'+fmtStDay(t1)+'</text>';
   return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+o+'</svg>';
 }
 
@@ -2556,7 +2556,7 @@ function buildStormModalHtml(s){
   return '<div class="st-head"><span class="st-name" style="color:'+col+'">🌀 '+stEsc(s.fullName)+'</span>'+
     '<span class="st-chip" style="color:'+col+'">'+stEsc(s.label.toUpperCase())+'</span>'+
     '<span class="st-chip" style="color:'+alertCol+'">ALERTA GDACS '+stEsc(String(s.alert).toUpperCase())+'</span>'+
-    '<span style="font-size:10px;opacity:.7">Fuente '+stEsc(s.source)+' · boletín '+fmtStAge(age)+'</span>'+
+    '<span style="font-size:11px;opacity:.7">Fuente '+stEsc(s.source)+' · boletín '+fmtStAge(age)+'</span>'+
     '<button class="st-close" onclick="closeStormModal()">✕ CERRAR</button></div>'+
     (age>STORM_STALE_H?'<div class="st-note" style="color:#f0883e;margin:-6px 0 8px">⚠ El último boletín tiene '+fmtStAge(age).replace('hace ','')+': la tormenta pudo disiparse o cambiar de estado desde entonces.</div>':'')+
     '<div class="st-grid"><div>'+
@@ -2781,7 +2781,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       const lbl=document.createElementNS(ns,'text');
       lbl.setAttribute('x',x+(isStorm?12:r+3));
       lbl.setAttribute('y',y+4);
-      lbl.setAttribute('font-size',(isISS||isNews)?'14':isStorm?'11':'12');
+      lbl.setAttribute('font-size',(isISS||isNews)?'16':isStorm?'13.5':'14.5');
       lbl.setAttribute('font-family','monospace');
       lbl.setAttribute('fill',st?(STORM_CAT_COLOR[st.cat]||tc):tc);
       lbl.setAttribute('opacity','.88');
@@ -2799,7 +2799,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       let titleHtml = `<strong>${ev.type.toUpperCase()}: ${ev.label || ''}</strong>`;
       if(isNews) titleHtml = `<strong>📰 NEWS: ${ev.source || ''}</strong>`;
       if(isSat) titleHtml = `<strong>🛰️ SAT: ${ev.label || ''}</strong>`;
-      if(isISS) { const crew = _issCrew.length ? '<br><span style="font-size:10px;opacity:.8;">' + _issCrew.join(' · ') + '</span>' : ''; titleHtml = `<strong>🛸 ISS (Space Station)</strong>${crew}`; }
+      if(isISS) { const crew = _issCrew.length ? '<br><span style="font-size:11px;opacity:.8;">' + _issCrew.join(' · ') + '</span>' : ''; titleHtml = `<strong>🛸 ISS (Space Station)</strong>${crew}`; }
       if(ev.type === 'quake') titleHtml = `<strong>⚠️ EARTHQUAKE: ${ev.label || ''}</strong>`;
       if(isStorm) titleHtml = `<strong>🌀 ${ev.classLabel||'STORM'}: ${ev.label}</strong>`;
       if(isFlood) titleHtml = `<strong>🌊 FLOOD: ${ev.label}</strong>`;
@@ -2809,8 +2809,8 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
       let bodyHtml = `<div style="margin-top: 4px; color: ${c.hi};">${ev.info || ev.name || ev.title || ''}</div>`;
       if(st) bodyHtml = stormTooltipHtml(st, c);
       if(isNews) {
-        bodyHtml += `<div style="margin-top: 4px; font-size: 10px; color: ${c.mut};">Headline: ${ev.title}</div>`;
-        bodyHtml += `<div style="margin-top: 4px; font-size: 9px; color: ${c.warn}; font-weight: bold;">Click to read article</div>`;
+        bodyHtml += `<div style="margin-top: 4px; font-size: 11px; color: ${c.mut};">Headline: ${ev.title}</div>`;
+        bodyHtml += `<div style="margin-top: 4px; font-size: 11px; color: ${c.warn}; font-weight: bold;">Click to read article</div>`;
       }
       tooltip.innerHTML = `${titleHtml}${bodyHtml}`;
 
@@ -2867,7 +2867,7 @@ const c=_pal,g=document.getElementById('event-pins');if(!g)return;g.innerHTML=''
     const midx=(ax+bx)/2, midy=(ay+by)/2;
     const label=document.createElementNS(ns,'text');
     label.setAttribute('x',midx);label.setAttribute('y',midy-3);
-    label.setAttribute('font-size','8');label.setAttribute('font-family','monospace');
+    label.setAttribute('font-size','11');label.setAttribute('font-family','monospace');
     label.setAttribute('fill','#FBBF24');label.setAttribute('opacity','.8');
     label.setAttribute('text-anchor','middle');
     label.style.pointerEvents='none';
@@ -3295,7 +3295,7 @@ function jxBrand(ctx,W,H){
   const x1=W-10,yb=H-20,silver='rgba(226,234,238,',t=_jx.t;
   ctx.save();ctx.textBaseline='alphabetic';ctx.textAlign='right';
   try{ctx.letterSpacing='3px';}catch(e){}
-  ctx.font='600 8px monospace';ctx.fillStyle=silver+'.55)';ctx.fillText('CODE',x1,yb);
+  ctx.font='600 10px monospace';ctx.fillStyle=silver+'.55)';ctx.fillText('CODE',x1,yb);
   const wCode=ctx.measureText('CODE').width;
   ctx.fillStyle=silver+'.28)';ctx.fillRect(x1-wCode-9,yb-9,1,11);   // divisor
   try{ctx.letterSpacing='4px';}catch(e){}
@@ -3307,22 +3307,22 @@ function jxBrand(ctx,W,H){
   ctx.strokeStyle='rgba(95,212,255,.9)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(cx-4,cy-3.5);ctx.lineTo(cx,cy+4);ctx.lineTo(cx+4,cy-3.5);ctx.stroke();
   ctx.fillStyle='rgba(255,181,71,'+(.55+.35*Math.sin(t*1.5)).toFixed(2)+')';ctx.fillRect(cx-.8,cy-5.5,1.6,1.6);   // punto ámbar que respira
   try{ctx.letterSpacing='1px';}catch(e){}
-  ctx.font='7.5px monospace';ctx.fillStyle=silver+'.38)';ctx.fillText('© '+new Date().getFullYear()+' VANT code · Todos los derechos reservados',x1,H-7);
+  ctx.font='10px monospace';ctx.fillStyle=silver+'.45)';ctx.fillText('© '+new Date().getFullYear()+' VANT code · Todos los derechos reservados',x1,H-7);
   ctx.restore();
 }
 function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   const C=JX_C,t=_jx.t,now=Date.now();
   try{ctx.letterSpacing='1.2px';}catch(e){}
-  ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.font='9px monospace';
+  ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.font='11px monospace';
   const ncores=_jx.s.cores.length;
-  ctx.fillStyle=jxRgba(C.g1,.75);ctx.fillText('CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s'+(busy?' · PROCESANDO':''),8,13);
-  ctx.fillStyle=jxRgba(C.b1,.75);ctx.fillText('RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':''),8,25);
+  ctx.fillStyle=jxRgba(C.g1,.75);ctx.fillText('CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s'+(busy?' · PROCESANDO':''),8,15);
+  ctx.fillStyle=jxRgba(C.b1,.75);ctx.fillText('RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':''),8,30);
   try{ctx.letterSpacing='0px';}catch(e){}
   jxBrand(ctx,W,H);
   const L=(_jx.plist&&_jx.plist.top)||[];
   if(!L.length)return;
   // recuadro de procesos: fondo sólido, barra de título, esquinas marcadas; los comprometidos con fondo rojo
-  const RH=13,rows=_jx.rows||6,bw=_jx.narrow?W-20:Math.min(W*.56,270),x0=10,boxH=rows*RH+30,y0=H-10-boxH-(_jx.narrow?28:0);
+  const RH=14,rows=_jx.rows||6,bw=_jx.narrow?W-20:Math.min(W*.56,270),x0=10,boxH=rows*RH+30,y0=H-10-boxH-(_jx.narrow?28:0);
   const nred=L.slice(0,rows).filter(function(p){return _jx.red[p.pid]>now;}).length,alarm=nred>0,pulse=.5+.5*Math.sin(t*4);
   const edge=alarm?C.r1:C.g1;
   ctx.fillStyle=jxRgba((_pal&&_pal.base)||'#050e09',.9);ctx.fillRect(x0,y0,bw,boxH);
@@ -3332,17 +3332,17 @@ function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   [[x0,y0,1,1],[x0+bw,y0,-1,1],[x0,y0+boxH,1,-1],[x0+bw,y0+boxH,-1,-1]].forEach(function(k){ctx.moveTo(k[0]+k[2]*9,k[1]);ctx.lineTo(k[0],k[1]);ctx.lineTo(k[0],k[1]+k[3]*9);});
   ctx.stroke();
   try{ctx.letterSpacing='1.5px';}catch(e){}
-  ctx.font='bold 10px monospace';ctx.fillStyle=jxRgba(C.g0,.95);ctx.fillText('PROCESOS CRÍTICOS',x0+8,y0+12);
+  ctx.font='bold 11px monospace';ctx.fillStyle=jxRgba(C.g0,.95);ctx.fillText('PROCESOS CRÍTICOS',x0+8,y0+12);
   ctx.textAlign='right';
   if(alarm){
     const tag='⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':''),tw=ctx.measureText(tag).width+10;
     ctx.fillStyle=jxRgba(C.r1,.25+.25*pulse);ctx.fillRect(x0+bw-6-tw,y0+3,tw,11);
     ctx.fillStyle=jxRgba(C.r0,1);ctx.fillText(tag,x0+bw-11,y0+12);
-  }else{ctx.font='9px monospace';ctx.fillStyle=jxRgba(C.g1,.7);ctx.fillText((_jx.plist.all||_jx.procs||'')+' activos',x0+bw-8,y0+12);}
+  }else{ctx.font='11px monospace';ctx.fillStyle=jxRgba(C.g1,.7);ctx.fillText((_jx.plist.all||_jx.procs||'')+' activos',x0+bw-8,y0+12);}
   try{ctx.letterSpacing='.5px';}catch(e){}
-  ctx.font='8px monospace';ctx.fillStyle=jxRgba(C.g1,.55);ctx.fillText('CPU',x0+bw*.8,y0+28);ctx.fillStyle=jxRgba(C.b1,.55);ctx.fillText('MEM',x0+bw-8,y0+28);
+  ctx.font='10px monospace';ctx.fillStyle=jxRgba(C.g1,.55);ctx.fillText('CPU',x0+bw*.8,y0+28);ctx.fillStyle=jxRgba(C.b1,.55);ctx.fillText('MEM',x0+bw-8,y0+28);
   ctx.textAlign='left';ctx.fillStyle=jxRgba(C.g0,.45);ctx.fillText('PROCESO',x0+8,y0+28);
-  ctx.font='10px monospace';
+  ctx.font='11px monospace';
   L.slice(0,rows).forEach(function(p,i){
     const y=y0+30+i*RH,red=_jx.red[p.pid]>now,bl=red?.6+.4*Math.abs(Math.sin(t*5+i)):1;
     if(red){ctx.fillStyle=jxRgba(C.r1,.13+.1*bl);ctx.fillRect(x0+1,y+1,bw-2,RH-1);ctx.fillStyle=jxRgba(C.r1,.95);ctx.fillRect(x0+1,y+1,3,RH-1);}
@@ -3532,7 +3532,7 @@ function renderGSPulseAndEvents(events) {
     histEl.innerHTML = `<div class="sub-lbl" style="margin-bottom:4px">SEISMIC 24H</div>`+
       counts.map(b=>{
         const pct = Math.round(b.n/maxN*100);
-        return`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:10px;font-family:monospace">
+        return`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;font-size:11px;font-family:monospace">
           <span style="color:${b.col};width:28px;flex-shrink:0">${b.label}</span>
           <div style="flex:1;background:#0d1117;border-radius:2px;height:6px;overflow:hidden">
             <div style="width:${pct}%;height:100%;background:${b.col};border-radius:2px;transition:width .4s"></div>
@@ -3742,11 +3742,11 @@ function wvDraw(ctx,W,H,c){
     ctx.beginPath();ctx.arc(cursorX,cyy,1.5*u,0,Math.PI*2);ctx.fillStyle='#FFFFFF';ctx.globalAlpha=0.95;ctx.fill();
     // etiqueta del canal
     if(hud){
-      ctx.font='8px monospace';
+      ctx.font='10px monospace';
       var lt=L.n+' '+Math.round(load*100)+'%'+(L.k==='gpu'&&_ncGpuTemp!=null?'  '+_ncGpuTemp+'\u00B0C':'')+(L.k==='ram'&&_ncRamTxt?'  '+_ncRamTxt:'');
-      ctx.lineWidth=3;ctx.lineJoin='round';ctx.strokeStyle=ca(c.base,0.85);ctx.globalAlpha=1;ctx.strokeText(lt,x0+2,cy-laneH/2+9);
+      ctx.lineWidth=3;ctx.lineJoin='round';ctx.strokeStyle=ca(c.base,0.85);ctx.globalAlpha=1;ctx.strokeText(lt,x0+2,cy-laneH/2+10);
       ctx.fillStyle=col;ctx.globalAlpha=0.95;
-      ctx.fillText(L.n+' '+Math.round(load*100)+'%'+(L.k==='gpu'&&_ncGpuTemp!=null?'  '+_ncGpuTemp+'°C':'')+(L.k==='ram'&&_ncRamTxt?'  '+_ncRamTxt:''),x0+2,cy-laneH/2+9);
+      ctx.fillText(L.n+' '+Math.round(load*100)+'%'+(L.k==='gpu'&&_ncGpuTemp!=null?'  '+_ncGpuTemp+'°C':'')+(L.k==='ram'&&_ncRamTxt?'  '+_ncRamTxt:''),x0+2,cy-laneH/2+10);
     }
   }
   ctx.globalAlpha=1;
@@ -3756,7 +3756,7 @@ function wvDraw(ctx,W,H,c){
     ctx.textAlign='center';ctx.lineJoin='round';ctx.strokeStyle=ca(c.base,0.9);ctx.lineWidth=3;
     ctx.font='bold 11px monospace';ctx.fillStyle='#E24B4A';ctx.globalAlpha=0.65+0.35*Math.sin(rt*3);
     ctx.strokeText('SIN SEÑAL',W/2,my0);ctx.fillText('SIN SEÑAL',W/2,my0);
-    ctx.font='8px monospace';ctx.fillStyle=c.warn;ctx.globalAlpha=0.95;
+    ctx.font='10px monospace';ctx.fillStyle=c.warn;ctx.globalAlpha=0.95;
     ctx.strokeText('el backend no responde (puerto 19234)',W/2,my0+13);ctx.fillText('el backend no responde (puerto 19234)',W/2,my0+13);
     ctx.textAlign='left';ctx.globalAlpha=1;
   }
@@ -3783,12 +3783,12 @@ function wvDraw(ctx,W,H,c){
   // Rótulos: ejes de tiempo, núcleos y estado
   if(hud){
     var bi=0;for(i=1;i<n;i++)if(_wv.cores[i]>_wv.cores[bi])bi=i;
-    ctx.font='7px monospace';ctx.fillStyle=c.mut;ctx.globalAlpha=0.7;
+    ctx.font='10px monospace';ctx.fillStyle=c.mut;ctx.globalAlpha=0.75;
     ctx.fillText('-3 MIN',x0,scopeBot+10);
     ctx.textAlign='right';ctx.fillText('AHORA',x1,scopeBot+10);
     ctx.textAlign='left';ctx.fillText('CORES 0-'+(n-1),x0,H-4);
     ctx.textAlign='right';ctx.fillText('MAX C'+bi+' '+Math.round(_wv.cores[bi]*100)+'%',x1,H-4);
-    ctx.font='8px monospace';ctx.textAlign='left';ctx.fillStyle=c.hi;ctx.globalAlpha=0.75;ctx.fillText('OSC · 3 CH',x0,14);
+    ctx.font='10px monospace';ctx.textAlign='left';ctx.fillStyle=c.hi;ctx.globalAlpha=0.75;ctx.fillText('OSC · 3 CH',x0,15);
     ctx.textAlign='right';
     if(busy){ctx.fillStyle=accent;ctx.globalAlpha=0.55+0.45*Math.sin(rt*6);ctx.fillText('◉ AGENT THINKING',x1,14);}
     else if(_ncStatsErr){ctx.fillStyle='#E24B4A';ctx.globalAlpha=0.6+0.4*Math.sin(rt*4);ctx.fillText('✕ SIN DATOS',x1,14);}
@@ -3832,7 +3832,7 @@ function initSphere(){
   // Size canvas to its container
   var panel=document.getElementById('p-sphere');
   var statsEl=document.getElementById('sphere-stats');
-  var labelH=28,statsH=statsEl?statsEl.offsetHeight+6:28;
+  var labelH=Math.max(28,Math.round(cv.getBoundingClientRect().top-panel.getBoundingClientRect().top)+8),statsH=statsEl?statsEl.offsetHeight+6:28;   // alto real de la barra de título (antes 28 fijo y se cortaban 7 px abajo)
   var W=panel.clientWidth-20;
   var H=panel.clientHeight-labelH-statsH;
   if(W<50)W=Math.round(window.innerWidth*0.16);
@@ -3864,7 +3864,7 @@ function initWeatherHover() {
       if (_weatherData) {
         bodyHtml = `
           <div style="margin-top: 4px; color: ${c.hi}; font-size: 13px; font-weight: bold;">${_weatherData.temp}°C - ${_weatherData.desc}</div>
-          <div style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px;">
+          <div style="margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px;">
             <div><span style="color: ${c.mut};">MIN/MAX:</span> ${_weatherData.low}°C / ${_weatherData.high}°C</div>
             <div><span style="color: ${c.mut};">HUMEDAD:</span> ${_weatherData.humidity}%</div>
             <div><span style="color: ${c.mut};">VIENTO:</span> ${_weatherData.wind}</div>
@@ -3954,10 +3954,10 @@ setTimeout(initSphere,2500);
 // ResizeObserver for reliable init
 if(window.ResizeObserver){
   new ResizeObserver(function(entries){
-    var cv=document.getElementById('sphere-cv');
-    if(!cv||_spFrame>5)return; // already running
-    var h=entries[0].contentRect.height;
-    if(h>50)initSphere();
+    var cv=document.getElementById('sphere-cv');if(!cv)return;
+    var h=Math.round(entries[0].contentRect.height);
+    if(h<=50||h===window._spRoH)return;   // re-dimensiona también cuando el panel cambia después de arrancar (antes se quedaba con el alto inicial y se cortaba abajo)
+    window._spRoH=h;clearTimeout(window._spRoT);window._spRoT=setTimeout(initSphere,_spFrame>5?250:0);
   }).observe(document.getElementById('p-sphere'));
 }
 window.addEventListener('resize',function(){clearTimeout(window._mrt);window._mrt=setTimeout(function(){initMatrix();drawNetGraph();initSphere();},200);});
@@ -4344,7 +4344,7 @@ async function loadStormWaves(s){
         c.setAttribute('fill',waveCol(p.h));c.setAttribute('stroke','#000');c.setAttribute('stroke-width','1');c.setAttribute('fill-opacity',p.zone==='out'?'.75':'1');
         g.appendChild(c);
         const t=document.createElementNS(ns,'text');
-        t.setAttribute('x',(x+8).toFixed(1));t.setAttribute('y',(y+4).toFixed(1));t.setAttribute('fill','#fff');t.setAttribute('font-size','12');t.setAttribute('font-family','monospace');t.setAttribute('stroke','#000');t.setAttribute('stroke-width','.5');
+        t.setAttribute('x',(x+8).toFixed(1));t.setAttribute('y',(y+4).toFixed(1));t.setAttribute('fill','#fff');t.setAttribute('font-size','14.5');t.setAttribute('font-family','monospace');t.setAttribute('stroke','#000');t.setAttribute('stroke-width','.5');
         t.textContent=p.h.toFixed(1);g.appendChild(t);
       });
       svg.appendChild(g);
@@ -4822,7 +4822,7 @@ async function znQuakes(){
     g.appendChild(znSvg('circle',{cx:p[0].toFixed(1),cy:p[1].toFixed(1),r:r.toFixed(2),fill:big?c.warn:c.hi,'fill-opacity':big?'.55':'.35',stroke:big?c.warn:c.hi,style:'stroke-width:'+(0.7*s).toFixed(2)}));
     if(_mz.k>=4&&q[2]>=2.5){const t=znSvg('text',{x:(p[0]+r+2*s).toFixed(1),y:(p[1]+3*s).toFixed(1),'font-size':(8.5*s).toFixed(2),'font-family':'monospace',fill:big?c.warn:c.hi,'fill-opacity':'.8'});t.textContent='M'+q[2].toFixed(1);g.appendChild(t);}
     const ago=Math.round((Date.now()-q[5])/3600000);
-    znTip(g,p[0],p[1],function(){return '<strong>SISMO M'+q[2].toFixed(1)+'</strong><div style="margin-top:4px;color:'+c.hi+'">'+znEsc(q[4])+'</div><div style="font-size:10px;color:'+c.mut+'">'+q[3]+' km de profundidad · hace '+(ago<1?'menos de 1 h':ago+' h')+' · USGS</div>';});
+    znTip(g,p[0],p[1],function(){return '<strong>SISMO M'+q[2].toFixed(1)+'</strong><div style="margin-top:4px;color:'+c.hi+'">'+znEsc(q[4])+'</div><div style="font-size:11px;color:'+c.mut+'">'+q[3]+' km de profundidad · hace '+(ago<1?'menos de 1 h':ago+' h')+' · USGS</div>';});
     G.appendChild(g);
   });
 }
@@ -4872,7 +4872,7 @@ async function znFlights(force){
     znTip(g,p[0],p[1],function(){
       return '<strong>'+(a.mil?'✈ MILITAR ':'✈ ')+znEsc(a.cs||a.hex.toUpperCase())+'</strong>'+(a.emg?' <span style="color:#FBBF24">EMERGENCIA '+znEsc(a.emg)+'</span>':'')+
         '<div style="margin-top:4px;color:'+c.hi+'">'+znEsc([a.type,a.reg].filter(Boolean).join(' · ')||'sin datos del avión')+'</div>'+
-        '<div style="font-size:10px;color:'+c.mut+'">'+(a.alt?a.alt.toLocaleString('es-MX')+' ft':'en tierra')+' · '+a.gs+' kt · rumbo '+a.trk+'° · adsb.lol</div>';
+        '<div style="font-size:11px;color:'+c.mut+'">'+(a.alt?a.alt.toLocaleString('es-MX')+' ft':'en tierra')+' · '+a.gs+' kt · rumbo '+a.trk+'° · adsb.lol</div>';
     });
     G.appendChild(g);
   });
@@ -5224,7 +5224,7 @@ function wCloudHtml(d,c){
   let h='';
   bad.forEach(function(s){
     const col=wCloudCol(s.level,c);
-    h+='<div class="cl-svc"><div class="ws-row"><span class="w-dot" style="background:'+col+';box-shadow:0 0 5px '+col+'"></span><b style="color:'+c.hi+'">'+stEsc(s.name)+'</b><span class="t" style="margin-left:auto;color:'+col+';font-size:9.5px;font-weight:700">'+CL_STATUS[s.level]+'</span></div>';
+    h+='<div class="cl-svc"><div class="ws-row"><span class="w-dot" style="background:'+col+';box-shadow:0 0 5px '+col+'"></span><b style="color:'+c.hi+'">'+stEsc(s.name)+'</b><span class="t" style="margin-left:auto;color:'+col+';font-size:11px;font-weight:700">'+CL_STATUS[s.level]+'</span></div>';
     (s.incidents||[]).slice(0,2).forEach(function(i){
       const ic=(i.impact==='critical'||i.impact==='major')?'#E24B4A':c.warn;
       const meta=[CL_IMPACT[i.impact],CL_INC[i.status]||i.status,i.updated?wAgo(i.updated).replace('hace ',''):''].filter(Boolean).join(' · ');
@@ -5265,7 +5265,7 @@ function wRenderNet(){
     const col=r.score>=1e5?'#E24B4A':r.score>=1e3?c.warn:c.lbl;
     return '<div class="w-row" title="Puntaje de anomalía IODA '+r.score+' · '+r.events+' evento(s) · señales: '+stEsc(r.sources.join(', '))+'"><b style="color:'+col+';width:24px;flex-shrink:0">'+stEsc(r.code)+'</b>'+
       '<span class="x" style="flex:1">'+stEsc(r.name)+'</span><span class="t">'+stEsc(r.sources.join(' '))+'</span></div><div class="w-bar" style="width:calc((100% - 30px) * '+lg(r.score).toFixed(3)+');background:'+col+';opacity:.7"></div>';
-  }).join('')+'<div class="w-empty" style="font-size:9px">Puntaje de anomalía (escala log.) de IODA, Georgia Tech: BGP, sondeo activo y tráfico de Google. No equivale a un apagón total.</div>';
+  }).join('')+'<div class="w-empty" style="font-size:11px">Puntaje de anomalía (escala log.) de IODA, Georgia Tech: BGP, sondeo activo y tráfico de Google. No equivale a un apagón total.</div>';
 }
 
 // ── Tsunamis ────────────────────────────────────────────────────────────────
@@ -5280,7 +5280,7 @@ function wRenderTsu(){
     d.bulletins.slice(0,5).map(function(b){
       const col=wTsuCol(b.category,c),u=wUrl(b.link);
       return '<div class="w-row" title="'+stEsc(b.region)+'"><b style="color:'+col+';flex-shrink:0;width:74px">'+stEsc(String(b.category).toUpperCase().slice(0,11))+'</b><span class="x" style="flex:1">'+(u?'<a href="'+u+'" target="_blank" rel="noopener" style="color:inherit">':'')+stEsc(b.region)+(b.mag?' · M'+stEsc(b.mag):'')+(u?'</a>':'')+'</span><span class="t">'+stEsc(b.feed)+' '+wAgo(b.t)+'</span></div>';
-    }).join('')+'<div class="w-empty" style="font-size:9px">NOAA NTWC (Alaska, costa oeste, Atlántico y Caribe) y PTWC (Pacífico). "Information" = hubo un sismo, sin amenaza.</div>';
+    }).join('')+'<div class="w-empty" style="font-size:11px">NOAA NTWC (Alaska, costa oeste, Atlántico y Caribe) y PTWC (Pacífico). "Information" = hubo un sismo, sin amenaza.</div>';
 }
 
 // ── Insignias del pie ───────────────────────────────────────────────────────
@@ -5631,7 +5631,7 @@ function airRender(){
   el.style.display='';el.style.borderLeftColor=k.col;
   el.title='Calidad del aire (modelo CAMS vía Open-Meteo): AQI '+Math.round(d.aqi)+' '+k.name+' · dominante '+airConc(d)+' · clic: detalle en WATCH';
   if(!el.firstChild){
-    el.innerHTML='<span class="wsi" id="w-air-ic"></span><span class="wa-l">AIRE</span><b id="w-air-v"></b><span id="w-air-c" style="font-size:9.5px;font-weight:700"></span><span class="wa-r" id="w-air-r"></span>';
+    el.innerHTML='<span class="wsi" id="w-air-ic"></span><span class="wa-l">AIRE</span><b id="w-air-v"></b><span id="w-air-c" style="font-size:11px;font-weight:700"></span><span class="wa-r" id="w-air-r"></span>';
     el.style.cursor='pointer';el.addEventListener('click',function(){showView('watch');});
   }
   const ic=document.getElementById('w-air-ic'),key=k.n+'|'+Math.round(d.aqi/25);
@@ -5652,7 +5652,7 @@ function wRenderAir(){
     Object.keys(d.sub).filter(function(n){return d.sub[n]!=null;}).map(function(n){
       const v=d.sub[n],kk=airCat(v,c);
       return '<div class="w-row"><span style="width:38px;flex-shrink:0">'+n+'</span><div style="flex:1;height:4px;background:var(--wbc);border-radius:2px;align-self:center"><div style="width:'+Math.min(100,v/1.5).toFixed(0)+'%;height:4px;border-radius:2px;background:'+kk.col+'"></div></div><span class="t" style="width:30px;text-align:right;color:'+kk.col+'">'+Math.round(v)+'</span></div>';
-    }).join('')+'<div class="w-empty" style="font-size:9px">Índice por contaminante (el mayor define el AQI). Modelo global de ~11 km (Copernicus CAMS vía Open-Meteo): es una referencia, no sustituye a la red oficial de monitoreo.</div>';
+    }).join('')+'<div class="w-empty" style="font-size:11px">Índice por contaminante (el mayor define el AQI). Modelo global de ~11 km (Copernicus CAMS vía Open-Meteo): es una referencia, no sustituye a la red oficial de monitoreo.</div>';
 }
 async function fetchAir(){
   try{
@@ -5932,7 +5932,7 @@ function wxDraw(){
   if(_wx.layer==='radar'&&rec&&rec.ready)wxPaintTiles(ctx,rec,.92);
   // referencias: anillos, ciudades, casa
   const lab=function(t,x,y,col,al){ctx.textAlign=al||'left';ctx.lineWidth=2.5;ctx.strokeStyle=ca(c.base,.9);ctx.strokeText(t,x,y);ctx.fillStyle=col;ctx.fillText(t,x,y);};
-  ctx.font='9px monospace';ctx.lineJoin='round';
+  ctx.font='11px monospace';ctx.lineJoin='round';
   ctx.lineWidth=.7;ctx.strokeStyle=ca(c.hi,.4);ctx.setLineDash([2,3]);
   const rings=WX_RINGS[v.half]||[100,200];
   rings.forEach(function(km){const r=km/v.kmpp;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();});
@@ -5989,7 +5989,7 @@ function wxDraw(){
   // registro superpuesto (abajo a la izquierda): estado de casa, dónde llueve y los cambios recientes
   wxLogDraw(ctx,W,H,c,ne,lab);
   // HUD: hora del cuadro, capa y línea de tiempo
-  ctx.font='10px monospace';
+  ctx.font='11px monospace';
   if(f){
     const ni=wxNowIdx(),rel=Math.round((fr[ni].t-f.t)/60);
     lab(wxHM(f.t)+(f.fc?' PRONÓSTICO':rel>0?'  -'+rel+' min':'  AHORA'),6,12,rec&&rec.ready?c.hi:c.mut);
@@ -6072,17 +6072,17 @@ function wxLogDraw(ctx,W,H,c,ne,lab){
     rows.push(ne.near&&ne.cells>=3?{txt:'ECOS '+Math.max(1,Math.round(ne.cover*100))+'% del área · '+desc,col:ne.severe>20?'#F87171':ne.strong>20?c.warn:c.pulse}:{txt:'SIN ECOS EN '+(2*_wx.view.half)+' km',col:c.mut});
   }
   // en lienzos bajos caben menos renglones: el registro no debe tapar más del ~40 % del alto
-  const maxRows=Math.max(2,Math.floor(H*.4/11));
+  const maxRows=Math.max(2,Math.floor(H*.4/13));
   _wx.log.slice(0,Math.max(0,Math.min(4,maxRows-rows.length))).forEach(function(l){rows.push({txt:wxHM(l.t)+'  '+l.txt,col:l.col,dim:Date.now()/1000-l.t>3*3600});});
   rows.length=Math.min(rows.length,maxRows);
   if(!rows.length)return;
-  ctx.font='9px monospace';
-  const lh=11,maxW=Math.min(W*(W<420?.58:.68),330),fit=function(t){if(ctx.measureText(t).width<=maxW)return t;while(t.length>4&&ctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);return t+'…';};
+  ctx.font='11px monospace';
+  const lh=13,maxW=Math.min(W*(W<420?.58:.68),330),fit=function(t){if(ctx.measureText(t).width<=maxW)return t;while(t.length>4&&ctx.measureText(t+'…').width>maxW)t=t.slice(0,-1);return t+'…';};
   rows.forEach(function(r){r.txt=fit(r.txt);});
   const bw=Math.max.apply(null,rows.map(function(r){return ctx.measureText(r.txt).width;}))+10,bh=rows.length*lh+6,x0=4,y0=H-14-bh;
   ctx.fillStyle=ca(c.base,.72);ctx.fillRect(x0,y0,bw,bh);
   ctx.strokeStyle=ca(c.hi,.22);ctx.lineWidth=1;ctx.strokeRect(x0+.5,y0+.5,bw-1,bh-1);
-  rows.forEach(function(r,i){ctx.globalAlpha=r.dim?.55:1;lab(r.txt,x0+5,y0+11+i*lh,r.col);});
+  rows.forEach(function(r,i){ctx.globalAlpha=r.dim?.55:1;lab(r.txt,x0+5,y0+12+i*lh,r.col);});
   ctx.globalAlpha=1;
 }
 // Pasa al siguiente cuadro ya cargado; el último (ahora) se queda más tiempo
@@ -6233,10 +6233,10 @@ function showCritAlert(ev,key){
   wrap.style.display='block';
   wrap.innerHTML=`<div class="crit-alert-card" style="border:1px solid ${col};background:${col}18;">
     <button onclick="dismissCritAlert('${key}')" style="position:absolute;top:3px;right:6px;background:none;border:none;color:${col};cursor:pointer;font-family:monospace;font-size:12px;opacity:.8" title="Dismiss (hides for 72h)">✕</button>
-    <div style="font-size:10px;letter-spacing:2px;color:${col};margin-bottom:3px">${icon} ${title}</div>
+    <div style="font-size:11px;letter-spacing:2px;color:${col};margin-bottom:3px">${icon} ${title}</div>
     <div style="font-size:16px;font-weight:bold;color:${col};line-height:1">${ev.type==='quake'?'M'+(ev.mag?.toFixed(1)||'?'):ev.label||'ALERT'}</div>
     <div style="font-size:11px;color:${c.lbl};margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ev.place||ev.label||'—'}</div>
-    <div style="font-size:10px;color:${c.mut};margin-top:1px">${ev.info||''}</div>
+    <div style="font-size:11px;color:${c.mut};margin-top:1px">${ev.info||''}</div>
     <div style="height:2px;background:${c.lo};border-radius:1px;margin-top:5px"><div style="height:100%;width:${barW}%;background:${col};border-radius:1px;transition:width .8s"></div></div>
   </div>`;
 }
@@ -6498,7 +6498,7 @@ function initSnake(canvas){
 #storm-panel { background:#0d1117; border:1px solid #30363d; border-radius:8px; width:94vw; max-width:1100px; max-height:92vh; overflow:auto; padding:16px 20px; font-family:monospace; color:#e6edf3; box-shadow:0 16px 48px rgba(0,0,0,.6); }
 .st-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
 .st-name { font-size:18px; font-weight:700; letter-spacing:2px; }
-.st-chip { font-size:10px; padding:2px 8px; border-radius:10px; border:1px solid currentColor; letter-spacing:1px; }
+.st-chip { font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid currentColor; letter-spacing:1px; }
 .st-close { margin-left:auto; background:#21262d; color:#8b949e; border:1px solid #30363d; border-radius:4px; padding:4px 10px; cursor:pointer; font-family:monospace; font-size:11px; }
 .st-close:hover { background:#30363d; color:#e6edf3; }
 .st-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; }
@@ -6566,10 +6566,10 @@ function initSnake(canvas){
 #clk-sec::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12)); }
 #clk-sec-f { height:100%; width:0; background:var(--clk-fill,#1D9E75); box-shadow:0 0 6px var(--clk-fill,#1D9E75); transition:width 1s linear; }
 #clk-sub { font-size:11px; letter-spacing:1.5px; white-space:nowrap; }
-#clk-wk { font-size:10px; letter-spacing:1.5px; white-space:nowrap; margin-top:3px; }
+#clk-wk { font-size:11px; letter-spacing:1.5px; white-space:nowrap; margin-top:3px; }
 #clk-sun { margin-top:7px; min-width:0; }
 #clk-sun-cv { display:block; width:100%; height:18px; }
-#clk-sun-t { font-size:10px; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+#clk-sun-t { font-size:11px; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .mtx-tab { cursor:pointer; opacity:.42; margin-right:14px; padding-bottom:1px; user-select:none; }
 .mtx-tab:hover { opacity:.8; }
 .mtx-tab.on { opacity:1; border-bottom:1px solid currentColor; }
@@ -6577,32 +6577,32 @@ function initSnake(canvas){
 #zone-card { display:none; position:absolute; top:8px; right:8px; z-index:20; width:230px; padding:8px 10px; border:1px solid; border-radius:4px;
   font-family:monospace; font-size:11px; line-height:1.45; pointer-events:none; backdrop-filter:blur(2px); }
 #zone-card .zc-t { font-size:13px; font-weight:bold; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#zone-card .zc-s { font-size:10px; opacity:.7; margin-bottom:5px; }
+#zone-card .zc-s { font-size:11px; opacity:.7; margin-bottom:5px; }
 #zone-card .zc-r { display:flex; justify-content:space-between; gap:8px; }
-#zone-card .zc-r span { opacity:.6; letter-spacing:1px; font-size:10px; padding-top:1px; }
+#zone-card .zc-r span { opacity:.6; letter-spacing:1px; font-size:11px; padding-top:1px; }
 #zone-card .zc-r b { font-weight:normal; text-align:right; }
-#zone-card .zc-h { margin-top:6px; padding-top:5px; border-top:1px solid currentColor; opacity:.55; font-size:10px; letter-spacing:1px; }
-#zone-card .zc-focus { color:#FBBF24; font-size:10px; letter-spacing:1px; margin-bottom:4px; }
-#wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:9px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
+#zone-card .zc-h { margin-top:6px; padding-top:5px; border-top:1px solid currentColor; opacity:.55; font-size:11px; letter-spacing:1px; }
+#zone-card .zc-focus { color:#FBBF24; font-size:11px; letter-spacing:1px; margin-bottom:4px; }
+#wind-lbl { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; bottom:3px; z-index:3; font-size:11px; letter-spacing:1px; opacity:.6; cursor:pointer; user-select:none; text-shadow:0 0 3px #000; display:none; }
 /* ── Calidad del aire en el panel del clima ── */
 .wair { display:flex; align-items:center; gap:8px; margin-top:6px; padding:3px 8px 3px 7px; border-radius:4px; border-left:3px solid transparent; background:var(--wdeep,#03280F); font-size:11px; white-space:nowrap; overflow:hidden; }
-.wair .wa-l { font-size:9px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
-.wair .wa-r { margin-left:auto; font-size:10px; color:var(--wmu,#1D9E75); overflow:hidden; text-overflow:ellipsis; }
+.wair .wa-l { font-size:11px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
+.wair .wa-r { margin-left:auto; font-size:11px; color:var(--wmu,#1D9E75); overflow:hidden; text-overflow:ellipsis; }
 /* ── Spotlight: un panel con actividad relevante pasa al frente y se amplía un rato ── */
 .pnl { transition:transform .55s cubic-bezier(.2,.8,.2,1), box-shadow .55s, opacity .55s; }
 body.spot-on #inner, body.spot-on .col, body.spot-on .col-m, body.spot-on .grid > div, body.spot-on .grid > div > div { overflow:visible !important; }
 body.spot-on .pnl:not(.spot) { opacity:.55; }
 .pnl.spot { position:relative; z-index:60; transform:scale(var(--spot-s,1.8)); box-shadow:0 0 0 1px var(--whi,#5DCAA5), 0 0 26px 4px var(--spot-glow,rgba(93,202,165,.45)), 0 20px 60px rgba(0,0,0,.75); }
-.spot-tag { position:absolute; top:-9px; right:12px; padding:1px 8px; border-radius:3px; font-size:10px; font-weight:700; letter-spacing:1.5px; background:var(--spot-bg,#050e09); border:1px solid currentColor; z-index:2; pointer-events:none; animation:spot-pulse 1.4s ease-in-out infinite; }
+.spot-tag { position:absolute; top:-9px; right:12px; padding:1px 8px; border-radius:3px; font-size:11px; font-weight:700; letter-spacing:1.5px; background:var(--spot-bg,#050e09); border:1px solid currentColor; z-index:2; pointer-events:none; animation:spot-pulse 1.4s ease-in-out infinite; }
 @keyframes spot-pulse { 0%,100% { opacity:1; } 50% { opacity:.55; } }
 /* Alertas de eventos: el panel sale al centro como ventana, con título, ✕ y barra del cierre automático */
 .pnl.spot.spot-c { z-index:80; transform:translate(var(--spot-tx,0),var(--spot-ty,0)) scale(var(--spot-s,2)); box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 30px 6px var(--spot-glow,rgba(93,202,165,.5)), 0 30px 90px rgba(0,0,0,.85); }
 body.spot-center .pnl:not(.spot) { opacity:.22; }
 /* dentro del panel, arriba a la derecha: los paneles recortan lo que se sale (overflow) */
 .spot-head { position:absolute; right:0; top:0; max-width:78%; height:14px; display:flex; align-items:center; gap:6px; padding:0 2px 0 7px; border:1px solid; border-top:none; border-right:none; border-radius:0 0 0 4px;
-  background:var(--spot-bg,#050e09); font-size:8px; font-weight:700; letter-spacing:1.2px; z-index:3; }
+  background:var(--spot-bg,#050e09); font-size:11px; font-weight:700; letter-spacing:1.2px; z-index:3; }
 .spot-reason { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:spot-pulse 1.4s ease-in-out infinite; }
-.spot-x { flex-shrink:0; cursor:pointer; padding:0 4px; font-size:9px; line-height:12px; border-radius:2px; pointer-events:auto; }
+.spot-x { flex-shrink:0; cursor:pointer; padding:0 4px; font-size:11px; line-height:12px; border-radius:2px; pointer-events:auto; }
 .spot-x:hover { background:currentColor; color:var(--spot-bg,#050e09); }
 .spot-time { position:absolute; left:0; bottom:0; height:2px; width:100%; transform-origin:left; z-index:3; pointer-events:none; animation:spot-timer linear forwards; opacity:.85; }
 @keyframes spot-timer { from { transform:scaleX(1); } to { transform:scaleX(0); } }
@@ -6610,70 +6610,70 @@ body.spot-center .pnl:not(.spot) { opacity:.22; }
 .spot-hl { position:relative; border-radius:2px; box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 8px var(--spot-hl,#5DCAA5); animation:spot-hl 1.1s ease-in-out infinite; }
 @keyframes spot-hl { 0%,100% { box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 8px var(--spot-hl,#5DCAA5); } 50% { box-shadow:0 0 0 1px var(--spot-hl,#5DCAA5), 0 0 2px transparent; } }
 /* ── Columna izquierda compacta: STORAGE y franja WATCH ── */
-.dk { display:flex; align-items:center; gap:5px; font-size:10.5px; line-height:1.75; min-width:0; }
+.dk { display:flex; align-items:center; gap:5px; font-size:11.5px; line-height:1.75; min-width:0; }
 .dk-n { width:17px; flex-shrink:0; }
 #disks-wrap { display:grid; grid-template-columns:1fr 1fr; gap:1px 12px; }
 #p-store, #p-net, #p-watch { padding:6px 10px; }
 .dk .disk-bt { flex:1; height:5px; margin:0; border-radius:2px; min-width:0; }
 .dk .disk-bf { height:5px; border-radius:2px; transition:width 1.2s ease; }
 .dk-v { flex-shrink:0; white-space:nowrap; text-align:right; }
-.dk-v .disk-tot { font-size:10px; }
+.dk-v .disk-tot { font-size:11px; }
 #p-watch { cursor:pointer; }
-#wstrip-body { flex:1; min-height:0; overflow:hidden; font-size:10.5px; line-height:1.5; font-family:monospace; }
+#wstrip-body { flex:1; min-height:0; overflow:hidden; font-size:11.5px; line-height:1.5; font-family:monospace; }
 .ws-sec { border-top:1px solid var(--wbc,#085041); padding:3px 0 2px; }
 .ws-sec:first-child { border-top:0; padding-top:0; }
-.ws-k { display:flex; justify-content:space-between; gap:6px; font-size:9px; letter-spacing:1.5px; color:var(--wmu,#1D9E75); margin-bottom:2px; }
+.ws-k { display:flex; justify-content:space-between; gap:6px; font-size:11px; letter-spacing:1.5px; color:var(--wmu,#1D9E75); margin-bottom:2px; }
 .ws-row { display:flex; gap:6px; align-items:baseline; overflow:hidden; white-space:nowrap; color:var(--wfg,#38B891); }
 .ws-row .x { overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
-.ws-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); font-size:9px; }
+.ws-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); font-size:11px; }
 .cl-svc { padding:2px 0 3px; }
 .cl-inc { padding-left:14px; }
 .cl-inc .x { flex:1; min-width:0; }
-.cl-meta { font-size:9px; color:var(--wmu,#1D9E75); padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cl-det { font-size:9px; color:var(--wfg,#38B891); opacity:.75; padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ws-chip { border:1px solid; border-radius:3px; padding:0 5px; font-weight:700; font-size:10px; }
+.cl-meta { font-size:11px; color:var(--wmu,#1D9E75); padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cl-det { font-size:11px; color:var(--wfg,#38B891); opacity:.75; padding-left:28px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ws-chip { border:1px solid; border-radius:3px; padding:0 5px; font-weight:700; font-size:11px; }
 .ws-dots { display:flex; flex-wrap:wrap; gap:1px 9px; }
-.ws-dot { display:inline-flex; align-items:center; gap:4px; font-size:9.5px; }
+.ws-dot { display:inline-flex; align-items:center; gap:4px; font-size:11px; }
 .ws-dot i { width:7px; height:7px; border-radius:50%; display:inline-block; }
 /* ── WATCH ── */
 #view-watch { font-family:monospace; overflow-y:auto; padding:6px 8px; }
 .w-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-content:start; }
 .w-card { border:1px solid var(--wbc,#085041); border-radius:4px; padding:6px 8px; min-width:0; }
 .w-card.wide { grid-column:1/-1; }
-.w-h { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:10px; letter-spacing:1.5px; margin-bottom:5px; color:var(--whi,#5DCAA5); }
+.w-h { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11px; letter-spacing:1.5px; margin-bottom:5px; color:var(--whi,#5DCAA5); }
 .w-h b { font-weight:600; white-space:nowrap; }
-.w-h i { font-style:normal; opacity:.55; font-size:9px; letter-spacing:.5px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.w-h i { font-style:normal; opacity:.55; font-size:11px; letter-spacing:.5px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .w-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-bottom:6px; }
-.w-box .k { font-size:9px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
+.w-box .k { font-size:11px; letter-spacing:1px; color:var(--wmu,#1D9E75); }
 .w-box .v { font-size:17px; font-weight:600; line-height:1.15; }
-.w-box .v .u { font-size:10px; font-weight:400; opacity:.7; }
-.w-box .s { font-size:9px; color:var(--wmu,#1D9E75); opacity:.85; }
+.w-box .v .u { font-size:11px; font-weight:400; opacity:.7; }
+.w-box .s { font-size:11px; color:var(--wmu,#1D9E75); opacity:.85; }
 .w-chips { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
 .w-chip { border:1px solid; border-radius:3px; padding:1px 6px; font-size:11px; font-weight:700; }
-.w-chip i { font-style:normal; font-weight:400; font-size:8px; margin-left:5px; opacity:.75; }
-.w-row { display:flex; gap:6px; align-items:baseline; font-size:10px; line-height:1.55; overflow:hidden; color:var(--wfg,#38B891); }
-.w-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); opacity:.8; font-size:9px; }
+.w-chip i { font-style:normal; font-weight:400; font-size:11px; margin-left:5px; opacity:.75; }
+.w-row { display:flex; gap:6px; align-items:baseline; font-size:11px; line-height:1.55; overflow:hidden; color:var(--wfg,#38B891); }
+.w-row .t { flex-shrink:0; color:var(--wmu,#1D9E75); opacity:.8; font-size:11px; }
 .w-row .x { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.w-row.meta { font-size:9px; opacity:.65; margin-top:-2px; margin-bottom:2px; }
-.w-sub { font-size:9px; letter-spacing:1.5px; color:var(--wmu,#1D9E75); margin:6px 0 2px; }
-.w-empty { font-size:10px; color:var(--wmu,#1D9E75); opacity:.75; padding:4px 0; line-height:1.4; }
+.w-row.meta { font-size:11px; opacity:.65; margin-top:-2px; margin-bottom:2px; }
+.w-sub { font-size:11px; letter-spacing:1.5px; color:var(--wmu,#1D9E75); margin:6px 0 2px; }
+.w-empty { font-size:11px; color:var(--wmu,#1D9E75); opacity:.75; padding:4px 0; line-height:1.4; }
 .w-svcs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 10px; }
 .w-svc { min-width:0; }
-.w-inc { font-size:9px; color:var(--wmu,#1D9E75); padding-left:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.w-inc { font-size:11px; color:var(--wmu,#1D9E75); padding-left:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .w-dot { width:8px; height:8px; border-radius:50%; display:inline-block; flex-shrink:0; align-self:center; }
 .w-bar { height:3px; border-radius:2px; margin:0 0 3px 30px; }
 #aurora-cv { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:1; filter:blur(3px); }
 .st-kv { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
 .st-kv > div { background:#161b22; border:1px solid #30363d; border-radius:4px; padding:6px 8px; }
-.st-kv .k { font-size:9px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
+.st-kv .k { font-size:11px; letter-spacing:1px; color:#8b949e; text-transform:uppercase; }
 .st-kv .v { font-size:15px; font-weight:700; margin-top:2px; }
-.st-kv .s { font-size:9px; color:#8b949e; margin-top:1px; }
-.st-sec { font-size:10px; letter-spacing:2px; color:#8b949e; text-transform:uppercase; margin:12px 0 5px; }
+.st-kv .s { font-size:11px; color:#8b949e; margin-top:1px; }
+.st-sec { font-size:11px; letter-spacing:2px; color:#8b949e; text-transform:uppercase; margin:12px 0 5px; }
 .st-tbl { width:100%; border-collapse:collapse; font-size:11px; }
-.st-tbl th { font-size:9px; letter-spacing:1px; color:#8b949e; font-weight:400; text-align:right; padding:2px 4px; border-bottom:1px solid #30363d; }
+.st-tbl th { font-size:11px; letter-spacing:1px; color:#8b949e; font-weight:400; text-align:right; padding:2px 4px; border-bottom:1px solid #30363d; }
 .st-tbl td { padding:3px 4px; text-align:right; border-bottom:1px solid #1c2128; }
 .st-tbl th:first-child, .st-tbl td:first-child { text-align:left; }
-.st-note { font-size:9px; color:#8b949e; margin-top:6px; line-height:1.4; }
+.st-note { font-size:11px; color:#8b949e; margin-top:6px; line-height:1.4; }
 body.theme-win98 #storm-panel { background:#c0c0c0; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; color:black; box-shadow:1px 1px 0 black; }
 body.theme-win98 .st-kv > div { background:white; border:2px inset #808080; border-radius:0; }
 body.theme-win98 .st-close { background:#c0c0c0; color:black; border:2px solid; border-color:white #808080 #808080 white; border-radius:0; }
@@ -6741,12 +6741,12 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
     <div class="cfg-row">
       <label>OpenSky Client Secret</label>
       <input type="password" id="cfg-os-pass" placeholder="Leave blank to keep existing" autocomplete="new-password">
-      <div style="font-size:10px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
+      <div style="font-size:11px;opacity:.4;margin-top:4px">Anonymous: ~100 credits/day · Authenticated: 4,000/day · Free account at opensky-network.org</div>
     </div>
     <div class="cfg-row">
       <label>Agent — Anthropic API Key <span id="cfg-agent-status" style="font-size:11px;opacity:.45;margin-left:6px;"></span></label>
       <input type="password" id="cfg-agent-key" placeholder="Leave blank to keep existing" autocomplete="new-password">
-      <div style="font-size:10px;opacity:.4;margin-top:4px">Nivel 0 — solo consulta, sin ejecución. Get a key at console.anthropic.com</div>
+      <div style="font-size:11px;opacity:.4;margin-top:4px">Nivel 0 — solo consulta, sin ejecución. Get a key at console.anthropic.com</div>
     </div>
     <div class="cfg-row">
       <label>Seismic minimum magnitude — <span id="cfg-seismic-val">M4.5</span></label>
@@ -6780,7 +6780,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
         <option value="off">Nunca</option>
       </select>
       <div class="cfg-toggle-row" style="margin-top:6px"><span>✨ Pulso en reposo (un panel al frente cada ~8 min si no pasa nada)</span><input type="checkbox" id="cfg-pulse"></div>
-      <div style="font-size:10px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (System Pulse), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
+      <div style="font-size:11px;opacity:.5;margin-top:4px">Se amplían unos segundos: CPU/GPU altos o el agente pensando (System Pulse), descargas fuertes (red), sismos, tsunamis, clima espacial y fallas de la nube (WATCH), tormentas nuevas (eventos). <a href="#" onclick="spotTest();return false" style="color:inherit">Probar ahora</a></div>
     </div>
     <div class="cfg-actions">
       <button class="cfg-btn cfg-btn-apply" onclick="applySettings()">Apply</button>
@@ -6832,7 +6832,7 @@ body.theme-macos .cfg-btn-apply { background:black; color:white; border-radius:0
     <input id="launcher-input" type="text" placeholder="Buscar aplicación…" autocomplete="off" spellcheck="false"
       style="border:none;outline:none;padding:14px 16px;font-size:16px;font-family:monospace;background:transparent;border-bottom:1px solid;">
     <div id="launcher-results" style="overflow-y:auto;max-height:44vh;"></div>
-    <div id="launcher-hint" style="padding:6px 16px;font-size:10px;opacity:.5;border-top:.5px solid;">↑↓ navegar · Enter abrir · Esc cerrar</div>
+    <div id="launcher-hint" style="padding:6px 16px;font-size:11px;opacity:.5;border-top:.5px solid;">↑↓ navegar · Enter abrir · Esc cerrar</div>
   </div>
 </div>
 <script>
