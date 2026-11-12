@@ -1232,6 +1232,10 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   (3 s) hacía saltar toda la forma ("se reiniciaba"); ahora la fase se integra (`_jx.uph += dt·velocidad`). CPU,
   núcleos, RAM, GPU y red se suavizan (`jxSmooth`). Medido: 0.8 px de movimiento máximo por cuadro antes y después de
   un cambio brusco de lectura. ~4.1 ms por cuadro.
+- **Nombres (11-nov):** el panel de osciloscopio de la columna derecha se llama ahora SYSTEM PULSE ("SYSTEM LOAD");
+  "NEURAL CORE" quedó solo para el holograma. Firma corporativa `jxBrand` (isotipo hexagonal con V, VANT | CODE y
+  "© año VANT code · Todos los derechos reservados"). Recuadro "PROCESOS CRÍTICOS" con fondo sólido, barra de título,
+  esquinas; en alarma el borde y la etiqueta laten en rojo y las filas comprometidas llevan fondo rojo.
 
 ## Temas visuales
 
