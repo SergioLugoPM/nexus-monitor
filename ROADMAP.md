@@ -1207,19 +1207,23 @@ dibujadas ya al tamaño del zoom (no pasan por `mzDecorate`; usan `style` para e
   frente de la franja WATCH (`wsFocusApply`, porque `wsFit` borra lo que no cabe); en RECENT EVENTS la fila sube.
   Lluvia: `_wx.hl` dibuja un anillo que late sobre el eco y una línea desde la casa.
 
-### Neural Core J.A.R.V.I.S / ULTRON (11-nov-2026)
+### Neural Core holográfico (11-nov-2026, rehecho el mismo día)
 
-- Pestaña dentro del panel MATRIX (`mtxTab`, se guarda en `nexus_mtxtab`); solo corre la animación visible. El
-  código de temas que convierte los títulos en barra de ventana ahora respeta títulos con `onclick` (las pestañas).
-- Lenguaje visual tomado de Animal Logic (Age of Ultron), colores fijos sin importar el tema (`JX_C`):
-  JARVIS dorado = anillos giroscópicos incompletos + rayos + núcleo hexagonal; plato de marcas que gira con la CPU,
-  anillo de un segmento por núcleo (grosor = carga, rojo si >85 %), cinta punteada que avanza con la red; con el
-  agente pensando gira al doble. ULTRON azul = 170 nodos en 5 lóbulos unidos a sus 4 vecinos, se reacomoda cada
-  2.5-5 s, pulsos de causa y efecto que saltan de nodo en nodo (más con GPU/RAM altas; ~12 % rojos), polvo/bokeh.
-  Hilos azul→dorado unen ambos.
-- Procesos: `/stats/procs` (server.js, `si.processes()`, ~2 s en Windows → caché 15 s) da los 14 con más CPU. Al
-  azar 1-3 (máx. 3) pasan a rojo 18-45 s ("tomados por Ultron"): fila roja parpadeando y cadena de pulsos rojos.
-- Costo medido: ~3.9 ms por cuadro a 24 fps (lienzo 640×416).
+- Pestaña dentro del panel MATRIX (`mtxTab`, `nexus_mtxtab`); solo corre la animación visible. El código de temas que
+  convierte los títulos en barra de ventana respeta títulos con `onclick` (las pestañas).
+- Sin nombres de personajes (el usuario pidió quitarlos); créditos "© año VANT code" abajo a la derecha.
+- Los dos núcleos van centrados juntos y un poco encimados; la lista de procesos queda debajo a la izquierda.
+- Núcleo dorado (referencia: holograma de JARVIS de Animal Logic): ~35 filamentos finos en 14 "familias" de planos,
+  arcos incompletos que giran (doble trazo: resplandor ancho + línea fina, apagados atrás), 170 chispas que viajan
+  por ellos, 3 cintas punteadas casi de frente cuyas marcas crecen con cada núcleo de CPU (ecualizador) y avanzan con
+  la red, núcleo radiante con anillo de marcas y rayos. CPU = velocidad; agente pensando = al doble.
+- Núcleo azul (referencia: holograma de Ultron): 560 puntos de superficie al azar + 220 interiores, unidos a sus
+  vecinos (~1900 líneas, 0.45 px, muy tenues: el brillo sale de los pliegues con `lighter`); la forma se deforma con
+  3 capas de ruido que cambian con el tiempo (más rápido con GPU); brillo interior, 36 destellos, bokeh, pulsos de
+  causa y efecto (~12 % rojos). Destellos y bokeh usan imágenes pre-dibujadas (`jxSprite`): crear degradados por
+  cuadro costaba ~2 ms.
+- Procesos: `/stats/procs` (server.js, caché 15 s). Al azar 1-3 (máx. 3) pasan a rojo 18-45 s ("comprometidos").
+- Costo medido: ~3.4 ms por cuadro a 24 fps en un lienzo de 558×576.
 
 ## Temas visuales
 
