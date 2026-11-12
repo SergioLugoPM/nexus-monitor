@@ -1734,6 +1734,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
           <span id="doom-s" style="font-size:38px;font-weight:bold;line-height:1;letter-spacing:2px;color:#E24B4A;">35</span>
         </div>
         <div id="doom-label" style="font-size:11px;letter-spacing:2px;font-weight:bold;color:#E24B4A;margin-top:2px;">85 SEC TO MIDNIGHT</div>
+        <div id="doom-real" title="Valor oficial fijo; los segundos de arriba solo avanzan para dar vida" style="font-size:9px;letter-spacing:1.5px;opacity:.55;color:#E24B4A;white-space:nowrap;">OFFICIAL 11:58:35 · JAN 2026</div>
         <div style="width:100%;height:3px;border-radius:2px;background:rgba(226,75,74,0.15);margin-top:2px;overflow:hidden;"><div id="doom-bar" style="height:100%;border-radius:2px;background:#E24B4A;width:0%;transition:width 0.3s;"></div></div>
       </div>
     </div>
@@ -2058,6 +2059,7 @@ function updateTime(){
 // ── SINGULARITY ────────────────────────────────────────────────────────────
 const SING_TARGET=new Date('2045-01-01T00:00:00Z').getTime();
 const SING_START=new Date('1950-01-01T00:00:00Z').getTime();
+const DOOM_SET='JAN 2026';   // fecha del ajuste oficial vigente
 const DOOM_SECS=85; // Bulletin of the Atomic Scientists: 85 s to midnight (27-ene-2026; 2025 eran 89). Se revisa cada enero
 function updateSingularity(){
   const c=_pal,now=Date.now(),diff=SING_TARGET-now;if(diff<=0)return;
@@ -2088,6 +2090,7 @@ function updateDoomClock(sec){
   var dm=document.getElementById('doom-m');if(dm)dm.textContent=String(doomMin).padStart(2,'0');
   var ds=document.getElementById('doom-s');if(ds)ds.textContent=String(displaySec).padStart(2,'0');
   var dl=document.getElementById('doom-label');if(dl)dl.textContent=DOOM_SECS+' SEC TO MIDNIGHT';
+  var dr=document.getElementById('doom-real');if(dr)dr.textContent='OFFICIAL 11:'+String(doomMin).padStart(2,'0')+':'+String(doomSec%60).padStart(2,'0')+' · '+DOOM_SET;
   // Danger bar: how close to midnight (DOOM_SECS out of 720 sec = last 12 min)
   var db=document.getElementById('doom-bar');if(db)db.style.width=((720-DOOM_SECS)/720*100).toFixed(1)+'%';
   // Border separator color
