@@ -4237,6 +4237,17 @@ document.querySelectorAll('.pnl').forEach(function(p){
     }
   }
 });
+// Botón ⤢ en cada módulo para verlo en grande a mano (misma ventana centrada de las alertas, con ✕).
+// El reloj y el mapa no se amplían. En los temas con botones de ventana, el □ hace lo mismo.
+var SPOT_NO_MANUAL={'p-status':1,'p-map':1};
+document.querySelectorAll('.pnl').forEach(function(p){
+  if(!p.id||SPOT_NO_MANUAL[p.id]||p.querySelector(':scope > .pnl-exp'))return;
+  if(getComputedStyle(p).position==='static')p.style.position='relative';
+  var b=document.createElement('span');b.className='pnl-exp';b.textContent='⤢';b.title='Ver en grande';
+  b.addEventListener('click',function(e){e.stopPropagation();spotManual(p.id);});
+  p.appendChild(b);
+  var mx=p.querySelector('.wb-max');if(mx)mx.addEventListener('click',function(e){e.stopPropagation();spotManual(p.id);});
+});
 setTheme(_currentTheme);updateTime();
 initWeatherHover();
 setInterval(updateTime,1000);setInterval(fetchStats,3000);setInterval(fetchNetwork,15000);
@@ -5733,19 +5744,19 @@ function spotApplyHl(el,o){
 function spotHead(el,o,ms){
   el.querySelectorAll('.spot-head,.spot-time').forEach(function(t){t.remove();});
   const col=o.color||_pal.hi,h=document.createElement('div');h.className='spot-head';h.style.color=col;h.style.borderColor=col;
-  const t=document.createElement('span');t.className='spot-reason';t.textContent='⚠ '+o.reason;h.appendChild(t);
+  const t=document.createElement('span');t.className='spot-reason';t.textContent=(/^manual-/.test(o.key||'')?'⤢ ':/^amb-/.test(o.key||'')?'◉ ':'⚠ ')+o.reason;h.appendChild(t);   // ⚠ solo para alertas
   const x=document.createElement('span');x.className='spot-x';x.textContent='✕';x.title='Cerrar (se cierra solo al terminar la barra)';
   x.addEventListener('click',function(e){e.stopPropagation();spotLog(o.key,'cerrado a mano');spotEnd();});
   h.appendChild(x);el.appendChild(h);
   const b=document.createElement('div');b.className='spot-time';b.style.background=col;b.style.animationDuration=(ms/1000).toFixed(1)+'s';el.appendChild(b);
 }
-// Dos modos: las alertas de eventos (centered) salen al centro de la pantalla como ventana con ✕; el pulso en
-// reposo (amb-*) sigue creciendo en su sitio, y un clic sobre el panel lo cierra como antes.
+// Toda ampliación (alertas, pulso en reposo y las que se piden a mano) sale al centro como ventana con ✕ y barra de
+// cierre automático. Solo si la página no tiene medidas (oculta) crece en su sitio.
 function spotStart(o){
   const el=document.getElementById(o.panel);if(!el)return;
   if(_spot.cur)spotEnd();
   const r=el.getBoundingClientRect(),vw=innerWidth,vh=innerHeight,cx=r.left+r.width/2,cy=r.top+r.height/2;
-  const centered=!/^amb-/.test(o.key||'')&&vw>200&&vh>200,ms=o.ms||22000;   // sin medidas de ventana (página oculta) se queda en su sitio
+  const centered=vw>200&&vh>200,ms=o.ms||22000;
   const root=document.documentElement.style;
   root.setProperty('--spot-bg',_pal.base);root.setProperty('--spot-glow',ca(o.color||_pal.hi,.5));root.setProperty('--spot-hl',o.color||_pal.hi);
   let sc,clk=null;
@@ -5777,13 +5788,23 @@ function spotStart(o){
   // si aparece una ventana encima, se acaba al instante
   if(spotMode()==='auto'&&!o.force)_spot.poll=setInterval(async function(){if(!(await spotDeskFree()))spotEnd();},2500);
 }
+function spotManual(id){
+  if(SPOT_NO_MANUAL[id])return;
+  if(_spot.cur&&_spot.cur.panel===id){spotEnd();return;}
+  const el=document.getElementById(id);if(!el)return;
+  const lb=el.querySelector('.lbl'),t=((lb&&(lb.querySelector('.mtx-tab.on')||lb).textContent)||id).replace(/[_□X⤢]/g,'').trim().toUpperCase();
+  spotLog('manual-'+id,'abierto a mano');
+  const o={panel:id,key:'manual-'+id,reason:t,pri:90,ms:120000,force:true,color:_pal.hi};
+  if(id==='p-nxlog'){o.onStart=spotRadarStart;o.onEnd=spotRadarEnd;}
+  spotStart(o);
+}
 function spotTrigger(o){
   if(spotMode()==='off')return;
   const now=Date.now(),cur=_spot.cur;
   if((_spot.cool[o.key]||0)>now){spotLog(o.key,'enfriamiento');return;}
   if(cur&&cur.panel!==o.panel&&cur.pri>=(o.pri||0)){spotLog(o.key,'ya hay uno de mayor prioridad al frente');return;}
   _spot.cool[o.key]=now+(o.cool||600000);
-  const cen=function(k){return !/^amb-/.test(k||'');};
+  const cen=function(){return true;};   // todas las ampliaciones son ventana centrada
   if(cur&&cur.panel===o.panel&&cen(cur.key)===cen(o.key)){           // mismo panel y mismo modo: se alarga y se actualiza
     clearTimeout(_spot.timer);_spot.timer=setTimeout(spotEnd,o.ms||22000);
     const el=document.getElementById(o.panel);
@@ -6851,6 +6872,10 @@ function initSnake(canvas){
 /* Pestañas del panel MATRIX: MATRIX / NEURAL CORE */
 /* RECENT EVENTS: encabezado completo en hasta dos renglones */
 .ev-txt { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; word-break:break-word; line-height:1.35; min-width:0; }
+/* Botón para ampliar un módulo a mano */
+.pnl-exp { position:absolute; top:4px; right:7px; z-index:4; font-size:12px; line-height:1; padding:1px 3px; cursor:pointer; opacity:.35; user-select:none; border-radius:2px; transition:opacity .2s; }
+.pnl-exp:hover { opacity:1; background:rgba(255,255,255,.08); }
+.pnl.spot .pnl-exp { display:none; }
 .mtx-tab { cursor:pointer; opacity:.42; margin-right:14px; padding-bottom:1px; user-select:none; }
 .mtx-tab:hover { opacity:.8; }
 .mtx-tab.on { opacity:1; border-bottom:1px solid currentColor; }
