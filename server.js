@@ -340,6 +340,21 @@ app.get('/stats', async (req, res) => {
   } catch(e){nxLog('ERROR stats: '+e.message,'error');res.status(500).json({error:e.message});}
 });
 
+// Procesos que más CPU usan, para el panel NEURAL CORE (J.A.R.V.I.S / ULTRON). si.processes() en Windows
+// consulta WMI y tarda ~1-2 s, así que se cachea 15 s y nunca hay dos consultas a la vez.
+let _procCache = null, _procTs = 0, _procInFlight = null;
+app.get('/stats/procs', async (req, res) => {
+  if (_procCache && Date.now() - _procTs < 15000) return res.json(_procCache);
+  if (!_procInFlight) _procInFlight = si.processes().then(p => {
+    const top = (p.list || []).filter(x => x.name && !/^(System Idle Process|Idle)$/i.test(x.name))
+      .sort((a, b) => (b.cpu || 0) - (a.cpu || 0)).slice(0, 14)
+      .map(x => ({ pid: x.pid, name: x.name.replace(/\.exe$/i, ''), cpu: +(x.cpu || 0).toFixed(1), mem: +(x.mem || 0).toFixed(1) }));
+    _procCache = { all: p.all || 0, running: p.running || 0, top, ts: Date.now() }; _procTs = Date.now();
+    return _procCache;
+  }).finally(() => { _procInFlight = null; });
+  try { res.json(await _procInFlight); } catch (e) { res.status(503).json({ error: e.message }); }
+});
+
 app.get('/network', async (req,res)=>{
   try{
     const[ifaces,ping]=await Promise.all([si.networkInterfaces(),si.inetLatency()]);
