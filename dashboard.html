@@ -2921,18 +2921,20 @@ function initMatrix(){
   draw(0);
 }
 
-// ── NEURAL CORE · J.A.R.V.I.S / ULTRON (pestaña dentro del panel MATRIX) ────
-// Basado en los hologramas de Animal Logic para Age of Ultron: JARVIS es una construcción "hecha por el hombre"
-// (globo dorado de anillos giroscópicos con núcleo, anillos exteriores que reaccionan como platos de disco duro y
-// cinta), Ultron una red azul orgánica que se reacomoda sola y por la que la información viaja en pulsos de causa y
-// efecto. Colores fijos (no siguen el tema). Datos reales: anillos = CPU y sus núcleos, cinta = red, malla = RAM/GPU,
-// lista = procesos con más CPU (/stats/procs). Al azar, algunos procesos "caen" en rojo: Ultron los toma, la fila se
-// marca y un pulso rojo recorre la red.
-var JX_C={g0:'#FFF3C4',g1:'#FFB547',g2:'#E07B1A',b0:'#E6FBFF',b1:'#5FD4FF',b2:'#1A6FD0',r0:'#FFD0C8',r1:'#FF3B2F',r2:'#A3120B'};
-var _jx={cv:null,ctx:null,W:0,H:0,raf:0,last:0,on:false,t:0,rings:[],nodes:[],edges:[],adj:[],pulses:[],dust:[],strands:[],
-  net:0,procs:0,memGB:NaN,memTot:NaN,gpuT:null,plist:null,pTimer:0,red:{},chainT:0,reT:0,ready:false};
+// ── NEURAL CORE (pestaña dentro del panel MATRIX) ──────────────────────────
+// Dos núcleos holográficos basados en los de Animal Logic para Age of Ultron, centrados juntos en el panel:
+//  · núcleo dorado: globo de decenas de filamentos finísimos en planos distintos (arcos incompletos que giran como
+//    un giroscopio), chispas que viajan sobre ellos, anillos de "cinta" punteada que reaccionan a los núcleos de la
+//    CPU como un ecualizador, y un núcleo que irradia luz. CPU = velocidad y brillo; red = avance de la cinta.
+//  · núcleo azul: masa arrugada (puntos sobre una esfera deformada por ruido que cambia con el tiempo, más puntos
+//    interiores) tejida con líneas muy tenues que se suman en los pliegues; nodos calientes blancos, pulsos de causa y
+//    efecto que saltan de nodo en nodo (más con GPU/RAM) y bokeh. ~12 % de los pulsos y algunos procesos salen rojos.
+// Colores fijos (no siguen el tema). Lista = procesos con más CPU (/stats/procs); 1-3 al azar pasan a rojo.
+var JX_C={g0:'#FFF6D8',g1:'#FFB547',g2:'#E07B1A',b0:'#EAFBFF',b1:'#5FD4FF',b2:'#1A6FD0',r0:'#FFD0C8',r1:'#FF3B2F',r2:'#A3120B'};
+var _jx={cv:null,ctx:null,W:0,H:0,raf:0,last:0,on:false,t:0,arcs:[],tapes:[],glit:[],pts:[],edges:[],adj:[],hot:[],pulses:[],dust:[],strands:[],
+  net:0,procs:0,memGB:NaN,memTot:NaN,gpuT:null,plist:null,pTimer:0,red:{},chainT:0,ready:false};
 var _mtxTab='matrix';try{if(localStorage.getItem('nexus_mtxtab')==='core')_mtxTab='core';}catch(e){}
-function jxRgba(hex,a){const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+a.toFixed(3)+')';}
+function jxRgba(hex,a){const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+Math.max(0,Math.min(1,a)).toFixed(3)+')';}
 function mtxTab(t){
   _mtxTab=t==='core'?'core':'matrix';try{localStorage.setItem('nexus_mtxtab',_mtxTab);}catch(e){}
   const m=document.getElementById('mtx-cv'),j=document.getElementById('jx-cv');
@@ -2942,35 +2944,57 @@ function mtxTab(t){
   else{jxStop();initMatrix();}
 }
 function jxRand(a,b){return a+Math.random()*(b-a);}
-// JARVIS: anillos en planos inclinados distintos, cada uno con 2-4 arcos (anillos incompletos, como en la película)
+// destello radial pre-dibujado por color (se escala con drawImage)
+var _jxSpr={};
+function jxSprite(col){
+  if(_jxSpr[col])return _jxSpr[col];
+  const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d'),rg=g.createRadialGradient(16,16,0,16,16,16);
+  rg.addColorStop(0,jxRgba(col,.95));rg.addColorStop(.35,jxRgba(col,.38));rg.addColorStop(1,jxRgba(col,0));g.fillStyle=rg;g.fillRect(0,0,32,32);
+  return(_jxSpr[col]=c);
+}
+function jxDir(){const u=Math.random()*2-1,t=Math.random()*6.2832,s=Math.sqrt(1-u*u);return[s*Math.cos(t),u,s*Math.sin(t)];}
+// base ortonormal de un plano a partir de su normal
+function jxBasis(n){const a=Math.abs(n[0])<.9?[1,0,0]:[0,1,0];
+  let u=[n[1]*a[2]-n[2]*a[1],n[2]*a[0]-n[0]*a[2],n[0]*a[1]-n[1]*a[0]];const l=Math.hypot(u[0],u[1],u[2]);u=[u[0]/l,u[1]/l,u[2]/l];
+  return[u,[n[1]*u[2]-n[2]*u[1],n[2]*u[0]-n[0]*u[2],n[0]*u[1]-n[1]*u[0]]];}
+// ruido barato y suave (suma de senos anidados): deforma la masa azul
+function jxNoise(x,y,z){return(Math.sin(x*1.7+Math.sin(y*1.3))+Math.sin(y*1.9+Math.sin(z*1.1))+Math.sin(z*1.5+Math.sin(x*1.2)))/3;}
 function jxBuild(){
-  const R=_jx.rings=[];
-  for(let i=0;i<8;i++){
-    const arcs=[],n=2+Math.floor(Math.random()*3);let a0=Math.random()*Math.PI*2;
-    for(let k=0;k<n;k++){const len=jxRand(.5,1.9);arcs.push([a0,len]);a0+=len+jxRand(.25,.9);}
-    R.push({r:.42+i*.075,tx:jxRand(-1.25,1.25),ty:jxRand(-1.25,1.25),rot:Math.random()*6.28,spin:jxRand(.25,.75)*(i%2?1:-1),arcs:arcs,w:jxRand(.7,1.7),a:jxRand(.45,.9)});
+  // ── dorado: 44 filamentos (algunos son "familias" de anillos casi paralelos, como en el original)
+  _jx.arcs=[];
+  for(let f=0;f<14;f++){
+    const n=jxDir(),B=jxBasis(n),fam=1+Math.floor(Math.random()*4),r0=jxRand(.35,1.02),sp=jxRand(.15,.55)*(Math.random()<.5?-1:1);
+    for(let k=0;k<fam;k++){
+      const segs=[];let a=Math.random()*6.2832;const ns=1+Math.floor(Math.random()*3);
+      for(let s=0;s<ns;s++){const l=jxRand(.6,2.6);segs.push([a,l]);a+=l+jxRand(.2,.9);}
+      _jx.arcs.push({u:B[0],v:B[1],r:r0+k*.025,segs:segs,rot:Math.random()*6.28,sp:sp*jxRand(.85,1.15),w:jxRand(.35,1.1),a:jxRand(.18,.6)});
+    }
   }
-  // ULTRON: nodos en 4 lóbulos (silueta irregular, tipo cerebro), cada uno con su vaivén propio
-  const lobes=[];for(let i=0;i<5;i++){const d=jxDir();lobes.push([d[0]*.3,d[1]*.25,d[2]*.28]);}
-  _jx.lobes=lobes;_jx.nodes=[];
-  for(let i=0;i<170;i++)_jx.nodes.push(jxNode());
+  // cintas punteadas (los "platos de disco duro / cinta de carrete"): casi de frente, en tres radios
+  _jx.tapes=[{r:1.1,tilt:.18,n:120,sp:.25},{r:1.18,tilt:-.12,n:90,sp:-.18},{r:1.26,tilt:.06,n:160,sp:.1}];
+  // chispas que viajan sobre los filamentos
+  _jx.glit=[];for(let i=0;i<170;i++)_jx.glit.push({k:Math.floor(Math.random()*_jx.arcs.length),a:Math.random()*6.2832,v:jxRand(.3,1.4)*(Math.random()<.5?-1:1),tw:Math.random()*6.28});
+  // ── azul: 380 puntos de superficie (espiral de Fibonacci) + 110 interiores
+  const P=_jx.pts=[];
+  for(let i=0;i<560;i++)P.push({d:jxDir(),k:1,s:Math.random()*100,p:[0,0,0],red:0});   // al azar: triángulos irregulares, nada de malla geodésica
+  for(let i=0;i<220;i++){const d=jxDir();P.push({d:d,k:jxRand(.25,.8),s:Math.random()*100,p:[0,0,0],red:0});}
   jxLink();
-  _jx.dust=[];for(let i=0;i<80;i++)_jx.dust.push({x:jxRand(-1.5,1.5),y:jxRand(-1.2,1.2),vx:jxRand(-.02,.02),vy:jxRand(-.03,-.005),s:Math.random()<.12?jxRand(2.5,5):jxRand(.5,1.6),a:jxRand(.08,.45)});
-  _jx.strands=[];for(let i=0;i<4;i++)_jx.strands.push({n:Math.floor(Math.random()*170),ang:Math.random()*6.28,ph:Math.random()*6.28,pk:Math.random()});
+  _jx.hot=[];for(let i=0;i<36;i++)_jx.hot.push(Math.floor(Math.random()*P.length));
+  _jx.dust=[];for(let i=0;i<90;i++)_jx.dust.push({x:jxRand(-1.6,1.6),y:jxRand(-1.3,1.3),vy:jxRand(-.05,-.01),vx:jxRand(-.015,.015),s:Math.random()<.15?jxRand(3,7):jxRand(.4,1.4),a:jxRand(.06,.4)});
+  _jx.strands=[];for(let i=0;i<5;i++)_jx.strands.push({n:Math.floor(Math.random()*560),ang:Math.random()*6.28,ph:Math.random()*6.28,pk:Math.random()});
   _jx.ready=true;
 }
-function jxDir(){const u=Math.random()*2-1,t=Math.random()*6.28,s=Math.sqrt(1-u*u);return[s*Math.cos(t),u,s*Math.sin(t)];}
-function jxNode(){
-  const L=_jx.lobes[Math.floor(Math.random()*_jx.lobes.length)],d=jxDir(),r=Math.pow(Math.random(),.5)*.46;
-  return{b:[L[0]+d[0]*r,L[1]+d[1]*r*.9,L[2]+d[2]*r],to:null,ph:[Math.random()*6.28,Math.random()*6.28,Math.random()*6.28],am:jxRand(.025,.07),fr:jxRand(.3,.9),hot:Math.random()<.1,red:0,p:[0,0,0,1]};
-}
-// cada nodo se une a sus 3 vecinos más cercanos
+// vecinos por dirección (la topología no cambia; la forma sí, con el ruido)
 function jxLink(){
-  const N=_jx.nodes,E=[],adj=N.map(function(){return[];}),seen={};
-  for(let i=0;i<N.length;i++){
-    const d=[];for(let j=0;j<N.length;j++)if(j!==i){const a=N[i].b,b=N[j].b;d.push([(a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2,j]);}
+  const P=_jx.pts,E=[],adj=P.map(function(){return[];}),seen={};
+  const add=function(i,j){const key=i<j?i+'-'+j:j+'-'+i;if(seen[key])return;seen[key]=1;E.push([i,j]);adj[i].push(j);adj[j].push(i);};
+  for(let i=0;i<P.length;i++){
+    const a=P[i],d=[];
+    for(let j=0;j<P.length;j++){if(j===i)continue;const b=P[j];
+      const dd=(a.d[0]*a.k-b.d[0]*b.k)**2+(a.d[1]*a.k-b.d[1]*b.k)**2+(a.d[2]*a.k-b.d[2]*b.k)**2;d.push([dd,j]);}
     d.sort(function(x,y){return x[0]-y[0];});
-    for(let k=0;k<4;k++){const j=d[k][1],key=i<j?i+'-'+j:j+'-'+i;if(seen[key])continue;seen[key]=1;E.push([i,j]);adj[i].push(j);adj[j].push(i);}
+    const kk=a.k===1?4:3;for(let k=0;k<kk;k++)add(i,d[k][1]);
+    if(Math.random()<.18)add(i,d[4+Math.floor(Math.random()*8)][1]);   // algún hilo largo: pliegues que cruzan
   }
   _jx.edges=E;_jx.adj=adj;
 }
@@ -2979,10 +3003,13 @@ function jxResize(){
   const W=Math.round(cv.clientWidth),H=Math.round(cv.clientHeight);if(!W||!H)return;
   if(W===_jx.W&&H===_jx.H)return;
   cv.width=W;cv.height=H;_jx.W=W;_jx.H=H;
-  const wide=_jx.wide=W/H>1.25;   // ancho: lado a lado; alto: JARVIS arriba, Ultron abajo
-  // r es el radio base: lo más externo de JARVIS (la cinta) llega a 1.33·r y la red de Ultron a ~1·r
-  _jx.J=wide?{x:W*.28,y:H*.4,r:Math.min(W*.17,H*.27)}:{x:W*.32,y:H*.27,r:Math.min(W*.22,H*.17)};
-  _jx.U=wide?{x:W*.67,y:H*.44,r:Math.min(W*.22,H*.34)}:{x:W*.66,y:H*.56,r:Math.min(W*.28,H*.21)};
+  // los dos núcleos centrados juntos, un poco encimados (como cuando se tocan en la película); debajo queda la lista
+  const listH=Math.min(H*.3,8*11+24),R=Math.min(W*.255,(H-listH)*.36),d=R*.8,cy=Math.max(R*1.3,(H-listH)*.5);
+  _jx.J={x:W/2-d,y:cy,r:R*.86};
+  _jx.U={x:W/2+d,y:cy,r:R};
+  // viñeta de fondo, cacheada
+  const v=document.createElement('canvas');v.width=W;v.height=H;const g=v.getContext('2d'),rg=g.createRadialGradient(W/2,cy,R*.4,W/2,cy,Math.max(W,H)*.75);
+  rg.addColorStop(0,'rgba(10,22,30,1)');rg.addColorStop(1,'rgba(1,3,5,1)');g.fillStyle=rg;g.fillRect(0,0,W,H);_jx.bg=v;
 }
 function jxStart(){
   const cv=document.getElementById('jx-cv');if(!cv)return;
@@ -2994,25 +3021,24 @@ function jxStart(){
 function jxStop(){_jx.on=false;cancelAnimationFrame(_jx.raf);clearTimeout(_jx.pTimer);}
 async function jxProcs(){
   clearTimeout(_jx.pTimer);if(!_jx.on)return;
-  try{const r=await fetch('http://localhost:19234/stats/procs');if(r.ok){const d=await r.json();_jx.plist=d;jxReroll(false);}}catch(e){}
+  try{const r=await fetch('http://localhost:19234/stats/procs');if(r.ok){_jx.plist=await r.json();jxReroll(false);}}catch(e){}
   _jx.pTimer=setTimeout(jxProcs,15000);
 }
-// Al azar, 1-3 procesos pasan a rojo un rato (Ultron los "toma"): fila en rojo y un pulso rojo por la red
+// Al azar, 1-3 procesos (nunca más de 3 a la vez) pasan a rojo un rato: fila roja y cadena de pulsos rojos
 function jxReroll(force){
   const now=Date.now(),L=(_jx.plist&&_jx.plist.top)||[];
   Object.keys(_jx.red).forEach(function(k){if(_jx.red[k]<now)delete _jx.red[k];});
   if(!L.length)return;
-  const cur=Object.keys(_jx.red).length;if(cur>=3)return;   // nunca más de 3 en rojo a la vez
+  const cur=Object.keys(_jx.red).length;if(cur>=3)return;
   if(!force&&cur&&Math.random()<.5)return;
   const n=Math.min(3-cur,1+Math.floor(Math.random()*2));
-  for(let i=0;i<n;i++){const p=L[Math.floor(Math.random()*L.length)];if(!_jx.red[p.pid]){_jx.red[p.pid]=now+jxRand(18000,45000);jxChain(true,3);}}
+  for(let i=0;i<n;i++){const p=L[Math.floor(Math.random()*L.length)];if(!_jx.red[p.pid]){_jx.red[p.pid]=now+jxRand(18000,45000);jxChain(true,2);}}
 }
-// Cadena de pulsos desde un nodo al azar; se propaga a los vecinos (causa y efecto)
-function jxChain(red,gens){
-  const N=_jx.nodes;if(!N.length)return;
-  const a=Math.floor(Math.random()*N.length),nb=_jx.adj[a];if(!nb||!nb.length)return;
-  _jx.pulses.push({a:a,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:jxRand(1.2,2.4),red:red,g:gens||0});
-  if(red)N[a].red=1;
+function jxChain(red,g){
+  const P=_jx.pts;if(!P.length)return;
+  const a=Math.floor(Math.random()*P.length),nb=_jx.adj[a];if(!nb||!nb.length)return;
+  _jx.pulses.push({a:a,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:jxRand(1.6,3),red:red,g:g||0});
+  if(red)P[a].red=1;
 }
 function jxLoop(ts){
   _jx.raf=requestAnimationFrame(jxLoop);
@@ -3023,13 +3049,10 @@ function jxLoop(ts){
   jxFrame(dt);
 }
 function jxFrame(dt){
-  const ctx=_jx.ctx,W=_jx.W,H=_jx.H,t=_jx.t,C=JX_C;
+  const ctx=_jx.ctx,W=_jx.W,H=_jx.H,t=_jx.t;
   const cpu=typeof _ncCpuLoad==='number'?_ncCpuLoad:.3,ram=typeof _ncRamLoad==='number'?_ncRamLoad:.5,gpu=_ncGpuLoad||0,busy=!!_ncAgentBusy;
   ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
-  ctx.fillStyle='#020507';ctx.fillRect(0,0,W,H);
-  // retícula muy tenue de fondo
-  ctx.strokeStyle='rgba(95,212,255,.035)';ctx.lineWidth=1;ctx.beginPath();
-  for(let x=(t*4)%24;x<W;x+=24){ctx.moveTo(x,0);ctx.lineTo(x,H);}for(let y=0;y<H;y+=24){ctx.moveTo(0,y);ctx.lineTo(W,y);}ctx.stroke();
+  if(_jx.bg)ctx.drawImage(_jx.bg,0,0);else{ctx.fillStyle='#020507';ctx.fillRect(0,0,W,H);}
   ctx.globalCompositeOperation='lighter';
   jxUltron(ctx,dt,t,ram,gpu);
   jxStrands(ctx,t);
@@ -3037,163 +3060,165 @@ function jxFrame(dt){
   ctx.globalCompositeOperation='source-over';
   jxHud(ctx,W,H,cpu,ram,gpu,busy);
 }
+// ── núcleo dorado
 function jxJarvis(ctx,dt,t,cpu,busy){
-  const J=_jx.J,C=JX_C,sp=(.5+cpu*1.8)*(busy?2:1),gy=t*.18;
-  const cg=Math.cos(gy),sg=Math.sin(gy);
-  // anillos giroscópicos
-  _jx.rings.forEach(function(R,i){
-    R.rot+=R.spin*sp*dt;
-    const cx=Math.cos(R.tx),sx=Math.sin(R.tx),cy=Math.cos(R.ty),sy=Math.sin(R.ty);
-    R.arcs.forEach(function(A){
-      ctx.beginPath();let zs=0,n=0;
-      for(let s=0;s<=14;s++){
-        const a=R.rot+A[0]+A[1]*s/14;let x=Math.cos(a),y=Math.sin(a),z=0;
-        let y2=y*cx-z*sx,z2=y*sx+z*cx;y=y2;z=z2;
-        let x2=x*cy+z*sy;z2=-x*sy+z*cy;x=x2;z=z2;
-        x2=x*cg+z*sg;z2=-x*sg+z*cg;x=x2;z=z2;
-        const px=J.x+x*J.r*R.r,py=J.y+y*J.r*R.r;if(s)ctx.lineTo(px,py);else ctx.moveTo(px,py);zs+=z;n++;
-      }
-      const depth=.45+.55*((zs/n)+1)/2;
-      ctx.strokeStyle=jxRgba(C.g2,R.a*depth*.35);ctx.lineWidth=R.w*3.2;ctx.stroke();   // halo
-      ctx.strokeStyle=jxRgba(C.g1,R.a*depth);ctx.lineWidth=R.w;ctx.stroke();
+  const J=_jx.J,C=JX_C,sp=(.45+cpu*1.6)*(busy?2:1),gy=t*.16,gx=Math.sin(t*.11)*.35;
+  const cgy=Math.cos(gy),sgy=Math.sin(gy),cgx=Math.cos(gx),sgx=Math.sin(gx);
+  const pr=function(x,y,z,out){const x1=x*cgy+z*sgy,z1=-x*sgy+z*cgy,y1=y*cgx-z1*sgx,z2=y*sgx+z1*cgx,f=1/(1-z2*.16);out[0]=J.x+x1*J.r*f;out[1]=J.y+y1*J.r*f;out[2]=z2;};
+  const q=[0,0,0];
+  // halo amplio detrás del globo
+  const hg=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,J.r*1.35);hg.addColorStop(0,jxRgba(C.g2,.16+cpu*.12));hg.addColorStop(1,jxRgba(C.g2,0));
+  ctx.fillStyle=hg;ctx.beginPath();ctx.arc(J.x,J.y,J.r*1.35,0,6.2832);ctx.fill();
+  // filamentos: un trazo ancho y tenue (resplandor) y otro fino y brillante; los de atrás más apagados
+  _jx.arcs.forEach(function(A){
+    A.rot+=A.sp*sp*dt;
+    A.segs.forEach(function(S){
+      ctx.beginPath();let zs=0;const n=Math.max(8,Math.round(S[1]*9));
+      for(let s=0;s<=n;s++){const a=A.rot+S[0]+S[1]*s/n,c=Math.cos(a)*A.r,si=Math.sin(a)*A.r;
+        pr(A.u[0]*c+A.v[0]*si,A.u[1]*c+A.v[1]*si,A.u[2]*c+A.v[2]*si,q);if(s)ctx.lineTo(q[0],q[1]);else ctx.moveTo(q[0],q[1]);zs+=q[2];}
+      const dep=.35+.65*((zs/(n+1))+1)/2;
+      ctx.strokeStyle=jxRgba(C.g2,A.a*dep*.28);ctx.lineWidth=A.w*3.4;ctx.stroke();
+      ctx.strokeStyle=jxRgba(C.g1,A.a*dep);ctx.lineWidth=A.w;ctx.stroke();
     });
   });
-  // rayos hacia el núcleo, parpadean
-  ctx.lineWidth=.6;
-  for(let i=0;i<12;i++){
-    const a=i*.5236+t*.15+Math.sin(t*.7+i)*.2,l=J.r*(.3+.6*((Math.sin(t*1.3+i*2.1)+1)/2));
-    ctx.strokeStyle=jxRgba(C.g1,.18+.25*((Math.sin(t*3+i)+1)/2));
-    ctx.beginPath();ctx.moveTo(J.x,J.y);ctx.lineTo(J.x+Math.cos(a)*l,J.y+Math.sin(a)*l*.92);ctx.stroke();
-  }
-  // plato de marcas (gira con la CPU)
-  _jx.plat=(_jx.plat||0)+dt*(.4+cpu*3);
-  ctx.strokeStyle=jxRgba(C.g1,.55);ctx.lineWidth=1;ctx.beginPath();
-  for(let i=0;i<72;i++){const a=_jx.plat+i*Math.PI/36,r1=J.r*1.07,r2=r1+(i%6?3:7);ctx.moveTo(J.x+Math.cos(a)*r1,J.y+Math.sin(a)*r1);ctx.lineTo(J.x+Math.cos(a)*r2,J.y+Math.sin(a)*r2);}
+  // cintas punteadas: cada marca crece con la carga del núcleo de CPU que le toca (ecualizador); avanzan con la red
+  const cores=(typeof _ncCores!=='undefined'&&_ncCores.length)?_ncCores:null;
+  _jx.tapeOff=(_jx.tapeOff||0)+dt*(.08+Math.min(1.2,_jx.net*.6));
+  _jx.tapes.forEach(function(T,ti){
+    const ct=Math.cos(T.tilt),st=Math.sin(T.tilt);ctx.beginPath();
+    for(let i=0;i<T.n;i++){
+      const a=i/T.n*6.2832+t*T.sp+_jx.tapeOff*(ti%2?-1:1),lv=cores?cores[i%cores.length]:cpu,len=.015+lv*.06*(ti===1?1.6:1);
+      if(ti===2&&i%3)continue;
+      const c=Math.cos(a),s=Math.sin(a);
+      pr(c*T.r,s*T.r*ct,s*T.r*st,q);const x0=q[0],y0=q[1];pr(c*(T.r+len),s*(T.r+len)*ct,s*(T.r+len)*st,q);
+      ctx.moveTo(x0,y0);ctx.lineTo(q[0],q[1]);
+    }
+    ctx.strokeStyle=jxRgba(C.g1,(busy?.75:.42)-ti*.08);ctx.lineWidth=ti===1?1.4:.9;ctx.stroke();
+  });
+  // chispas que viajan por los filamentos
+  _jx.glit.forEach(function(G){
+    const A=_jx.arcs[G.k];G.a+=G.v*dt*sp*.6;
+    const a=A.rot+G.a,c=Math.cos(a)*A.r,si=Math.sin(a)*A.r;pr(A.u[0]*c+A.v[0]*si,A.u[1]*c+A.v[1]*si,A.u[2]*c+A.v[2]*si,q);
+    const tw=.35+.65*Math.abs(Math.sin(t*3+G.tw)),dep=.4+.6*(q[2]+1)/2;
+    ctx.fillStyle=jxRgba(C.g0,tw*dep*.9);ctx.fillRect(q[0]-.7,q[1]-.7,1.4,1.4);
+  });
+  // núcleo radiante + anillo de marcas que gira
+  const cr=J.r*(.11+.05*cpu+(busy?.025*Math.sin(t*9):0)),g=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,cr*3.2);
+  g.addColorStop(0,jxRgba(C.g0,1));g.addColorStop(.18,jxRgba(C.g0,.85));g.addColorStop(.45,jxRgba(C.g1,.35));g.addColorStop(1,jxRgba(C.g2,0));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(J.x,J.y,cr*3.2,0,6.2832);ctx.fill();
+  ctx.strokeStyle=jxRgba(C.g0,.55);ctx.lineWidth=.8;ctx.beginPath();
+  for(let i=0;i<24;i++){const a=i*.2618-t*.8,r1=cr*1.25,r2=cr*(i%4?1.45:1.7);ctx.moveTo(J.x+Math.cos(a)*r1,J.y+Math.sin(a)*r1);ctx.lineTo(J.x+Math.cos(a)*r2,J.y+Math.sin(a)*r2);}
   ctx.stroke();
-  // anillo de núcleos: un segmento por núcleo, su grosor es la carga
-  const cores=(typeof _ncCores!=='undefined'&&_ncCores.length)?_ncCores:[cpu,cpu,cpu,cpu,cpu,cpu,cpu,cpu],n=cores.length,seg=Math.PI*2/n;
-  _jx.coreRot=(_jx.coreRot||0)+dt*.12;
-  for(let i=0;i<n;i++){
-    const l=cores[i],a0=_jx.coreRot+i*seg+.04,a1=a0+seg-.08;
-    ctx.strokeStyle=jxRgba(l>.85?C.r1:C.g1,.35+l*.6);ctx.lineWidth=1.5+l*7;
-    ctx.beginPath();ctx.arc(J.x,J.y,J.r*1.2+l*3,a0,a1);ctx.stroke();
-  }
-  // cinta exterior: el guion avanza con el tráfico de red
-  _jx.tape=(_jx.tape||0)+dt*(6+Math.min(60,_jx.net*25));
-  ctx.setLineDash([2,6]);ctx.lineDashOffset=-_jx.tape;ctx.strokeStyle=jxRgba(C.g1,busy?.85:.45);ctx.lineWidth=busy?2.2:1.2;
-  ctx.beginPath();ctx.arc(J.x,J.y,J.r*1.33,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-  // núcleo
-  const cr=J.r*(.09+.05*cpu+(busy?.03*Math.sin(t*9):0)),g=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,cr*3);
-  g.addColorStop(0,jxRgba(C.g0,.95));g.addColorStop(.3,jxRgba(C.g1,.55));g.addColorStop(1,jxRgba(C.g2,0));
-  ctx.fillStyle=g;ctx.beginPath();ctx.arc(J.x,J.y,cr*3,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=jxRgba(C.g0,.9);ctx.lineWidth=1;ctx.beginPath();
-  for(let i=0;i<=6;i++){const a=i*Math.PI/3+t*.5;const px=J.x+Math.cos(a)*cr,py=J.y+Math.sin(a)*cr;if(i)ctx.lineTo(px,py);else ctx.moveTo(px,py);}ctx.stroke();
+  // rayos que salen del núcleo y parpadean
+  ctx.lineWidth=.5;
+  for(let i=0;i<16;i++){const a=i*.3927+t*.05,f=(Math.sin(t*2.3+i*1.7)+1)/2,l=J.r*(.25+.7*f);
+    ctx.strokeStyle=jxRgba(C.g1,.08+.22*f);ctx.beginPath();ctx.moveTo(J.x+Math.cos(a)*cr,J.y+Math.sin(a)*cr);ctx.lineTo(J.x+Math.cos(a)*l,J.y+Math.sin(a)*l);ctx.stroke();}
 }
+// ── núcleo azul
 function jxUltron(ctx,dt,t,ram,gpu){
-  const U=_jx.U,C=JX_C,N=_jx.nodes,ry=t*.12,rx=Math.sin(t*.07)*.35,cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
-  // reacomodo: cada pocos segundos unos nodos se van a otro sitio y la red se vuelve a tejer
-  _jx.reT-=dt;
-  if(_jx.reT<=0){_jx.reT=jxRand(2.5,5);for(let i=0;i<6;i++){const k=Math.floor(Math.random()*N.length),nn=jxNode();N[k].to=nn.b;N[k].tt=0;}}
-  let relink=false;
-  N.forEach(function(nd){
-    if(nd.to){nd.tt+=dt;const e=Math.min(1,nd.tt/1.2);for(let k=0;k<3;k++)nd.b[k]+=(nd.to[k]-nd.b[k])*e*.15;if(e>=1){nd.to=null;relink=true;}}
-    const s=t*nd.fr,x0=nd.b[0]+Math.sin(s+nd.ph[0])*nd.am,y0=nd.b[1]+Math.sin(s*1.1+nd.ph[1])*nd.am,z0=nd.b[2]+Math.sin(s*.9+nd.ph[2])*nd.am;
-    const x1=x0*cy+z0*sy,z1=-x0*sy+z0*cy,y1=y0*cx-z1*sx,z2=y0*sx+z1*cx;
-    nd.p[0]=U.x+x1*U.r*1.12;nd.p[1]=U.y+y1*U.r*1.12;nd.p[2]=z2;
-    if(nd.red>0)nd.red=Math.max(0,nd.red-dt*.25);
-  });
-  if(relink)jxLink();
-  // polvo / bokeh alrededor
+  const U=_jx.U,C=JX_C,P=_jx.pts,ry=t*.1,rx=Math.sin(t*.06)*.4,cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
+  const tt=t*(.12+gpu*.25);
+  // forma: la superficie se arruga con dos capas de ruido que cambian con el tiempo (se "reacomoda" sola)
+  for(let i=0;i<P.length;i++){
+    const p=P[i],d=p.d,n1=jxNoise(d[0]*1.7+tt,d[1]*1.7-tt*.7,d[2]*1.7+tt*.4),n2=jxNoise(d[0]*4.1-tt*1.3,d[1]*4.1,d[2]*4.1+tt);
+    const n3=jxNoise(d[0]*8.3+tt*.6,d[1]*8.3-tt,d[2]*8.3),r=p.k*(.92+n1*.46+n2*.18+n3*.07),x=d[0]*r,y=d[1]*r*.86,z=d[2]*r;
+    const x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y*cx-z1*sx,z2=y*sx+z1*cx,f=1/(1-z2*.18);
+    p.p[0]=U.x+x1*U.r*f;p.p[1]=U.y+y1*U.r*f;p.p[2]=z2;
+    if(p.red>0)p.red=Math.max(0,p.red-dt*.22);
+  }
+  // halo frío
+  const hg=ctx.createRadialGradient(U.x,U.y,0,U.x,U.y,U.r*1.5);hg.addColorStop(0,jxRgba(C.b2,.18+ram*.1));hg.addColorStop(1,jxRgba(C.b2,0));
+  ctx.fillStyle=hg;ctx.beginPath();ctx.arc(U.x,U.y,U.r*1.5,0,6.2832);ctx.fill();
+  // bokeh y polvo
   _jx.dust.forEach(function(p){
-    p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y<-1.3){p.y=1.2;p.x=jxRand(-1.5,1.5);}
-    ctx.fillStyle=jxRgba(C.b1,p.a*(p.s>2?.35:1));ctx.beginPath();ctx.arc(U.x+p.x*U.r,U.y+p.y*U.r,p.s,0,Math.PI*2);ctx.fill();
+    p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y<-1.4){p.y=1.3;p.x=jxRand(-1.6,1.6);}
+    const X=U.x+p.x*U.r,Y=U.y+p.y*U.r;
+    if(p.s>2){ctx.globalAlpha=p.a*.5;ctx.drawImage(jxSprite(C.b1),X-p.s,Y-p.s,p.s*2,p.s*2);ctx.globalAlpha=1;}
+    else{ctx.fillStyle=jxRgba(C.b1,p.a);ctx.fillRect(X,Y,p.s,p.s);}
   });
-  // aristas
-  ctx.lineWidth=.6;ctx.strokeStyle=jxRgba(C.b1,.22+ram*.2);ctx.beginPath();
-  _jx.edges.forEach(function(e){const a=N[e[0]].p,b=N[e[1]].p;ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);});
+  // tejido: líneas muy tenues que se suman (con "lighter") donde la masa se pliega; las de atrás más apagadas
+  const E=_jx.edges;
+  // brillo interior: la masa se ve llena, no hueca
+  const ig=ctx.createRadialGradient(U.x,U.y,0,U.x,U.y,U.r*.75);ig.addColorStop(0,jxRgba(C.b1,.22));ig.addColorStop(.6,jxRgba(C.b2,.08));ig.addColorStop(1,jxRgba(C.b2,0));
+  ctx.fillStyle=ig;ctx.beginPath();ctx.arc(U.x,U.y,U.r*.75,0,6.2832);ctx.fill();
+  ctx.lineWidth=.45;
+  for(let pass=0;pass<2;pass++){   // 0 = mitad trasera, 1 = mitad delantera
+    ctx.strokeStyle=jxRgba(C.b1,pass?.2+ram*.1:.07);ctx.beginPath();
+    for(let k=0;k<E.length;k++){const a=P[E[k][0]].p,b=P[E[k][1]].p;if((a[2]+b[2]>0)!==!!pass)continue;ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+    ctx.stroke();
+  }
+  ctx.strokeStyle=jxRgba(C.r1,.55);ctx.lineWidth=.8;ctx.beginPath();
+  for(let k=0;k<E.length;k++){const A=P[E[k][0]],B=P[E[k][1]];if(A.red>.3&&B.red>.3){ctx.moveTo(A.p[0],A.p[1]);ctx.lineTo(B.p[0],B.p[1]);}}
   ctx.stroke();
-  ctx.strokeStyle=jxRgba(C.r1,.5);ctx.beginPath();
-  _jx.edges.forEach(function(e){if(N[e[0]].red>.3&&N[e[1]].red>.3){const a=N[e[0]].p,b=N[e[1]].p;ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}});
-  ctx.stroke();
-  // nodos (los "calientes" con halo)
-  N.forEach(function(nd){
-    const d=.4+.6*(nd.p[2]+1)/2,col=nd.red>.15?C.r1:(nd.hot?C.b0:C.b1),r=(nd.hot?1.9:1.1)*d;
-    if(nd.hot||nd.red>.3){const g=ctx.createRadialGradient(nd.p[0],nd.p[1],0,nd.p[0],nd.p[1],r*6);g.addColorStop(0,jxRgba(col,.55*d));g.addColorStop(1,jxRgba(col,0));ctx.fillStyle=g;ctx.beginPath();ctx.arc(nd.p[0],nd.p[1],r*6,0,Math.PI*2);ctx.fill();}
-    ctx.fillStyle=jxRgba(col,.6+.4*d);ctx.beginPath();ctx.arc(nd.p[0],nd.p[1],r,0,Math.PI*2);ctx.fill();
+  // nodos: brillo por profundidad; los calientes con destello
+  ctx.fillStyle=jxRgba(C.b0,.55);
+  for(let i=0;i<P.length;i++){const p=P[i];if(p.p[2]<-.2||p.red>.15)continue;ctx.fillRect(p.p[0]-.6,p.p[1]-.6,1.2,1.2);}
+  _jx.hot.forEach(function(i,k){   // destellos: imagen pre-dibujada (crear degradados en cada cuadro costaba ~2 ms)
+    const p=P[i],tw=.5+.5*Math.sin(t*2.2+k*1.9),s=(1.3+tw*2)*2.6;
+    ctx.globalAlpha=.4+.6*tw;ctx.drawImage(jxSprite(p.red>.15?C.r1:C.b0),p.p[0]-s,p.p[1]-s,s*2,s*2);
   });
-  // pulsos: nacen más seguido con GPU/RAM altas; ~12 % salen rojos
+  ctx.globalAlpha=1;
+  for(let i=0;i<P.length;i++){const p=P[i];if(p.red>.15){ctx.fillStyle=jxRgba(C.r1,.4+p.red*.6);ctx.fillRect(p.p[0]-1,p.p[1]-1,2,2);}}
+  // pulsos de causa y efecto; nacen más seguido con GPU/RAM altas, ~12 % rojos
   _jx.chainT-=dt;
-  if(_jx.chainT<=0){_jx.chainT=1/(.7+gpu*3+ram*1.2);jxChain(Math.random()<.12,0);}
+  if(_jx.chainT<=0){_jx.chainT=1/(1+gpu*4+ram*1.5);jxChain(Math.random()<.12,0);}
   const next=[];
   _jx.pulses.forEach(function(p){
     p.t+=p.v*dt;
-    const a=N[p.a].p,b=N[p.b].p,k=Math.min(1,p.t),x=a[0]+(b[0]-a[0])*k,y=a[1]+(b[1]-a[1])*k,k0=Math.max(0,k-.35);
-    ctx.strokeStyle=jxRgba(p.red?C.r1:C.b0,.85);ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(a[0]+(b[0]-a[0])*k0,a[1]+(b[1]-a[1])*k0);ctx.lineTo(x,y);ctx.stroke();
-    ctx.fillStyle=jxRgba(p.red?C.r0:C.b0,1);ctx.beginPath();ctx.arc(x,y,1.8,0,Math.PI*2);ctx.fill();
+    const a=P[p.a].p,b=P[p.b].p,k=Math.min(1,p.t),x=a[0]+(b[0]-a[0])*k,y=a[1]+(b[1]-a[1])*k,k0=Math.max(0,k-.5);
+    ctx.strokeStyle=jxRgba(p.red?C.r1:C.b0,.9);ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(a[0]+(b[0]-a[0])*k0,a[1]+(b[1]-a[1])*k0);ctx.lineTo(x,y);ctx.stroke();
+    ctx.fillStyle=jxRgba(p.red?C.r0:C.b0,1);ctx.fillRect(x-1.2,y-1.2,2.4,2.4);
     if(p.t<1){next.push(p);return;}
-    if(p.red)N[p.b].red=1;
-    // causa y efecto: el pulso sigue a 1-2 vecinos, cada vez con menos probabilidad
-    if(p.g<6&&next.length<60){const nb=_jx.adj[p.b].filter(function(j){return j!==p.a;});
-      const m=Math.random()<.35?2:1;for(let i=0;i<m&&nb.length;i++)if(Math.random()<.8-p.g*.1)next.push({a:p.b,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:p.v,red:p.red,g:p.g+1});}
+    if(p.red)P[p.b].red=1;
+    if(p.g<7&&next.length<80){const nb=_jx.adj[p.b].filter(function(j){return j!==p.a;});
+      const m=Math.random()<.4?2:1;for(let i=0;i<m&&nb.length;i++)if(Math.random()<.85-p.g*.1)next.push({a:p.b,b:nb[Math.floor(Math.random()*nb.length)],t:0,v:p.v,red:p.red,g:p.g+1});}
   });
   _jx.pulses=next;
 }
-// hilos que unen la red de Ultron con los anillos de JARVIS (como cuando se tocan en la película)
+// hilos que unen la masa azul con los filamentos dorados
 function jxStrands(ctx,t){
-  const J=_jx.J,U=_jx.U,C=JX_C,N=_jx.nodes;
+  const J=_jx.J,U=_jx.U,C=JX_C,P=_jx.pts;
   _jx.strands.forEach(function(s,i){
-    const nd=N[s.n%N.length].p,a=s.ang+t*.2,ex=J.x+Math.cos(a)*J.r*1.2,ey=J.y+Math.sin(a)*J.r*1.2;
-    const mx=(nd[0]+ex)/2+Math.sin(t*.6+s.ph)*U.r*.3,my=(nd[1]+ey)/2+Math.cos(t*.5+s.ph)*U.r*.3;
-    const al=.25+.25*Math.sin(t*1.7+s.ph),g=ctx.createLinearGradient(nd[0],nd[1],ex,ey);
+    const nd=P[s.n%P.length].p,a=s.ang+t*.18,ex=J.x+Math.cos(a)*J.r*1.05,ey=J.y+Math.sin(a)*J.r*1.05;
+    const mx=(nd[0]+ex)/2+Math.sin(t*.6+s.ph)*U.r*.25,my=(nd[1]+ey)/2+Math.cos(t*.5+s.ph)*U.r*.25;
+    const al=.18+.2*Math.sin(t*1.7+s.ph),g=ctx.createLinearGradient(nd[0],nd[1],ex,ey);
     g.addColorStop(0,jxRgba(C.b1,al));g.addColorStop(1,jxRgba(C.g1,al));
-    ctx.strokeStyle=g;ctx.lineWidth=.9;ctx.beginPath();ctx.moveTo(nd[0],nd[1]);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke();
-    s.pk=(s.pk+.006+i*.001)%1;const q=s.pk,u=1-q,px=u*u*nd[0]+2*u*q*mx+q*q*ex,py=u*u*nd[1]+2*u*q*my+q*q*ey;
-    ctx.fillStyle=jxRgba(q<.5?C.b0:C.g0,.9);ctx.beginPath();ctx.arc(px,py,1.5,0,Math.PI*2);ctx.fill();
-    if(Math.random()<.002)s.n=Math.floor(Math.random()*N.length);
+    ctx.strokeStyle=g;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(nd[0],nd[1]);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke();
+    s.pk=(s.pk+.005+i*.0012)%1;const q=s.pk,u=1-q,px=u*u*nd[0]+2*u*q*mx+q*q*ex,py=u*u*nd[1]+2*u*q*my+q*q*ey;
+    ctx.fillStyle=jxRgba(q<.5?C.b0:C.g0,.9);ctx.fillRect(px-1,py-1,2,2);
+    if(Math.random()<.003)s.n=Math.floor(Math.random()*560);
   });
 }
+// ── datos: línea de estado arriba, procesos abajo a la izquierda, créditos abajo a la derecha
 function jxHud(ctx,W,H,cpu,ram,gpu,busy){
-  const C=JX_C,J=_jx.J,U=_jx.U,t=_jx.t;
-  ctx.font='9px monospace';ctx.textBaseline='alphabetic';
-  try{ctx.letterSpacing='1.5px';}catch(e){}
-  // rótulos con línea guía, como las llamadas de la película
-  const tag=function(x0,y0,x1,y1,title,sub,col,right){
-    ctx.strokeStyle=jxRgba(col,.6);ctx.lineWidth=.8;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.lineTo(x1+(right?-28:28),y1);ctx.stroke();
-    ctx.fillStyle=jxRgba(col,.95);ctx.textAlign=right?'right':'left';ctx.font='bold 10px monospace';ctx.fillText(title,x1+(right?-32:32),y1+3);
-    ctx.font='9px monospace';ctx.fillStyle=jxRgba(col,.7);String(sub).split('|').forEach(function(l,i){ctx.fillText(l,x1+(right?-32:32),y1+15+i*11);});
-  };
+  const C=JX_C,t=_jx.t,now=Date.now();
+  try{ctx.letterSpacing='1.2px';}catch(e){}
+  ctx.textBaseline='alphabetic';ctx.textAlign='left';ctx.font='9px monospace';
   const ncores=(typeof _ncCores!=='undefined'&&_ncCores.length)||0;
-  const jt=busy?'J.A.R.V.I.S · PROCESANDO':'J.A.R.V.I.S',js='CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s';
-  const ut='ULTRON',us='RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':'');
-  if(_jx.wide){   // lado a lado: JARVIS arriba a la izquierda, ULTRON arriba a la derecha
-    tag(J.x-J.r*.7,J.y-J.r*.7,Math.max(10,J.x-J.r*1.15),Math.max(14,J.y-J.r*1.2),jt,js,C.g1,false);
-    tag(U.x+U.r*.5,U.y-U.r*.55,Math.min(W-10,U.x+U.r*1.1),Math.max(14,U.y-U.r*1.15),ut,us,C.b1,true);
-  }else{          // apilado: JARVIS a la derecha de su esfera, ULTRON abajo a la derecha (libre de la lista)
-    tag(J.x+J.r*.75,J.y-J.r*.55,Math.min(W-150,J.x+J.r*1.45),Math.max(14,J.y-J.r*.95),jt,js.replace(' · RED','|RED'),C.g1,false);
-    tag(U.x+U.r*.6,U.y+U.r*.6,W-10,Math.min(H-34,U.y+U.r*1.2),ut,us.replace(' · GPU','|GPU'),C.b1,true);
-  }
-  // lista de procesos (abajo a la izquierda): los tomados por Ultron en rojo y parpadeando
-  const L=(_jx.plist&&_jx.plist.top)||[],now=Date.now();
-  if(!L.length)return;
-  const rows=Math.max(3,Math.min(8,Math.floor(H*.22/11))),bw=Math.min(W*.42,230),x0=8,y0=H-10-rows*11-14;
-  ctx.fillStyle='rgba(2,5,7,.72)';ctx.fillRect(x0-4,y0-11,bw+8,rows*11+20);
-  ctx.strokeStyle='rgba(255,181,71,.22)';ctx.lineWidth=1;ctx.strokeRect(x0-3.5,y0-10.5,bw+7,rows*11+19);
-  ctx.textAlign='left';ctx.font='bold 9px monospace';ctx.fillStyle=jxRgba(C.g1,.9);
-  const nred=L.filter(function(p){return _jx.red[p.pid]>now;}).length;
-  ctx.fillText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+(nred?'  ·  ':''),x0,y0);
-  if(ctx.measureText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+(nred?'  ·  ⚠ 3 ULTRON':'')).width<bw*.48){ctx.save();ctx.font='8px monospace';ctx.textAlign='right';ctx.fillStyle=jxRgba(C.g1,.55);ctx.fillText('CPU',x0+bw*.86,y0);ctx.fillStyle=jxRgba(C.b1,.55);ctx.fillText('MEM',x0+bw,y0);ctx.restore();}
-  if(nred){ctx.fillStyle=jxRgba(C.r1,.6+.4*Math.abs(Math.sin(t*4)));ctx.fillText('⚠ '+nred+' ULTRON',x0+ctx.measureText('PROCESOS '+(_jx.plist.all||_jx.procs||'')+'  ·  ').width,y0);}
+  ctx.fillStyle=jxRgba(C.g1,.75);ctx.fillText('CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s'+(busy?' · PROCESANDO':''),8,13);
+  ctx.fillStyle=jxRgba(C.b1,.75);ctx.fillText('RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':''),8,25);
+  // créditos
+  ctx.textAlign='right';ctx.font='9px monospace';ctx.fillStyle='rgba(205,215,220,.42)';ctx.fillText('© '+new Date().getFullYear()+' VANT code',W-8,H-7);
+  ctx.textAlign='left';
+  const L=(_jx.plist&&_jx.plist.top)||[];
+  if(!L.length){try{ctx.letterSpacing='0px';}catch(e){}return;}
+  const rows=Math.max(3,Math.min(8,Math.floor((H-(_jx.J.y+_jx.U.r*1.25)-26)/11))),bw=Math.min(W*.5,240),x0=8,y0=H-12-rows*11;
+  ctx.fillStyle='rgba(2,5,7,.6)';ctx.fillRect(x0-4,y0-11,bw+8,rows*11+17);
+  ctx.strokeStyle='rgba(255,181,71,.18)';ctx.lineWidth=1;ctx.strokeRect(x0-3.5,y0-10.5,bw+7,rows*11+16);
+  const nred=L.filter(function(p){return _jx.red[p.pid]>now;}).length,head='PROCESOS '+(_jx.plist.all||_jx.procs||'');
+  ctx.font='bold 9px monospace';ctx.fillStyle=jxRgba(C.g1,.9);ctx.fillText(head,x0,y0);
+  if(nred){ctx.fillStyle=jxRgba(C.r1,.6+.4*Math.abs(Math.sin(t*4)));ctx.fillText('  ⚠ '+nred+' COMPROMETIDO'+(nred>1?'S':''),x0+ctx.measureText(head).width,y0);}
+  else{ctx.save();ctx.font='8px monospace';ctx.textAlign='right';ctx.fillStyle=jxRgba(C.g1,.5);ctx.fillText('CPU',x0+bw*.82,y0);ctx.fillStyle=jxRgba(C.b1,.5);ctx.fillText('MEM',x0+bw,y0);ctx.restore();}
   ctx.font='9px monospace';
   L.slice(0,rows).forEach(function(p,i){
-    const y=y0+13+i*11,red=_jx.red[p.pid]>now,col=red?C.r1:C.g0,bl=red?.55+.45*Math.abs(Math.sin(t*5+i)):1;
-    const name=(red?'⚠ ':'')+p.name;
-    ctx.fillStyle=jxRgba(col,(red?1:.75)*bl);ctx.fillText(name.length>18?name.slice(0,17)+'…':name,x0,y);
-    const bx=x0+bw*.5,bww=bw*.2,v=Math.min(1,p.cpu/25);
-    ctx.fillStyle=jxRgba(red?C.r2:C.g2,.35);ctx.fillRect(bx,y-6,bww,4);
-    ctx.fillStyle=jxRgba(red?C.r1:C.g1,.9);ctx.fillRect(bx,y-6,bww*v,4);
-    ctx.textAlign='right';ctx.fillStyle=jxRgba(col,.85*bl);ctx.fillText(p.cpu.toFixed(1)+'%',x0+bw*.86,y);ctx.fillStyle=jxRgba(red?C.r1:C.b1,.75*bl);ctx.fillText(p.mem.toFixed(1)+'%',x0+bw,y);ctx.textAlign='left';
+    const y=y0+12+i*11,red=_jx.red[p.pid]>now,col=red?C.r1:C.g0,bl=red?.55+.45*Math.abs(Math.sin(t*5+i)):1,name=(red?'⚠ ':'')+p.name;
+    ctx.textAlign='left';ctx.fillStyle=jxRgba(col,(red?1:.72)*bl);ctx.fillText(name.length>18?name.slice(0,17)+'…':name,x0,y);
+    const bx=x0+bw*.48,bww=bw*.2,v=Math.min(1,p.cpu/25);
+    ctx.fillStyle=jxRgba(red?C.r2:C.g2,.3);ctx.fillRect(bx,y-6,bww,3);ctx.fillStyle=jxRgba(red?C.r1:C.g1,.9);ctx.fillRect(bx,y-6,bww*v,3);
+    ctx.textAlign='right';ctx.fillStyle=jxRgba(col,.82*bl);ctx.fillText(p.cpu.toFixed(1)+'%',x0+bw*.82,y);
+    ctx.fillStyle=jxRgba(red?C.r1:C.b1,.72*bl);ctx.fillText(p.mem.toFixed(1)+'%',x0+bw,y);
   });
-  try{ctx.letterSpacing='0px';}catch(e){}
+  ctx.textAlign='left';try{ctx.letterSpacing='0px';}catch(e){}
 }
 // arranque: aplica la pestaña guardada cuando el panel ya existe
 setTimeout(function(){mtxTab(_mtxTab);},400);
