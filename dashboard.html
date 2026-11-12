@@ -3403,7 +3403,7 @@ function initMatrix(){
 var JX_C={g0:'#FFF6D8',g1:'#FFB547',g2:'#E07B1A',b0:'#EAFBFF',b1:'#5FD4FF',b2:'#1A6FD0',r0:'#FFD0C8',r1:'#FF3B2F',r2:'#A3120B'};
 var _jx={cv:null,ctx:null,W:0,H:0,raf:0,last:0,on:false,t:0,arcs:[],tapes:[],glit:[],pts:[],edges:[],adj:[],hot:[],pulses:[],dust:[],strands:[],
   net:0,procs:0,memGB:NaN,memTot:NaN,gpuT:null,plist:null,pTimer:0,red:{},chainT:0,ready:false,
-  s:{cpu:.3,ram:.5,gpu:0,net:0,cores:[]},uph:0,plat:0,tapeOff:0,bg:null,bgKey:''};
+  s:{cpu:.3,ram:.5,gpu:0,net:0,cores:[]},heat:0,rheat:0,hph:0,rph:0,beatPrev:0,waves:[],uph:0,plat:0,tapeOff:0,bg:null,bgKey:''};
 var _mtxTab='matrix';try{if(localStorage.getItem('nexus_mtxtab')==='core')_mtxTab='core';}catch(e){}
 function jxRgba(hex,a){const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16)+','+((n>>8)&255)+','+(n&255)+','+Math.max(0,Math.min(1,a)).toFixed(3)+')';}
 function mtxTab(t){
@@ -3415,6 +3415,9 @@ function mtxTab(t){
   else{jxStop();initMatrix();}
 }
 function jxRand(a,b){return a+Math.random()*(b-a);}
+function jxMix(a,b,k){const A=parseInt(a.slice(1),16),B=parseInt(b.slice(1),16),m=function(sh){return Math.round(((A>>sh)&255)+(((B>>sh)&255)-((A>>sh)&255))*k);};return '#'+((1<<24)|(m(16)<<16)|(m(8)<<8)|m(0)).toString(16).slice(1);}
+function jxSstep(a,b,x){const k=Math.max(0,Math.min(1,(x-a)/(b-a)));return k*k*(3-2*k);}
+const JX_HOT={g0:'#FFE4C8',g1:'#FF7A2E',g2:'#FF3B1F',v:'#B84DFF'};   // tonos de sobrecarga (CPU) y de memoria alta (RAM)
 // destello radial pre-dibujado por color (se escala con drawImage; crear degradados en cada cuadro costaba ~2 ms)
 var _jxSpr={};
 function jxSprite(col){
@@ -3545,10 +3548,13 @@ function jxLoop(ts){
 // lecturas suavizadas (llegan cada 3 s): sin esto el tamaño del núcleo y las cintas saltaban
 function jxSmooth(dt){
   const S=_jx.s,k=1-Math.exp(-dt*1.6);
-  const cpu=typeof _ncCpuLoad==='number'?_ncCpuLoad:.3,ram=typeof _ncRamLoad==='number'?_ncRamLoad:.5;
+  const F=window._jxForce,cpu=F&&F.cpu!=null?F.cpu:typeof _ncCpuLoad==='number'?_ncCpuLoad:.3,ram=F&&F.ram!=null?F.ram:typeof _ncRamLoad==='number'?_ncRamLoad:.5;
   S.cpu+=(cpu-S.cpu)*k;S.ram+=(ram-S.ram)*k;S.gpu+=((_ncGpuLoad||0)-S.gpu)*k;S.net+=((_jx.net||0)-S.net)*k;
   const cores=(typeof _ncCores!=='undefined'&&_ncCores.length)?_ncCores:null;
   if(cores){if(S.cores.length!==cores.length)S.cores=cores.slice();for(let i=0;i<cores.length;i++)S.cores[i]+=(cores[i]-S.cores[i])*k;}
+  // calor: 0 hasta 85 %, 1 a partir de ~97 %; sube rápido y se enfría despacio
+  const hT=jxSstep(.85,.97,S.cpu),rT=jxSstep(.85,.97,S.ram),kh=1-Math.exp(-dt*(hT>_jx.heat?2.2:.7)),kr=1-Math.exp(-dt*(rT>_jx.rheat?2.2:.7));
+  _jx.heat+=(hT-_jx.heat)*kh;_jx.rheat+=(rT-_jx.rheat)*kr;
 }
 function jxFrame(dt){
   const ctx=_jx.ctx,W=_jx.W,H=_jx.H,t=_jx.t,busy=!!_ncAgentBusy;
@@ -3567,11 +3573,17 @@ function jxFrame(dt){
 }
 // ── núcleo dorado
 function jxJarvis(ctx,dt,t,cpu,busy){
-  const J=_jx.J,C=JX_C,sp=(.45+cpu*1.6)*(busy?2:1),gy=t*.16,gx=Math.sin(t*.11)*.35;
+  const J=_jx.J,C0=JX_C,ht=_jx.heat,sp=(.45+cpu*1.6+ht*.9)*(busy?2:1),gy=t*.16,gx=Math.sin(t*.11)*.35;
+  const C={g0:jxMix(C0.g0,JX_HOT.g0,ht*.8),g1:jxMix(C0.g1,JX_HOT.g1,ht*.85),g2:jxMix(C0.g2,JX_HOT.g2,ht*.85)};
+  // latido: de 0.9 Hz a ~3 Hz con la carga; el pico es corto (pow 6) para que se lea como pulso y no como vaivén
+  _jx.hph+=dt*6.2832*(.9+ht*2.2);const sn=Math.sin(_jx.hph),beat=Math.pow(Math.max(0,sn),6);
+  if(ht>.12&&sn>0&&_jx.beatPrev<=0&&_jx.waves.length<6)_jx.waves.push({r:0,a:1});_jx.beatPrev=sn;
   const cgy=Math.cos(gy),sgy=Math.sin(gy),cgx=Math.cos(gx),sgx=Math.sin(gx);
   const pr=function(x,y,z,out){const x1=x*cgy+z*sgy,z1=-x*sgy+z*cgy,y1=y*cgx-z1*sgx,z2=y*sgx+z1*cgx,f=1/(1-z2*.16);out[0]=J.x+x1*J.r*f;out[1]=J.y+y1*J.r*f;out[2]=z2;};
   const q=[0,0,0];
-  ctx.globalAlpha=.55+cpu*.3;ctx.drawImage(jxSprite(C.g2),J.x-J.r*1.4,J.y-J.r*1.4,J.r*2.8,J.r*2.8);ctx.globalAlpha=1;
+  ctx.globalAlpha=.55+cpu*.3;ctx.drawImage(jxSprite(C0.g2),J.x-J.r*1.4,J.y-J.r*1.4,J.r*2.8,J.r*2.8);
+  if(ht>.01){const hs=J.r*(1.4+.25*beat);ctx.globalAlpha=ht*(.35+.45*beat);ctx.drawImage(jxSprite(JX_HOT.g2),J.x-hs,J.y-hs,hs*2,hs*2);}   // halo rojo que late
+  ctx.globalAlpha=1;
   _jx.arcs.forEach(function(A){
     A.rot+=A.sp*sp*dt;
     A.segs.forEach(function(Sg){
@@ -3603,7 +3615,7 @@ function jxJarvis(ctx,dt,t,cpu,busy){
     ctx.globalAlpha=(.35+.65*Math.abs(Math.sin(t*3+G.tw)))*(.4+.6*(q[2]+1)/2);ctx.fillRect(q[0]-.7,q[1]-.7,1.4,1.4);
   });
   ctx.globalAlpha=1;
-  const cr=J.r*(.11+.05*cpu+(busy?.025*Math.sin(t*9):0)),g=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,cr*3.2);
+  const cr=J.r*(.11+.05*cpu+(busy?.025*Math.sin(t*9):0))*(1+ht*.45*beat),g=ctx.createRadialGradient(J.x,J.y,0,J.x,J.y,cr*3.2);
   g.addColorStop(0,jxRgba(C.g0,1));g.addColorStop(.18,jxRgba(C.g0,.85));g.addColorStop(.45,jxRgba(C.g1,.35));g.addColorStop(1,jxRgba(C.g2,0));
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(J.x,J.y,cr*3.2,0,6.2832);ctx.fill();
   ctx.strokeStyle=jxRgba(C.g0,.55);ctx.lineWidth=.8;ctx.beginPath();
@@ -3612,14 +3624,18 @@ function jxJarvis(ctx,dt,t,cpu,busy){
   ctx.lineWidth=.5;
   for(let i=0;i<16;i++){const a=i*.3927+t*.05,f=(Math.sin(t*2.3+i*1.7)+1)/2,l=J.r*(.25+.7*f);
     ctx.strokeStyle=jxRgba(C.g1,.08+.22*f);ctx.beginPath();ctx.moveTo(J.x+Math.cos(a)*cr,J.y+Math.sin(a)*cr);ctx.lineTo(J.x+Math.cos(a)*l,J.y+Math.sin(a)*l);ctx.stroke();}
+  // ondas de choque: una por latido, salen del núcleo hasta el borde del dorado
+  _jx.waves=_jx.waves.filter(function(w){w.r+=dt*J.r*(.7+ht*.6);w.a-=dt*(.9+ht*.4);if(w.a<=0||w.r>J.r*1.15)return false;
+    ctx.strokeStyle=jxRgba(C.g1,w.a*ht*.75);ctx.lineWidth=1.2+2*w.a;ctx.beginPath();ctx.arc(J.x,J.y,cr*1.2+w.r,0,6.2832);ctx.stroke();return true;});
 }
 // ── cáscara azul: posiciones (la fase del ruido se integra: cambiar la velocidad ya no hace saltar la forma)
 function jxUltronPos(dt,t,gpu){
   const U=_jx.U,P=_jx.pts,ry=-t*.08,rx=Math.sin(t*.05)*.45,cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
   _jx.uph+=dt*(.12+gpu*.25);const tt=_jx.uph;
+  _jx.rph+=dt*6.2832*(.35+_jx.rheat*1.1);const br=1+_jx.rheat*.05*Math.sin(_jx.rph);   // respiración con RAM alta
   for(let i=0;i<P.length;i++){
     const p=P[i],d=p.d,n1=jxNoise(d[0]*1.7+tt,d[1]*1.7-tt*.7,d[2]*1.7+tt*.4),n2=jxNoise(d[0]*4.1-tt*1.3,d[1]*4.1,d[2]*4.1+tt),n3=jxNoise(d[0]*8.3+tt*.6,d[1]*8.3-tt,d[2]*8.3);
-    const r=p.k*(1+n1*.2+n2*.1+n3*.045),x=d[0]*r,y=d[1]*r*.94,z=d[2]*r;
+    const r=p.k*(1+n1*.2+n2*.1+n3*.045)*br,x=d[0]*r,y=d[1]*r*.94,z=d[2]*r;
     const x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y*cx-z1*sx,z2=y*sx+z1*cx,f=1/(1-z2*.16);
     p.p[0]=U.x+x1*U.r*f;p.p[1]=U.y+y1*U.r*f;p.p[2]=z2;
     if(p.red>0)p.red=Math.max(0,p.red-dt*.22);
@@ -3629,7 +3645,9 @@ function jxUltronPos(dt,t,gpu){
 function jxUltronDraw(ctx,dt,t,ram,gpu,front){
   const U=_jx.U,C=JX_C,P=_jx.pts,E=_jx.edges;
   if(!front){
-    ctx.globalAlpha=.45+ram*.25;ctx.drawImage(jxSprite(C.b2),U.x-U.r*1.55,U.y-U.r*1.55,U.r*3.1,U.r*3.1);ctx.globalAlpha=1;
+    ctx.globalAlpha=.45+ram*.25;ctx.drawImage(jxSprite(C.b2),U.x-U.r*1.55,U.y-U.r*1.55,U.r*3.1,U.r*3.1);
+    if(_jx.rheat>.01){ctx.globalAlpha=_jx.rheat*(.3+.2*Math.sin(_jx.rph));ctx.drawImage(jxSprite(JX_HOT.v),U.x-U.r*1.5,U.y-U.r*1.5,U.r*3,U.r*3);}
+    ctx.globalAlpha=1;
     _jx.dust.forEach(function(p){
       p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.y<-1.4){p.y=1.3;p.x=jxRand(-1.5,1.5);}
       const X=U.x+p.x*U.r,Y=U.y+p.y*U.r;
@@ -3712,6 +3730,9 @@ function jxHud(ctx,W,H,cpu,ram,gpu,busy){
   const ncores=_jx.s.cores.length;
   ctx.fillStyle=jxRgba(C.g1,.75);ctx.fillText('CPU '+Math.round(cpu*100)+'%'+(ncores?' · '+ncores+' NÚCLEOS':'')+' · RED '+(_jx.net||0).toFixed(2)+' MB/s'+(busy?' · PROCESANDO':''),8,15);
   ctx.fillStyle=jxRgba(C.b1,.75);ctx.fillText('RAM '+Math.round(ram*100)+'%'+(isFinite(_jx.memGB)?' ('+_jx.memGB+'/'+_jx.memTot+' GB)':'')+' · GPU '+Math.round(gpu*100)+'%'+(_jx.gpuT!=null?' '+_jx.gpuT+'°':''),8,30);
+  if(_jx.heat>.35||_jx.rheat>.35){const bl=.55+.45*Math.max(0,Math.sin(_jx.hph));
+    ctx.fillStyle=jxRgba(_jx.heat>=_jx.rheat?JX_HOT.g1:JX_HOT.v,bl);
+    ctx.fillText('▲ '+[_jx.heat>.35?'CPU AL LÍMITE':'',_jx.rheat>.35?'MEMORIA ALTA':''].filter(Boolean).join(' · '),8,45);}
   try{ctx.letterSpacing='0px';}catch(e){}
   jxBrand(ctx,W,H);
   const L=(_jx.plist&&_jx.plist.top)||[];
