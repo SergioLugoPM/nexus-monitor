@@ -9,13 +9,22 @@
 body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0px,rgba(0,0,0,0) 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 3px);pointer-events:none;z-index:9998;}
 body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 40%,rgba(0,0,0,0.72) 100%);border-radius:8px;pointer-events:none;z-index:9999;}
 @keyframes flicker{0%,95%,100%{opacity:1;}96%{opacity:.97;}97%{opacity:.99;}98%{opacity:.96;}}
-#crt-overlay{position:fixed;inset:0;z-index:9997;pointer-events:none;animation:flicker 8s infinite;}
-@keyframes hline{0%{top:-4px;}100%{top:102vh;}}
+#crt-overlay{position:fixed;inset:0;z-index:9997;pointer-events:none;}
+@keyframes hline{0%{transform:translateY(-4px);}100%{transform:translateY(102vh);}}
 @keyframes crit-pulse{0%,100%{box-shadow:0 0 0 0 rgba(226,75,74,0)}50%{box-shadow:0 0 10px 2px rgba(226,75,74,0.45)}}
 @keyframes crit-row-pulse{0%,100%{background:transparent}50%{background:rgba(226,75,74,0.08)}}
 .crit-alert-card{border-radius:3px;padding:7px 9px;position:relative;animation:crit-pulse 2.5s ease-in-out infinite;}
 .crit-ev-row{animation:crit-row-pulse 2.5s ease-in-out infinite;border-left:2px solid;padding-left:4px;border-radius:1px;}
-#crt-line{position:fixed;left:0;right:0;height:2px;z-index:9996;pointer-events:none;background:rgba(255,255,255,0.03);animation:hline 12s linear infinite;}
+#crt-line{position:fixed;left:0;right:0;top:0;height:2px;will-change:transform;z-index:9996;pointer-events:none;background:rgba(255,255,255,0.03);animation:hline 12s linear infinite;}
+/* Animaciones del mapa sin SMIL (rendimiento, 24-nov-2026): CSS de transform/opacity/dashoffset y un bucle JS (nxaLoop) */
+@keyframes nxa-dash{from{stroke-dashoffset:220;}to{stroke-dashoffset:0;}}
+@keyframes nxa-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes nxa-scan{0%,100%{transform:translateY(0);}50%{transform:translateY(1005px);}}
+@keyframes nxa-pulse{0%,100%{transform:scale(1);opacity:.8;}50%{transform:scale(4.667);opacity:0;}}
+.nxa-dash{animation:nxa-dash 4s linear infinite;}
+.nxa-spin{animation:nxa-spin 4s linear infinite;transform-box:view-box;transform-origin:428px 442px;}
+.nxa-scan{animation:nxa-scan 11s linear infinite;}
+.nxa-pulse{animation:nxa-pulse 3s linear infinite;transform-box:fill-box;transform-origin:center;}
 body{font-family:'Courier New',Courier,monospace;font-size:14px;background:#000;overflow:hidden;width:100vw;height:100vh;display:flex;align-items:stretch;padding:10px 10px 54px 10px;box-sizing:border-box;}
 #root{width:100%;border-radius:12px;padding:1px;}
 #inner{width:100%;height:100%;border-radius:11px;padding:14px;overflow:hidden;display:flex;flex-direction:column;}
@@ -197,9 +206,9 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 .thm-btn.active { opacity:1; border-color:rgba(255,255,255,0.4); border-radius:3px; }
 .sub-lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .6; margin-bottom: 2px; }
 @keyframes seismic-pulse {
-  0%   { r: 4; opacity: .9; }
-  60%  { r: 14; opacity: .4; }
-  100% { r: 22; opacity: 0; }
+  0%   { transform: scale(1);   opacity: .9; }
+  60%  { transform: scale(3.5); opacity: .4; }
+  100% { transform: scale(5.5); opacity: 0; }
 }
 .eq-pulse {
   animation: seismic-pulse 2.5s ease-out infinite;
@@ -209,11 +218,11 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 /* Map-pin pulse rings: fixed CSS classes (one per literal radius already in use)
    replace per-pin SMIL <animate> injection so all pulses share a handful of
    GPU-batchable animations instead of ~168 independent SMIL timelines. */
-@keyframes pulse-r4  { 0%,100% { r: 4;  opacity: .28; } 50% { r: 14;   opacity: 0; } }
-@keyframes pulse-r5  { 0%,100% { r: 5;  opacity: .28; } 50% { r: 17.5; opacity: 0; } }
-@keyframes pulse-r7  { 0%,100% { r: 7;  opacity: .28; } 50% { r: 24.5; opacity: 0; } }
-@keyframes pulse-r8  { 0%,100% { r: 8;  opacity: .28; } 50% { r: 28;   opacity: 0; } }
-@keyframes pulse-r9-iss { 0%,100% { r: 9; opacity: .28; } 50% { r: 31.5; opacity: 0; } }
+@keyframes pulse-r4  { 0%,100% { transform: scale(1); opacity: .28; } 50% { transform: scale(3.5); opacity: 0; } }
+@keyframes pulse-r5  { 0%,100% { transform: scale(1); opacity: .28; } 50% { transform: scale(3.5); opacity: 0; } }
+@keyframes pulse-r7  { 0%,100% { transform: scale(1); opacity: .28; } 50% { transform: scale(3.5); opacity: 0; } }
+@keyframes pulse-r8  { 0%,100% { transform: scale(1); opacity: .28; } 50% { transform: scale(3.5); opacity: 0; } }
+@keyframes pulse-r9-iss { 0%,100% { transform: scale(1); opacity: .28; } 50% { transform: scale(3.5); opacity: 0; } }
 .pulse-r4, .pulse-r5, .pulse-r7, .pulse-r8, .pulse-r9-iss {
   transform-origin: center;
   transform-box: fill-box;
@@ -623,21 +632,17 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
 <path id="CW" d="m 595.9,494.9 0,-0.6 -0.9,-0.4 0,0.3 0.1,0.2 0.3,0.1 0.1,0.2 -0.1,0.6 0.2,0.3 0.3,-0.7 z"/>
 <path id="IC" d="m 879.6,395.2 -0.2,-0.2 -0.7,0.5 -0.6,0 0.1,0.2 0.1,0.2 0.7,0.4 0.6,-1.1 z m 13.5,-2.1 0,-0.1 -0.1,0 -0.1,0.1 -1.3,-0.1 -0.2,0.6 -0.5,0.4 0,0.7 0.5,0.7 0.3,0.1 0.5,0.1 0.7,-0.4 0.2,-0.4 0.1,-0.8 -0.1,-0.4 0,-0.5 z m -9.7,0.8 0.5,-0.4 0,-0.2 -0.1,-0.3 -0.5,-0.3 -0.2,0 -0.2,0.2 -0.2,0.4 0.3,0.5 0.2,0.1 0.2,0 z m 4.7,-2.3 1.2,-1 0,-0.3 -1,0.1 -1.1,1 -0.3,0.1 -1,0.1 -0.5,0 -0.4,0.2 0.2,0.3 0.4,1 0.7,0.9 0.6,-0.2 0.3,-0.2 0.4,-0.6 0.5,-1.4 z m 11.6,1.3 1.5,-0.5 0.3,-1 0.3,-1.1 0,-0.7 -0.2,-0.3 -0.1,0 -0.4,0 -0.3,0.2 -0.1,0.6 -0.7,1.3 -0.5,1.2 -0.7,0.6 -0.7,0.2 0.1,0.1 0.7,0.1 0.8,-0.7 z m -19.7,-2 0.5,-0.5 0.1,-0.3 -0.1,-0.5 0.2,-0.2 -0.1,-0.4 -0.3,-0.4 -0.7,0 -0.4,0.6 0.6,1.2 0.1,0.5 0.1,0 z m 22.4,-2.7 0.9,-0.3 0.5,-0.3 0.1,-0.9 0.2,-0.3 -0.2,-0.3 -0.2,0.2 -0.2,0.4 -0.6,0.2 -0.8,0.4 -0.2,0.3 -0.2,0.9 0.4,0.1 0.3,-0.4 z"/></g>
       <g id="hubs"><circle cx="557" cy="308" r="3" class="hub" opacity=".4"/><circle cx="957" cy="223" r="3" class="hub" opacity=".4"/><circle cx="1701" cy="349" r="3" class="hub" opacity=".4"/><circle cx="1020" cy="233" r="3" class="hub" opacity=".4"/><circle cx="1007" cy="210" r="3" class="hub" opacity=".4"/><circle cx="1510" cy="625" r="3" class="hub" opacity=".4"/><circle cx="1565" cy="457" r="3" class="hub" opacity=".4"/><circle cx="1252" cy="433" r="3" class="hub" opacity=".4"/><circle cx="688" cy="722" r="3" class="hub" opacity=".4"/><circle cx="1762" cy="906" r="3" class="hub" opacity=".4"/><circle cx="1153" cy="725" r="3" class="hub" opacity=".4"/><circle cx="344" cy="351" r="3" class="hub" opacity=".4"/><circle cx="530" cy="368" r="3" class="hub" opacity=".4"/></g>
-      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.0s" repeatCount="indefinite"><mpath xlink:href="#rt0"/></animateMotion></circle><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.4s" repeatCount="indefinite"><mpath xlink:href="#rt1"/></animateMotion></circle><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="3.7s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="3.7s" repeatCount="indefinite"><mpath xlink:href="#rt2"/></animateMotion></circle><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.0s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.0s" repeatCount="indefinite"><mpath xlink:href="#rt3"/></animateMotion></circle><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.4s" repeatCount="indefinite"><mpath xlink:href="#rt4"/></animateMotion></circle><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="4.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="4.8s" repeatCount="indefinite"><mpath xlink:href="#rt5"/></animateMotion></circle><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.1s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.1s" repeatCount="indefinite"><mpath xlink:href="#rt6"/></animateMotion></circle><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.4s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.4s" repeatCount="indefinite"><mpath xlink:href="#rt7"/></animateMotion></circle><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="5.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="5.8s" repeatCount="indefinite"><mpath xlink:href="#rt8"/></animateMotion></circle><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.2s" repeatCount="indefinite"><mpath xlink:href="#rt9"/></animateMotion></circle><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.5s" repeatCount="indefinite"><mpath xlink:href="#rt10"/></animateMotion></circle><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="6.8s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="6.8s" repeatCount="indefinite"><mpath xlink:href="#rt11"/></animateMotion></circle><path id="rt12" d="M557,308 Q496.5,292.27 428,442" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.2s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.2s" repeatCount="indefinite"><mpath xlink:href="#rt12"/></animateMotion></circle><path id="rt13" d="M428,442 Q488,380 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.5s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.5s" repeatCount="indefinite"><mpath xlink:href="#rt13"/></animateMotion></circle><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22"><animate attributeName="stroke-dashoffset" values="220;0" dur="7.9s" repeatCount="indefinite"/></path><circle r="2" opacity=".6"><animateMotion dur="7.9s" repeatCount="indefinite"><mpath xlink:href="#rt14"/></animateMotion></circle></g>
+      <g id="arcs" stroke-width="0.7"><path id="rt0" d="M957,223 Q757,171 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:3.0s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt0" data-dur="3.0"/><path id="rt1" d="M557,308 Q747.5,258.47 938,312" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:3.4s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt1" data-dur="3.4"/><path id="rt2" d="M957,223 Q743.5,167.49 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:3.7s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt2" data-dur="3.7"/><path id="rt3" d="M688,722 Q822.5,188.03 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:4.0s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt3" data-dur="4.0"/><path id="rt4" d="M1701,349 Q1022.5,172.59 344,351" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:4.4s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt4" data-dur="4.4"/><path id="rt5" d="M344,351 Q954.5,192.26999999999998 1565,457" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:4.8s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt5" data-dur="4.8"/><path id="rt6" d="M1701,349 Q1129,159.28 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:5.1s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt6" data-dur="5.1"/><path id="rt7" d="M957,223 Q1104.5,184.65 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:5.4s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt7" data-dur="5.4"/><path id="rt8" d="M1510,625 Q1233.5,151.11 957,223" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:5.8s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt8" data-dur="5.8"/><path id="rt9" d="M1020,233 Q1298.5,160.59 1577,316" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:6.2s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt9" data-dur="6.2"/><path id="rt10" d="M1701,349 Q1476.5,290.63 1252,433" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:6.5s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt10" data-dur="6.5"/><path id="rt11" d="M1252,433 Q1274,427.28 1296,502" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:6.8s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt11" data-dur="6.8"/><path id="rt12" d="M557,308 Q496.5,292.27 428,442" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:7.2s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt12" data-dur="7.2"/><path id="rt13" d="M428,442 Q488,380 530,368" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:7.5s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt13" data-dur="7.5"/><path id="rt14" d="M688,722 Q622.5,290.97 557,308" fill="none" stroke-width="0.7" stroke-dasharray="4,14" opacity=".22" class="nxa-dash" style="animation-duration:7.9s"/><circle r="2" opacity=".6" class="nxa-dot" data-path="rt14" data-dur="7.9"/></g>
       <g id="radar-g">
         <circle id="rr1" cx="428" cy="442" r="55"  fill="none" stroke-width="1.2" opacity=".45"/>
         <circle id="rr2" cx="428" cy="442" r="110" fill="none" stroke-width="0.8" opacity=".30"/>
         <circle id="rr3" cx="428" cy="442" r="165" fill="none" stroke-width="0.5" opacity=".20"/>
         <line id="rch1" x1="271" y1="393" x2="621" y2="393" stroke-width="0.4" opacity=".18"/>
         <line id="rch2" x1="428" y1="267" x2="428" y2="617" stroke-width="0.4" opacity=".18"/>
-        <g><line x1="428" y1="442" x2="428" y2="272" id="radar-arm" stroke-width="2" opacity=".7"/>
-        <path d="M428,442 L388,277 A170,170 0 0,1 468,277 Z" id="radar-fade" opacity=".18"/>
-        <animateTransform attributeName="transform" type="rotate" from="0 428 442" to="360 428 442" dur="4s" repeatCount="indefinite"/></g>
+        <g class="nxa-spin"><line x1="428" y1="442" x2="428" y2="272" id="radar-arm" stroke-width="2" opacity=".7"/>
+        <path d="M428,442 L388,277 A170,170 0 0,1 468,277 Z" id="radar-fade" opacity=".18"/></g>
       </g>
-      <line id="scan-line" x1="0" y1="-2" x2="2000" y2="-2" stroke-width="2.5" opacity=".09">
-        <animate attributeName="y1" values="-2;1003;-2" dur="11s" repeatCount="indefinite"/>
-        <animate attributeName="y2" values="-2;1003;-2" dur="11s" repeatCount="indefinite"/>
-      </line>
+      <line id="scan-line" class="nxa-scan" x1="0" y1="-2" x2="2000" y2="-2" stroke-width="2.5" opacity=".09"/>
       <g id="obj-pins"></g>
       <g id="terminator-layer" style="pointer-events:none"></g>
       <g id="event-pins"></g>
@@ -645,10 +650,7 @@ body.theme-macmodern #nx-settings-modal > div { border-radius: 14px !important; 
       <g id="mx-weather-group" style="cursor:pointer;">
         <circle id="pin-ring" cx="428" cy="442" r="18" fill="none" stroke-width="2.5" opacity=".8"/>
         <circle id="pin-dot"  cx="428" cy="442" r="9"/>
-        <circle id="pin-pulse" cx="428" cy="442" r="9" opacity=".8">
-          <animate attributeName="r" values="9;42;9" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values=".8;0;.8" dur="3s" repeatCount="indefinite"/>
-        </circle>
+        <circle id="pin-pulse" class="nxa-pulse" cx="428" cy="442" r="9" opacity=".8"/>
         <g id="wx-pill" opacity="0">
           <rect id="wx-bg" x="454" y="447" width="90" height="36" rx="4" stroke-width=".5" opacity=".92"/>
           <text id="wx-temp" x="460" y="463" font-size="16" font-family="monospace" font-weight="bold"></text>
@@ -2427,7 +2429,7 @@ function clkExtras(now,c){
   const ps=document.getElementById('p-status');
   if(ps&&_clkPalK!==c.hi+c.mid){_clkPalK=c.hi+c.mid;ps.style.setProperty('--clk-trk',c.trk);ps.style.setProperty('--clk-fill',c.mid);ps.style.setProperty('--clk-tick',c.base||'#000');}
   const s=now.getSeconds(),f=document.getElementById('clk-sec-f');
-  if(f){if(s===0){f.style.transition='none';f.style.width='0';void f.offsetWidth;f.style.transition='';}f.style.width=((s+1)/60*100)+'%';}
+  if(f){if(s===0){f.style.transition='none';f.style.transform='scaleX(0)';void f.offsetWidth;f.style.transition='';}f.style.transform='scaleX('+((s+1)/60).toFixed(4)+')';}
   const sb=document.getElementById('clk-sub');
   if(sb)sb.textContent='24H '+_p2(now.getHours())+':'+_p2(now.getMinutes())+':'+_p2(s)+'  ·  UTC '+_p2(now.getUTCHours())+':'+_p2(now.getUTCMinutes())+'  ·  UNIX '+Math.floor(now.getTime()/1000);
   const wk=document.getElementById('clk-wk');
@@ -3048,8 +3050,8 @@ function drawSatOrbit(ns, sat, x, y, orbitGroup){
   dot.setAttribute('r', '1.5');
   dot.setAttribute('fill', '#BAE6FD');
   dot.setAttribute('opacity', '0.45');
-  dot.innerHTML = `<animateMotion dur="${(6 + Math.random()*4).toFixed(1)}s" repeatCount="indefinite" path="${d}"/>`;
   orbitGroup.appendChild(dot);
+  nxaAdd(dot, path, (6 + Math.random()*4) * 1000);
 }
 
 // Ubicación de casa: CP 55883, Geovillas de Terranova, Acolman (Edomex). El fraccionamiento no está como zona en
@@ -4854,7 +4856,7 @@ function mzDecorate(){
     if(el.closest('.mz-m')||el.closest('.mz-fixed')||el.classList.contains('mz-p'))return;
     el.style.strokeWidth=s===1?'':(parseFloat(el.getAttribute('stroke-width'))*s).toFixed(3);
   });
-  g.querySelectorAll('#sat-orbits > circle').forEach(function(el){   // puntos con animateMotion: un transform movería su trayectoria
+  g.querySelectorAll('#sat-orbits > circle').forEach(function(el){   // puntos que mueve nxaLoop con transform: aquí solo el radio
     if(el.__mzr==null)el.__mzr=+el.getAttribute('r')||1.5;
     el.setAttribute('r',(el.__mzr*s).toFixed(3));
   });
@@ -4928,6 +4930,44 @@ function mzClientToVb(cx,cy){
   const svg=document.getElementById('wmap'),ctm=svg.getScreenCTM();if(!ctm)return null;
   const p=svg.createSVGPoint();p.x=cx;p.y=cy;const q=p.matrixTransform(ctm.inverse());
   return[q.x,q.y];
+}
+// ── Animaciones del mapa sin SMIL (rendimiento, 24-nov-2026) ────────────────────────────────────────────────
+// Las <animate>/<animateMotion>/<animateTransform> del SVG obligaban a recalcular estilos de toda la página en
+// cada cuadro (perfil en Edge: ~45 % del CPU por cuadro). Guiones, radar, barrido y pulso del clima son ahora CSS
+// (.nxa-*); los puntos que viajan por arcos y órbitas los mueve este bucle a 15 fps con transform.
+// Cada punto lee la 'd' viva de su trayectoria (mcSwapBase la recorre) y la muestrea solo cuando cambia: leer
+// geometría entre escrituras forzaba un layout del SVG por punto (lo probé: 1.1 s de layout por segundo).
+var NXA_FRAME_MS=1000/15;
+var _nxa={dots:[],raf:0,last:0};
+function nxaAdd(el,path,durMs){
+  if(!el||!path)return;
+  _nxa.dots.push({el:el,path:path,dur:durMs,t0:performance.now()-Math.random()*durMs,d:null,pts:null});
+  if(!_nxa.raf)_nxa.raf=requestAnimationFrame(nxaLoop);
+}
+function nxaInit(){
+  document.querySelectorAll('#arcs > circle.nxa-dot').forEach(function(c){
+    nxaAdd(c,document.getElementById(c.getAttribute('data-path')),(parseFloat(c.getAttribute('data-dur'))||4)*1000);
+  });
+}
+function nxaSample(path){
+  const N=64,len=path.getTotalLength(),a=new Float32Array((N+1)*2);
+  for(let i=0;i<=N;i++){const p=path.getPointAtLength(len*i/N);a[2*i]=p.x;a[2*i+1]=p.y;}
+  return a;
+}
+function nxaLoop(ts){
+  _nxa.raf=requestAnimationFrame(nxaLoop);
+  if(ts-_nxa.last<NXA_FRAME_MS)return;
+  _nxa.last=ts;
+  _nxa.dots=_nxa.dots.filter(function(o){return o.el.isConnected&&o.path.isConnected;});
+  if(!_nxa.dots.length){cancelAnimationFrame(_nxa.raf);_nxa.raf=0;return;}
+  const now=performance.now(),pos=[];
+  for(let i=0;i<_nxa.dots.length;i++){
+    const o=_nxa.dots[i],d=o.path.getAttribute('d');
+    if(o.d!==d){o.d=d;o.pts=nxaSample(o.path);}
+    const n=o.pts.length/2,f=((now-o.t0)%o.dur)/o.dur*(n-1),j=Math.floor(f),t=f-j,k=Math.min(j+1,n-1);
+    pos.push((o.pts[2*j]+(o.pts[2*k]-o.pts[2*j])*t).toFixed(1),(o.pts[2*j+1]+(o.pts[2*k+1]-o.pts[2*j+1])*t).toFixed(1));
+  }
+  for(let i=0;i<_nxa.dots.length;i++)_nxa.dots[i].el.setAttribute('transform','translate('+pos[2*i]+' '+pos[2*i+1]+')');
 }
 function mzInit(){
   const svg=document.getElementById('wmap'),wrap=document.getElementById('wmap-wrap');if(!svg||!wrap||_mz.g)return;
@@ -5418,6 +5458,7 @@ function zfSync(){const b=document.getElementById('lyr-zf'),c=_pal||{},on=zfOn()
   b.textContent='ENFOQUE '+(on?'●':'○');b.style.color=on?(c.hi||''):(c.mut||'');b.style.opacity=on?'1':'.55';
   b.title='Enfoque automático: con un sismo fuerte, tsunami o ciclón nuevo el mapa se acerca solo 25 s · clic: '+(on?'apagar':'encender');}
 mzInit();
+nxaInit();
 windInit();
 
 // ── WATCH: clima espacial, sismos del SSN, estado de la nube, internet y tsunamis ──
@@ -6997,7 +7038,7 @@ function initSnake(canvas){
 /* reloj grande: segundero, sub-línea, semana y franja de luz del día */
 #clk-sec { position:relative; height:3px; margin-top:7px; border-radius:2px; overflow:hidden; background:var(--clk-trk,#04342C); }
 #clk-sec::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12 - 1px),var(--clk-tick,#03280F) calc(100%/12)); }
-#clk-sec-f { height:100%; width:0; background:var(--clk-fill,#1D9E75); box-shadow:0 0 6px var(--clk-fill,#1D9E75); transition:width 1s linear; }
+#clk-sec-f { height:100%; width:100%; transform:scaleX(0); transform-origin:left center; background:var(--clk-fill,#1D9E75); box-shadow:0 0 6px var(--clk-fill,#1D9E75); transition:transform 1s linear; will-change:transform; }
 #clk-sub { font-size:11px; letter-spacing:1.5px; white-space:nowrap; }
 #clk-wk { font-size:11px; letter-spacing:1.5px; white-space:nowrap; margin-top:3px; }
 #clk-sun { margin-top:7px; min-width:0; }
